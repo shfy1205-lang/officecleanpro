@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>오피스클린프로 - 로그인</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <!-- ===== 로딩 스피너 ===== -->
+  <div id="loading">
+    <div class="spinner"></div>
+  </div>
+
+  <!-- ===== 로그인 화면 ===== -->
+  <div class="login-screen" id="loginScreen" style="display:none">
+    <div class="login-box">
+
+      <!-- 로고 -->
+      <h1>오피스클린프로</h1>
+      <p class="subtitle">청소사업 관리 시스템</p>
+
+      <!-- 이메일 -->
+      <div class="field">
+        <label for="loginEmail">이메일</label>
+        <input
+          type="email"
+          id="loginEmail"
+          placeholder="이름@officecleanpro.local"
+          autocomplete="email"
+        >
+      </div>
+
+      <!-- 비밀번호 -->
+      <div class="field">
+        <label for="loginPw">비밀번호</label>
+        <input
+          type="password"
+          id="loginPw"
+          placeholder="비밀번호 입력"
+          autocomplete="current-password"
+          onkeydown="if(event.key==='Enter') doLogin()"
+        >
+      </div>
+
+      <!-- 로그인 버튼 -->
+      <button class="btn" id="loginBtn" onclick="doLogin()">로그인</button>
+
+      <!-- 설정 링크 -->
+      <div style="margin-top:16px; text-align:center">
+        <button
+          style="background:none; border:none; color:var(--text2);
+                 font-size:12px; text-decoration:underline; cursor:pointer"
+          onclick="toggleSettings()"
+        >⚙️ Supabase 설정</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===== Supabase 설정 패널 ===== -->
+  <div id="settingsPanel">
+    <div class="settings-box">
+      <h3>⚙️ Supabase 연결 설정</h3>
+
+      <div class="field">
+        <label for="supaUrl">Supabase URL</label>
+        <input type="text" id="supaUrl" placeholder="https://xxx.supabase.co">
+      </div>
+
+      <div class="field">
+        <label for="supaKey">Anon Key</label>
+        <input type="text" id="supaKey" placeholder="eyJhbGciOi...">
+      </div>
+
+      <button class="btn" onclick="saveSettings()">저장</button>
+      <button
+        class="btn"
+        style="background:var(--bg3); margin-top:8px"
+        onclick="toggleSettings()"
+      >닫기</button>
+
+      <p style="margin-top:16px; font-size:11px; color:var(--text2); line-height:1.5">
+        Supabase Dashboard → Project Settings → API 에서<br>
+        Project URL과 anon public 키를 복사하세요.
+      </p>
+    </div>
+  </div>
+
+  <!-- ===== JS (순서 중요: supabase.js → login.js) ===== -->
+  <script src="js/supabase.js"></script>
+  <script src="js/login.js"></script>
+
+</body>
+</html>
