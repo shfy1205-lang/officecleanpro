@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>오피스클린프로 - 관리자</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+
+  <!-- 로딩 -->
+  <div id="loading"><div class="spinner"></div></div>
+
+  <!-- 앱 -->
+  <div id="app" style="display:none">
+
+    <!-- 상단 네비게이션 -->
+    <nav class="navbar">
+      <h2>오피스클린프로</h2>
+      <div class="navbar-right">
+        <span id="userName"></span>
+        <button class="logout-btn" onclick="logout()">로그아웃</button>
+      </div>
+    </nav>
+
+    <!-- 관리자 탭 -->
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('dashboard', this)">대시보드</button>
+      <button class="tab" onclick="switchTab('allClients', this)">업체관리</button>
+      <button class="tab" onclick="switchTab('requests', this)">요청관리</button>
+      <button class="tab" onclick="switchTab('notices', this)">공지관리</button>
+      <button class="tab" onclick="switchTab('leads', this)">견적관리</button>
+      <button class="tab" onclick="switchTab('billing', this)">정산관리</button>
+      <button class="tab" onclick="switchTab('staffPay', this)">담당자급여</button>
+      <button class="tab" onclick="switchTab('areaSummary', this)">구역별</button>
+      <button class="tab" onclick="switchTab('revenue', this)">수익관리</button>
+      <button class="tab" onclick="switchTab('analysis', this)">AI분석</button>
+    </div>
+
+    <!-- 메인 콘텐츠 -->
+    <div class="content" id="mainContent"></div>
+
+  </div>
+
+  <!-- 상세/편집 모달 -->
+  <div class="modal-overlay" id="detailModal" onclick="if(event.target===this)closeModal()">
+    <div class="modal" id="modalBody"></div>
+  </div>
+
+  <script src="js/supabase.js"></script>
+  <script src="js/export.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>
