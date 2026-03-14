@@ -107,6 +107,77 @@ async function loadAdminData() {
   adminData.billings    = billings.data || [];
 }
 
+
+// ─── 월별 데이터 자동 생성 ───
+
+/**
+ * 특정 월에 financials/assignments 데이터가 없으면
+ * 가장 최근 이전 달 데이터를 복사하여 자동 생성
+ */
+async function ensureMonthData(month) {
+  const hasFinancials = adminData.financials.some(f => f.month === month);
+  const hasAssignments = adminData.assignments.some(a => a.month === month);
+
+  if (hasFinancials && hasAssignments) return; // 이미 데이터 있음
+
+  // 이전 달 중 데이터가 있는 가장 최근 달 찾기
+  const allMonths = [...new Set(adminData.financials.map(f => f.month))].sort().reverse();
+  const prevMonth = allMonths.find(m => m < month);
+
+  if (!prevMonth) return; // 이전 데이터 자체가 없으면 스킵
+
+  let inserted = false;
+
+  // 1) company_financials 복사
+  if (!hasFinancials) {
+    const prevFins = adminData.financials.filter(f => f.month === prevMonth);
+    if (prevFins.length > 0) {
+      const newFins = prevFins.map(f => ({
+        company_id:      f.company_id,
+        month:           month,
+        contract_amount: f.contract_amount,
+        ocp_amount:      f.ocp_amount,
+        eco_amount:      f.eco_amount,
+        worker_pay_total: f.worker_pay_total,
+        memo:            f.memo,
+      }));
+
+      const { error } = await sb.from('company_financials').insert(newFins);
+      if (error && error.code !== '23505') {
+        console.error('ensureMonthData financials error:', error);
+      } else {
+        inserted = true;
+      }
+    }
+  }
+
+  // 2) company_workers 복사
+  if (!hasAssignments) {
+    const prevAssigns = adminData.assignments.filter(a => a.month === prevMonth);
+    if (prevAssigns.length > 0) {
+      const newAssigns = prevAssigns.map(a => ({
+        company_id: a.company_id,
+        worker_id:  a.worker_id,
+        month:      month,
+        pay_amount: a.pay_amount,
+        share:      a.share,
+      }));
+
+      const { error } = await sb.from('company_workers').insert(newAssigns);
+      if (error && error.code !== '23505') {
+        console.error('ensureMonthData assignments error:', error);
+      } else {
+        inserted = true;
+      }
+    }
+  }
+
+  // 데이터 새로고침
+  if (inserted) {
+    await loadAdminData();
+  }
+}
+
 // ─── 탭 전환 ───
 
 function switchTab(tabName, el) {
@@ -317,8 +388,9 @@ function renderDashboard() {
   `;
 }
 
-function changeDashMonth(month) {
+async function changeDashMonth(month) {
   selectedMonth = month;
+  await ensureMonthData(month);
   renderDashboard();
 }
 
@@ -478,7 +550,20 @@ async function saveCompany(companyId) {
   if (companyId) {
     ({ error } = await sb.from('companies').update(payload).eq('id', companyId));
   } else {
-    ({ error } = await sb.from('companies').insert(payload));
+    const { data: newCompany, error: insertErr } = await sb.from('companies').insert(payload).select().single();
+    error = insertErr;
+
+    // 신규 업체: 현재 선택된 월에 빈 financials 레코드 자동 생성
+    if (!error && newCompany) {
+      await sb.from('company_financials').insert({
+        company_id:      newCompany.id,
+        month:           selectedMonth || currentMonth(),
+        contract_amount: 0,
+        ocp_amount:      0,
+        eco_amount:      0,
+        worker_pay_total: 0,
+      });
+    }
   }
 
   if (error) return toast(error.message, 'error');
@@ -491,6 +576,13 @@ async function saveCompany(companyId) {
 
 async function deleteCompany(companyId) {
   if (!confirm('이 업체를 삭제하시겠습니까? 관련 데이터가 모두 삭제됩니다.')) return;
+
+  // 관련 데이터 먼저 삭제 (FK cascade가 없을 수 있으므로)
+  await sb.from('company_financials').delete().eq('company_id', companyId);
+  await sb.from('company_workers').delete().eq('company_id', companyId);
+  await sb.from('company_schedule').delete().eq('company_id', companyId);
+  await sb.from('company_notes').delete().eq('company_id', companyId);
+  await sb.from('billing_records').delete().eq('company_id', companyId);
 
   const { error } = await sb.from('companies').delete().eq('id', companyId);
   if (error) return toast(error.message, 'error');
@@ -1542,7 +1634,7 @@ function renderBilling() {
   `;
 }
 
-function changeBillingMonth(month) {
+async function changeBillingMonth(month) {
   billingMonth = month;
   renderBilling();
 }
@@ -1833,8 +1925,9 @@ function renderStaffPay() {
   `;
 }
 
-function changePayMonth(month) {
+async function changePayMonth(month) {
   selectedMonth = month;
+  await ensureMonthData(month);
   renderStaffPay();
 }
 
@@ -2144,8 +2237,9 @@ function renderRevenue() {
   `;
 }
 
-function changeRevenueMonth(month) {
+async function changeRevenueMonth(month) {
   revenueMonth = month;
+  await ensureMonthData(month);
   renderRevenue();
 }
 
