@@ -84,7 +84,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ─── 데이터 로드 ───
 
 async function loadAdminData() {
-  const [companies, financials, assignments, workers, schedules, requests, notices, leads, billings] = await Promise.all([
+  const [companies, financials, assignments, workers, schedules, requests, notices, leads, billings, notes] = await Promise.all([
     sb.from('companies').select('*').order('name'),
     sb.from('company_financials').select('*'),
     sb.from('company_workers').select('*'),
@@ -94,6 +94,7 @@ async function loadAdminData() {
     sb.from('notices').select('*').order('created_at', { ascending: false }),
     sb.from('leads').select('*').order('created_at', { ascending: false }),
     sb.from('billing_records').select('*').order('month', { ascending: false }),
+    sb.from('company_notes').select('*'),
   ]);
 
   adminData.companies   = companies.data || [];
@@ -105,8 +106,8 @@ async function loadAdminData() {
   adminData.notices     = notices.data || [];
   adminData.leads       = leads.data || [];
   adminData.billings    = billings.data || [];
+  adminData.notes       = notes?.data || [];
 }
-
 
 // ─── 월별 데이터 자동 생성 ───
 
@@ -598,6 +599,27 @@ async function deleteCompany(companyId) {
 // 업체 상세 (수정 + 스케줄 + 배정 + 급여)
 // ════════════════════════════════════════════════════
 
+function getCompanyNote(companyId) {
+  return (adminData.notes || []).find(n => n.company_id === companyId);
+}
+
+async function saveAdminNoteInfo(companyId, noteId) {
+  const parking = document.getElementById('admin_parking_' + companyId)?.value?.trim() || '';
+  const recycling = document.getElementById('admin_recycling_' + companyId)?.value?.trim() || '';
+  const payload = { parking_info: parking, recycling_location: recycling };
+
+  if (noteId) {
+    const { error } = await sb.from('company_notes').update(payload).eq('id', noteId);
+    if (error) return toast(error.message, 'error');
+  } else {
+    payload.company_id = companyId;
+    const { error } = await sb.from('company_notes').insert(payload);
+    if (error) return toast(error.message, 'error');
+  }
+  toast('저장 완료');
+  await loadAdminData();
+}
+
 async function openCompanyDetail(companyId) {
   const c = adminData.companies.find(x => x.id === companyId);
   if (!c) return;
@@ -605,6 +627,7 @@ async function openCompanyDetail(companyId) {
   const scheds = getCompanySchedules(companyId);
   const assigns = getCompanyAssignments(companyId, selectedMonth);
   const allWorkers = getActiveWorkers();
+  const note = getCompanyNote(companyId);
 
   const html = `
     <button class="modal-close" onclick="closeModal()">&times;</button>
@@ -613,6 +636,23 @@ async function openCompanyDetail(companyId) {
 
     <div class="detail-section">
       <button class="btn-sm btn-blue" onclick="openCompanyForm('${companyId}')">기본정보 수정</button>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">🅿️ 주차 / ♻️ 분리수거 정보</div>
+      <div class="info-cards-grid">
+        <div class="info-mini-card">
+          <div class="info-mini-icon">🅿️</div>
+          <div class="info-mini-title">주차 정보</div>
+          <textarea id="admin_parking_${companyId}" class="info-edit-textarea" placeholder="주차 정보 입력">${note?.parking_info || ''}</textarea>
+        </div>
+        <div class="info-mini-card">
+          <div class="info-mini-icon">♻️</div>
+          <div class="info-mini-title">분리수거장</div>
+          <textarea id="admin_recycling_${companyId}" class="info-edit-textarea" placeholder="분리수거장 위치 입력">${note?.recycling_location || ''}</textarea>
+        </div>
+      </div>
+      <button class="btn-sm btn-blue" style="width:100%;margin-top:8px" onclick="saveAdminNoteInfo('${companyId}', '${note?.id || ''}')">주차/분리수거 정보 저장</button>
     </div>
 
     <div class="detail-section">

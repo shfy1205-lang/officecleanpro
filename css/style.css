@@ -1,9 +1,9 @@
 /* ============================================================
-   style.css - Office Clean Pro ì ì­ ì¤íì¼
-   ì­í : ë¤í¬ íë§, ëª¨ë°ì¼ ì°ì , ê³µíµ ì»´í¬ëí¸
+   style.css - Office Clean Pro 전역 스타일
+   역할: 다크 테마, 모바일 우선, 공통 컴포넌트
    ============================================================ */
 
-/* âââ ë³ì âââ */
+/* ─── 변수 ─── */
 :root {
   --bg:      #0c0f14;
   --bg2:     #141821;
@@ -21,7 +21,7 @@
   --radius:  12px;
 }
 
-/* âââ ë¦¬ì âââ */
+/* ─── 리셋 ─── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 body {
   font-family: 'Noto Sans KR', sans-serif;
@@ -34,7 +34,7 @@ button { cursor: pointer; font-family: inherit; }
 input, textarea, select { font-family: inherit; }
 a { color: var(--accent2); text-decoration: none; }
 
-/* âââ ë¡ë© âââ */
+/* ─── 로딩 ─── */
 #loading {
   position: fixed; inset: 0;
   background: var(--bg);
@@ -51,7 +51,7 @@ a { color: var(--accent2); text-decoration: none; }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* âââ í ì¤í¸ âââ */
+/* ─── 토스트 ─── */
 .toast {
   position: fixed; top: 20px; right: 20px;
   padding: 12px 20px; border-radius: 8px;
@@ -62,7 +62,7 @@ a { color: var(--accent2); text-decoration: none; }
 .toast-error   { background: var(--red); }
 @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } }
 
-/* âââ ë¡ê·¸ì¸ âââ */
+/* ─── 로그인 ─── */
 .login-screen {
   display: flex; align-items: center; justify-content: center;
   min-height: 100vh; padding: 20px;
@@ -81,7 +81,7 @@ a { color: var(--accent2); text-decoration: none; }
   text-align: center; margin-bottom: 28px;
 }
 
-/* âââ í¼ âââ */
+/* ─── 폼 ─── */
 .field { margin-bottom: 16px; }
 .field label {
   display: block; font-size: 12px;
@@ -98,7 +98,7 @@ a { color: var(--accent2); text-decoration: none; }
 }
 .field textarea { resize: vertical; min-height: 60px; }
 
-/* âââ ë²í¼ âââ */
+/* ─── 버튼 ─── */
 .btn {
   width: 100%; padding: 12px;
   background: var(--accent); color: #fff; border: none;
@@ -119,7 +119,7 @@ a { color: var(--accent2); text-decoration: none; }
 .btn-red    { background: var(--red); }
 .btn-gray   { background: var(--bg3); color: var(--text2); }
 
-/* âââ ì¤ì  í¨ë âââ */
+/* ─── 설정 패널 ─── */
 #settingsPanel {
   display: none; position: fixed; inset: 0;
   background: rgba(0,0,0,0.7); z-index: 200;
@@ -133,7 +133,7 @@ a { color: var(--accent2); text-decoration: none; }
 }
 .settings-box h3 { margin-bottom: 16px; font-size: 16px; }
 
-/* âââ ë¤ë¹ê²ì´ì âââ */
+/* ─── 네비게이션 ─── */
 .navbar {
   background: var(--bg2); border-bottom: 1px solid var(--border);
   padding: 12px 16px;
@@ -149,7 +149,7 @@ a { color: var(--accent2); text-decoration: none; }
   border-radius: 6px; font-size: 12px;
 }
 
-/* âââ í­ âââ */
+/* ─── 탭 ─── */
 .tabs {
   display: flex; background: var(--bg2);
   border-bottom: 1px solid var(--border); overflow-x: auto;
@@ -163,12 +163,12 @@ a { color: var(--accent2); text-decoration: none; }
   color: var(--accent2); border-bottom-color: var(--accent); font-weight: 600;
 }
 
-/* âââ ì½íì¸  âââ */
+/* ─── 콘텐츠 ─── */
 .content { padding: 16px; max-width: 960px; margin: 0 auto; }
 .section-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
 .text-muted { color: var(--text2); font-size: 13px; }
 
-/* âââ ì ì í âââ */
+/* ─── 월 선택 ─── */
 .month-selector { display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; }
 .month-btn {
   padding: 6px 14px; border-radius: 20px;
@@ -179,7 +179,7 @@ a { color: var(--accent2); text-decoration: none; }
   background: var(--accent); color: #fff; border-color: var(--accent);
 }
 
-/* âââ ì¹´ë âââ */
+/* ─── 카드 ─── */
 .card {
   background: var(--card); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 16px; margin-bottom: 12px;
@@ -193,7 +193,7 @@ a { color: var(--accent2); text-decoration: none; }
 .card-amount { font-size: 18px; font-weight: 700; color: var(--green); }
 .card-amount.small { font-size: 14px; }
 
-/* âââ ë±ì§ âââ */
+/* ─── 뱃지 ─── */
 .badge {
   display: inline-block; padding: 2px 8px;
   border-radius: 10px; font-size: 11px; font-weight: 500;
@@ -204,7 +204,7 @@ a { color: var(--accent2); text-decoration: none; }
 .badge-today { background: rgba(245,158,11,0.2); color: var(--yellow); }
 .badge-done  { background: rgba(34,197,94,0.2); color: var(--green); }
 
-/* âââ íµê³ ê·¸ë¦¬ë âââ */
+/* ─── 통계 그리드 ─── */
 .stats-grid {
   display: grid; grid-template-columns: repeat(2,1fr);
   gap: 12px; margin-bottom: 20px;
@@ -220,7 +220,7 @@ a { color: var(--accent2); text-decoration: none; }
 .stat-value.yellow { color: var(--yellow); }
 .stat-value.red    { color: var(--red); }
 
-/* âââ íì´ë¸ âââ */
+/* ─── 테이블 ─── */
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th {
@@ -230,7 +230,7 @@ th {
 }
 td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
 
-/* âââ ê²ì âââ */
+/* ─── 검색 ─── */
 .search-box { margin-bottom: 16px; }
 .search-box input {
   width: 100%; padding: 10px 14px;
@@ -238,7 +238,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   border-radius: 8px; color: var(--text); font-size: 14px;
 }
 
-/* âââ ëª¨ë¬ âââ */
+/* ─── 모달 ─── */
 .modal-overlay {
   display: none; position: fixed; inset: 0;
   background: rgba(0,0,0,0.7); z-index: 300;
@@ -259,7 +259,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   margin-bottom: 16px; clear: both;
 }
 
-/* âââ ë¬ë ¥ âââ */
+/* ─── 달력 ─── */
 .cal-grid {
   display: grid; grid-template-columns: repeat(7,1fr);
   gap: 2px; text-align: center; font-size: 12px;
@@ -275,7 +275,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
 .cal-day.today     { border: 1px solid var(--yellow); }
 .cal-day.empty     { opacity: 0.3; }
 
-/* ë¬ë ¥ ê±´ì íì */
+/* 달력 건수 표시 */
 .cal-count {
   font-size: 9px;
   background: var(--green);
@@ -286,7 +286,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   font-weight: 700;
 }
 
-/* âââ ë¬ë ¥ ë²ë  âââ */
+/* ─── 달력 범례 ─── */
 .cal-legend {
   display: flex; gap: 16px; justify-content: center;
   margin-top: 10px; font-size: 11px; color: var(--text2);
@@ -301,7 +301,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   background: transparent; border: 1px solid var(--yellow);
 }
 
-/* âââ ë¶ì âââ */
+/* ─── 분석 ─── */
 .analysis-card {
   background: linear-gradient(135deg, var(--bg3), var(--card));
   border: 1px solid var(--border);
@@ -310,11 +310,11 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
 .analysis-card h4 { font-size: 14px; color: var(--yellow); margin-bottom: 8px; }
 .analysis-card p  { font-size: 13px; color: var(--text2); line-height: 1.6; }
 
-/* ââââââââââââââââââââââââââââââââââââââââââââââââââââ
-   ì§ì íì´ì§ ì ì© ì¤íì¼
-   ââââââââââââââââââââââââââââââââââââââââââââââââââââ */
+/* ════════════════════════════════════════════════════
+   직원 페이지 전용 스타일
+   ════════════════════════════════════════════════════ */
 
-/* âââ ë¹ ìí âââ */
+/* ─── 빈 상태 ─── */
 .empty-state {
   text-align: center; padding: 48px 20px;
   color: var(--text2);
@@ -325,7 +325,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
 }
 .empty-state p { font-size: 14px; }
 
-/* âââ êµ¬ì­ ê·¸ë£¹ ë¼ë²¨ âââ */
+/* ─── 구역 그룹 라벨 ─── */
 .area-group-label {
   font-size: 12px; font-weight: 600;
   color: var(--accent2); margin: 20px 0 8px;
@@ -335,7 +335,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
 }
 .area-group-label:first-of-type { margin-top: 0; }
 
-/* âââ ìì²´ ì¹´ë (ë´ ìì²´ ëª©ë¡) âââ */
+/* ─── 업체 카드 (내 업체 목록) ─── */
 .company-card {
   cursor: pointer;
   transition: border-color 0.2s, transform 0.15s;
@@ -356,7 +356,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   border-radius: 6px;
 }
 
-/* âââ ê¸ì¬ ìì½ ì¹´ë âââ */
+/* ─── 급여 요약 카드 ─── */
 .pay-summary-card {
   background: linear-gradient(135deg, #1a2744, #1a1f2e);
   border: 1px solid var(--border);
@@ -375,7 +375,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   font-size: 12px; color: var(--text2); margin-top: 4px;
 }
 
-/* âââ ê¸ì¬ ì¹´ë âââ */
+/* ─── 급여 카드 ─── */
 .pay-card .card-header { margin-bottom: 6px; }
 .pay-bar-wrap {
   height: 4px; background: var(--bg3);
@@ -387,7 +387,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   transition: width 0.4s ease;
 }
 
-/* âââ ê³µì§ì¬í­ ì¹´ë âââ */
+/* ─── 공지사항 카드 ─── */
 .notice-card.pinned {
   border-color: rgba(245,158,11,0.3);
   background: linear-gradient(135deg, rgba(245,158,11,0.05), var(--card));
@@ -398,7 +398,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   line-height: 1.7; margin-top: 4px;
 }
 
-/* âââ ìì²´ ìì¸ ëª¨ë¬ âââ */
+/* ─── 업체 상세 모달 ─── */
 .detail-location {
   font-size: 13px; color: var(--text2); margin-bottom: 16px;
 }
@@ -411,7 +411,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   display: flex; align-items: center; justify-content: space-between;
 }
 
-/* âââ ì²­ì ìë£ ë²í¼ âââ */
+/* ─── 청소 완료 버튼 ─── */
 .task-check-section {
   margin-bottom: 20px;
 }
@@ -440,7 +440,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   vertical-align: middle;
 }
 
-/* âââ ì¤ì¼ì¤ ì¹© âââ */
+/* ─── 스케줄 칩 ─── */
 .schedule-chips {
   display: flex; flex-wrap: wrap; gap: 6px;
 }
@@ -454,7 +454,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   color: var(--accent2); margin-right: 4px;
 }
 
-/* âââ ì ë³´ ë¯¼ëì¹´ë (ì£¼ì°¨, ë¶ë¦¬ìê±°) âââ */
+/* ─── 정보 미니카드 (주차, 분리수거) ─── */
 .info-cards-grid {
   display: grid; grid-template-columns: 1fr 1fr;
   gap: 10px; margin-bottom: 20px;
@@ -474,8 +474,18 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   font-weight: 500; line-height: 1.4;
   word-break: keep-all;
 }
+.info-edit-textarea {
+  width: 100%; min-height: 48px; max-height: 120px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 6px; padding: 8px; margin-top: 4px;
+  font-size: 13px; color: var(--text); resize: vertical;
+  font-family: inherit; line-height: 1.5;
+}
+.info-edit-textarea:focus {
+  border-color: var(--blue); outline: none;
+}
 
-/* âââ í¹ì´ì¬í­ ë°ì¤ âââ */
+/* ─── 특이사항 박스 ─── */
 .special-notes-box {
   background: var(--bg); border: 1px solid var(--border);
   border-radius: 8px; padding: 14px;
@@ -483,7 +493,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   color: var(--text);
 }
 
-/* âââ ë¹ë°ë²í¸ ë°ì¤ (í­íì¬ ê³µê°) âââ */
+/* ─── 비밀번호 박스 (탭하여 공개) ─── */
 .password-box {
   background: var(--bg); border: 1px solid var(--border);
   border-radius: 8px; padding: 12px 14px;
@@ -497,7 +507,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
 .password-box.revealed .pw-hidden { display: none; }
 .password-box.revealed { background: rgba(59,130,246,0.1); border-color: var(--accent); }
 
-/* âââ ìì²­ì¬í­ ìì´í âââ */
+/* ─── 요청사항 아이템 ─── */
 .request-item {
   background: var(--bg); border: 1px solid var(--border);
   border-radius: 8px; padding: 12px 14px;
@@ -511,11 +521,11 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   font-size: 11px; color: var(--text2);
 }
 
-/* ââââââââââââââââââââââââââââââââââââââââââââââââââââ
-   ì¬ì§ ê°¤ë¬ë¦¬
-   ââââââââââââââââââââââââââââââââââââââââââââââââââââ */
+/* ════════════════════════════════════════════════════
+   사진 갤러리
+   ════════════════════════════════════════════════════ */
 
-/* âââ ì¬ì§ ê·¸ë¦¬ë âââ */
+/* ─── 사진 그리드 ─── */
 .photo-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -550,7 +560,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   text-overflow: ellipsis;
 }
 
-/* âââ ë¼ì´í¸ë°ì¤ (ì¬ì§ ì ì²´íë©´ ë·°ì´) âââ */
+/* ─── 라이트박스 (사진 전체화면 뷰어) ─── */
 .lightbox-overlay {
   display: none; position: fixed; inset: 0;
   background: rgba(0,0,0,0.92);
@@ -579,11 +589,11 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   max-width: 80%;
 }
 
-/* ââââââââââââââââââââââââââââââââââââââââââââââââââââ
-   ìë£ ê¸°ë¡ (ë¦¬ì¤í¸í + ë¬ë ¥í)
-   ââââââââââââââââââââââââââââââââââââââââââââââââââââ */
+/* ════════════════════════════════════════════════════
+   완료 기록 (리스트형 + 달력형)
+   ════════════════════════════════════════════════════ */
 
-/* âââ ë³´ê¸° ì í í ê¸ âââ */
+/* ─── 보기 전환 토글 ─── */
 .view-toggle {
   display: flex; gap: 0;
   margin-bottom: 16px;
@@ -604,7 +614,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   color: #fff;
 }
 
-/* âââ ë¦¬ì¤í¸í ìë£ ê¸°ë¡ âââ */
+/* ─── 리스트형 완료 기록 ─── */
 .task-list {
   margin-top: 4px;
 }
@@ -652,11 +662,11 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   text-overflow: ellipsis;
 }
 
-/* ââââââââââââââââââââââââââââââââââââââââââââââââââââ
-   ê´ë¦¬ì íì´ì§ ì ì© ì¤íì¼
-   ââââââââââââââââââââââââââââââââââââââââââââââââââââ */
+/* ════════════════════════════════════════════════════
+   관리자 페이지 전용 스타일
+   ════════════════════════════════════════════════════ */
 
-/* âââ íí° ë° (ê²ì + êµ¬ì­ ì í) âââ */
+/* ─── 필터 바 (검색 + 구역 선택) ─── */
 .admin-filter-bar {
   display: flex; gap: 10px;
   margin-bottom: 12px; align-items: center;
@@ -671,13 +681,13 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   border-color: var(--accent);
 }
 
-/* âââ 2ì´ í¼ ë ì´ìì âââ */
+/* ─── 2열 폼 레이아웃 ─── */
 .admin-row-2 {
   display: grid; grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
 
-/* âââ ìê° ì¤ì  í âââ */
+/* ─── 시간 설정 행 ─── */
 .admin-time-row {
   display: flex; gap: 10px; align-items: flex-end;
 }
@@ -685,7 +695,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   flex: 1;
 }
 
-/* âââ ìì¼ ì í ê·¸ë¦¬ë âââ */
+/* ─── 요일 선택 그리드 ─── */
 .weekday-grid {
   display: flex; gap: 6px; flex-wrap: wrap;
 }
@@ -705,7 +715,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   border-color: var(--accent2);
 }
 
-/* âââ ì§ì ë°°ì  í âââ */
+/* ─── 직원 배정 행 ─── */
 .assign-row {
   display: flex; align-items: center; justify-content: space-between;
   gap: 10px; padding: 10px 12px;
@@ -739,7 +749,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   font-size: 12px; color: var(--text2);
 }
 
-/* âââ ì ì§ì ë°°ì  í âââ */
+/* ─── 새 직원 배정 행 ─── */
 .admin-add-assign {
   display: flex; gap: 8px; align-items: center;
   flex-wrap: wrap;
@@ -754,13 +764,13 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   border-color: var(--accent);
 }
 
-/* âââ ê¸ì¬ íì´ë¸ ì âââ */
+/* ─── 급여 테이블 셀 ─── */
 .admin-pay-cell {
   font-weight: 600; color: var(--green);
   white-space: nowrap;
 }
 
-/* âââ ëìë³´ë ìë¦¼ ë°°ë âââ */
+/* ─── 대시보드 알림 배너 ─── */
 .admin-alert {
   display: flex; align-items: center; gap: 10px;
   padding: 12px 16px;
@@ -781,7 +791,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   font-size: 13px; font-weight: 700;
 }
 
-/* âââ ìì²­ ì¹´ë âââ */
+/* ─── 요청 카드 ─── */
 .request-card {
   cursor: pointer;
   transition: border-color 0.2s;
@@ -802,7 +812,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   border-top: 1px solid var(--border);
 }
 
-/* âââ ê²¬ì  ì¹´ë âââ */
+/* ─── 견적 카드 ─── */
 .lead-card {
   cursor: pointer;
   transition: border-color 0.2s;
@@ -812,12 +822,12 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px;
 }
 
-/* âââ ê²¬ì  ìí ê·¸ë¦¬ë âââ */
+/* ─── 견적 상태 그리드 ─── */
 .lead-status-grid {
   display: flex; flex-wrap: wrap; gap: 6px;
 }
 
-/* âââ ì ì° ì ë³´ ê·¸ë¦¬ë âââ */
+/* ─── 정산 정보 그리드 ─── */
 .billing-info-grid {
   display: flex; flex-direction: column; gap: 8px;
 }
@@ -835,12 +845,12 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   font-weight: 600;
 }
 
-/* âââ ì ì° íì´ë¸ í í¸ë² âââ */
+/* ─── 정산 테이블 행 호버 ─── */
 .billing-row:hover td {
   background: rgba(59,130,246,0.05);
 }
 
-/* âââ ììµê´ë¦¬ âââ */
+/* ─── 수익관리 ─── */
 .revenue-summary-bar {
   display: flex; height: 12px;
   border-radius: 6px; overflow: hidden;
@@ -900,9 +910,9 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
 }
 
 
-/* ââââââââââââââââââââââââââââââââââââââââââââââââââââ
-   ë°ìí
-   ââââââââââââââââââââââââââââââââââââââââââââââââââââ */
+/* ════════════════════════════════════════════════════
+   반응형
+   ════════════════════════════════════════════════════ */
 @media (max-width: 480px) {
   .stats-grid { grid-template-columns: 1fr 1fr; }
   .content { padding: 12px; }
