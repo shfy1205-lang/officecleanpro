@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>오피스클린프로 - 직원</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <!-- 로딩 -->
+  <div id="loading"><div class="spinner"></div></div>
+
+  <!-- 앱 -->
+  <div id="app" style="display:none">
+
+    <!-- 상단 네비게이션 -->
+    <nav class="navbar">
+      <h2>오피스클린프로</h2>
+      <div class="navbar-right">
+        <span id="userName"></span>
+        <button class="logout-btn" onclick="logout()">로그아웃</button>
+      </div>
+    </nav>
+
+    <!-- 직원 탭 -->
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('myCompanies', this)">내 업체</button>
+      <button class="tab" onclick="switchTab('myPay', this)">내 급여</button>
+      <button class="tab" onclick="switchTab('taskHistory', this)">완료기록</button>
+      <button class="tab" onclick="switchTab('notices', this)">공지사항</button>
+    </div>
+
+    <!-- 메인 콘텐츠 -->
+    <div class="content" id="mainContent"></div>
+
+  </div>
+
+  <!-- 업체 상세 모달 -->
+  <div class="modal-overlay" id="detailModal" onclick="if(event.target===this)closeModal()">
+    <div class="modal" id="modalBody"></div>
+  </div>
+
+  <!-- 요청 작성 모달 -->
+  <div class="modal-overlay" id="requestModal" onclick="if(event.target===this)closeRequestModal()">
+    <div class="modal" id="requestModalBody"></div>
+  </div>
+
+  <!-- 사진 뷰어 (라이트박스) -->
+  <div class="lightbox-overlay" id="lightbox" onclick="closeLightbox()">
+    <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+    <img id="lightboxImg" src="" alt="사진">
+    <div class="lightbox-caption" id="lightboxCaption"></div>
+  </div>
+
+  <!-- 숨겨진 파일 입력 -->
+  <input type="file" id="photoFileInput" accept="image/*" style="display:none" onchange="handlePhotoSelected(event)">
+
+  <script src="js/supabase.js"></script>
+  <script src="js/staff.js"></script>
+</body>
+</html>
