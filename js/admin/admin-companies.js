@@ -404,6 +404,8 @@ function onFreqChange(companyId, freq) {
 
 async function toggleWeekday(companyId, weekday, btn) {
   const isActive = btn.classList.contains('active');
+  const companyName = getCompanyName(companyId);
+  const dayName = WEEKDAY_NAMES[weekday];
 
   if (isActive) {
     const existing = adminData.schedules.find(
@@ -414,6 +416,13 @@ async function toggleWeekday(companyId, weekday, btn) {
         .update({ is_active: false })
         .eq('id', existing.id);
       if (error) return toast(error.message, 'error');
+
+      // 변경 이력 로그
+      await logChange('company_schedule', existing.id, 'update',
+        [{ field: 'is_active', oldVal: 'true', newVal: 'false' }],
+        `${companyName} - ${dayName}요일 비활성화`
+      );
+
       existing.is_active = false;
     }
     btn.classList.remove('active');
@@ -432,6 +441,13 @@ async function toggleWeekday(companyId, weekday, btn) {
         .update({ is_active: true, frequency: freq, anchor_date: anchorDate })
         .eq('id', existing.id);
       if (error) return toast(error.message, 'error');
+
+      // 변경 이력 로그
+      await logChange('company_schedule', existing.id, 'update',
+        [{ field: 'is_active', oldVal: 'false', newVal: 'true' }],
+        `${companyName} - ${dayName}요일 활성화 (${getFreqLabel(freq)})`
+      );
+
       existing.is_active = true;
       existing.frequency = freq;
       existing.anchor_date = anchorDate;
@@ -440,6 +456,13 @@ async function toggleWeekday(companyId, weekday, btn) {
         .insert({ company_id: companyId, weekday, is_active: true, frequency: freq, anchor_date: anchorDate })
         .select().single();
       if (error) return toast(error.message, 'error');
+
+      // 변경 이력 로그
+      await logChange('company_schedule', data.id, 'insert',
+        [{ field: 'weekday', oldVal: null, newVal: `${dayName}요일 (${getFreqLabel(freq)})` }],
+        `${companyName} - ${dayName}요일 스케줄 추가`
+      );
+
       adminData.schedules.push(data);
     }
     btn.classList.add('active');
@@ -465,7 +488,16 @@ async function saveScheduleSettings(companyId) {
 
   if (activeScheds.length === 0) return toast('먼저 요일을 선택하세요', 'error');
 
+  const companyName = getCompanyName(companyId);
+
   for (const s of activeScheds) {
+    // 변경 이력용 이전값
+    const changes = [];
+    if (s.start_time !== startTime) changes.push({ field: 'start_time', oldVal: s.start_time || '없음', newVal: startTime || '없음' });
+    if (s.end_time !== endTime) changes.push({ field: 'end_time', oldVal: s.end_time || '없음', newVal: endTime || '없음' });
+    if ((s.frequency || 'weekly') !== freq) changes.push({ field: 'frequency', oldVal: getFreqLabel(s.frequency || 'weekly'), newVal: getFreqLabel(freq) });
+    if (s.anchor_date !== anchorDate) changes.push({ field: 'anchor_date', oldVal: s.anchor_date || '없음', newVal: anchorDate || '없음' });
+
     const { error } = await sb.from('company_schedule')
       .update({
         start_time: startTime,
@@ -475,6 +507,15 @@ async function saveScheduleSettings(companyId) {
       })
       .eq('id', s.id);
     if (error) { toast(error.message, 'error'); return; }
+
+    // 변경 이력 로그
+    if (changes.length > 0) {
+      const dayName = WEEKDAY_NAMES[s.weekday];
+      await logChange('company_schedule', s.id, 'update', changes,
+        `${companyName} - ${dayName}요일 스케줄 설정 변경`
+      );
+    }
+
     s.start_time = startTime;
     s.end_time = endTime;
     s.frequency = freq;
@@ -520,8 +561,19 @@ async function addAssignment(companyId) {
 async function removeAssignment(assignId, companyId) {
   if (!confirm('이 배정을 삭제하시겠습니까?')) return;
 
+  // 변경 이력용 이전 데이터
+  const local = adminData.assignments.find(a => a.id === assignId);
+  const workerName = local ? getWorkerName(local.worker_id) : '';
+  const companyName = getCompanyName(companyId);
+
   const { error } = await sb.from('company_workers').delete().eq('id', assignId);
   if (error) return toast(error.message, 'error');
+
+  // 변경 이력 로그
+  await logChange('company_workers', assignId, 'delete',
+    [{ field: 'worker_id', oldVal: workerName, newVal: null }],
+    `${companyName} (${selectedMonth}) - ${workerName} 배정 삭제`
+  );
 
   adminData.assignments = adminData.assignments.filter(a => a.id !== assignId);
   toast('배정 삭제됨');
@@ -531,13 +583,26 @@ async function removeAssignment(assignId, companyId) {
 async function updatePayAmount(assignId, value) {
   const payAmount = parseInt(value) || 0;
 
+  // 변경 이력용 이전값
+  const local = adminData.assignments.find(a => a.id === assignId);
+  const oldPay = local ? (local.pay_amount || 0) : 0;
+
   const { error } = await sb.from('company_workers')
     .update({ pay_amount: payAmount })
     .eq('id', assignId);
 
   if (error) return toast(error.message, 'error');
 
-  const local = adminData.assignments.find(a => a.id === assignId);
+  // 변경 이력 로그
+  if (oldPay !== payAmount && local) {
+    const companyName = getCompanyName(local.company_id);
+    const workerName = getWorkerName(local.worker_id);
+    await logChange('company_workers', assignId, 'update',
+      [{ field: 'pay_amount', oldVal: oldPay, newVal: payAmount }],
+      `${workerName} - ${companyName} (${selectedMonth}) 지급액 수정`
+    );
+  }
+
   if (local) local.pay_amount = payAmount;
 
   toast('지급액 수정됨');

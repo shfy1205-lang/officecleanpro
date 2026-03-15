@@ -186,6 +186,9 @@ async function saveBilling(billingId) {
   if (!companyId && !billingId) return toast('업체를 선택하세요', 'error');
   if (!month && !billingId) return toast('정산 월을 선택하세요', 'error');
 
+  // 변경 이력용 이전값 (수정 모드일 때)
+  const oldBilling = billingId ? adminData.billings.find(x => x.id === billingId) : null;
+
   const billedAt = $('bBilledAt').value || null;
   const paidAt = $('bPaidAt').value || null;
   const billedAmount = parseInt($('bBilledAmount').value) || 0;
@@ -228,6 +231,25 @@ async function saveBilling(billingId) {
   if (error) {
     if (error.code === '23505') return toast('해당 업체의 해당 월 정산이 이미 존재합니다', 'error');
     return toast(error.message, 'error');
+  }
+
+  // 변경 이력 로그 (수정 모드)
+  if (billingId && oldBilling) {
+    const changes = [];
+    const cName = getCompanyName(oldBilling.company_id);
+    const bst = BILLING_STATUS_MAP;
+
+    if ((oldBilling.billed_amount || 0) !== billedAmount) changes.push({ field: 'billed_amount', oldVal: oldBilling.billed_amount || 0, newVal: billedAmount });
+    if ((oldBilling.paid_amount || 0) !== paidAmount) changes.push({ field: 'paid_amount', oldVal: oldBilling.paid_amount || 0, newVal: paidAmount });
+    if ((oldBilling.status || 'pending') !== status) changes.push({ field: 'status', oldVal: (bst[oldBilling.status] || bst.pending).label, newVal: (bst[status] || bst.pending).label });
+    if ((oldBilling.billed_at || '') !== (billedAt || '')) changes.push({ field: 'billed_at', oldVal: oldBilling.billed_at || '없음', newVal: billedAt || '없음' });
+    if ((oldBilling.paid_at || '') !== (paidAt || '')) changes.push({ field: 'paid_at', oldVal: oldBilling.paid_at || '없음', newVal: paidAt || '없음' });
+
+    if (changes.length > 0) {
+      await logChange('billing_records', billingId, 'update', changes,
+        `${cName} (${oldBilling.month}) 정산 수정`
+      );
+    }
   }
 
   toast(billingId ? '정산 수정 완료' : '정산 등록 완료');
@@ -330,8 +352,21 @@ function openBillingDetail(billingId) {
 async function deleteBilling(billingId) {
   if (!confirm('이 정산 기록을 삭제하시겠습니까?')) return;
 
+  // 변경 이력용 이전 데이터
+  const oldBilling = adminData.billings.find(x => x.id === billingId);
+  const cName = oldBilling ? getCompanyName(oldBilling.company_id) : '';
+
   const { error } = await sb.from('billing_records').delete().eq('id', billingId);
   if (error) return toast(error.message, 'error');
+
+  // 변경 이력 로그
+  if (oldBilling) {
+    await logChange('billing_records', billingId, 'delete',
+      [{ field: 'billed_amount', oldVal: oldBilling.billed_amount || 0, newVal: null },
+       { field: 'status', oldVal: (BILLING_STATUS_MAP[oldBilling.status] || BILLING_STATUS_MAP.pending).label, newVal: '삭제됨' }],
+      `${cName} (${oldBilling.month}) 정산 삭제`
+    );
+  }
 
   toast('정산 삭제됨');
   closeModal();

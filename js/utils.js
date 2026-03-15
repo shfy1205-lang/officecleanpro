@@ -143,3 +143,36 @@ function buildFinMap(financials, month) {
   financials.filter(f => f.month === month).forEach(f => { map[f.company_id] = f; });
   return map;
 }
+
+// ════════════════════════════════════════════════════
+// 변경 이력 로그 (공통)
+// ════════════════════════════════════════════════════
+
+/**
+ * 변경 이력을 change_logs 테이블에 기록
+ * @param {string} entityType - 대상 테이블명 (company_workers, billing_records 등)
+ * @param {string} entityId   - 대상 레코드 ID
+ * @param {string} actionType - 작업 유형 (update, delete, insert)
+ * @param {Array}  changes    - [{field, oldVal, newVal}] 변경 필드 배열
+ * @param {string} note       - 추가 참조 정보 (업체명, 직원명 등)
+ */
+async function logChange(entityType, entityId, actionType, changes, note) {
+  try {
+    const rows = changes.map(c => ({
+      entity_type: entityType,
+      entity_id:   String(entityId),
+      action_type: actionType,
+      field_name:  c.field,
+      old_value:   c.oldVal != null ? String(c.oldVal) : null,
+      new_value:   c.newVal != null ? String(c.newVal) : null,
+      changed_by:  currentWorker?.id || null,
+      note:        note || null,
+    }));
+
+    if (rows.length > 0) {
+      await sb.from('change_logs').insert(rows);
+    }
+  } catch (e) {
+    console.error('logChange error:', e);
+  }
+}

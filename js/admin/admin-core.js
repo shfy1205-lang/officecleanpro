@@ -153,6 +153,7 @@ function switchTab(tabName, el) {
     analysis:     renderAnalysis,
     calendar:     renderCalendar,
     scheduleLog:  renderScheduleLog,
+    changeLog:    renderChangeLog,
   };
 
   if (renderers[tabName]) renderers[tabName]();

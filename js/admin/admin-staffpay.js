@@ -489,14 +489,27 @@ async function savePayAmount(assignId, workerId) {
   if (!input) return;
   const newPay = parseInt(input.value) || 0;
 
+  // 변경 이력용 이전값 저장
+  const local = adminData.assignments.find(a => a.id === assignId);
+  const oldPay = local ? (local.pay_amount || 0) : 0;
+
   const { error } = await sb.from('company_workers')
     .update({ pay_amount: newPay })
     .eq('id', assignId);
 
   if (error) return toast(error.message, 'error');
 
+  // 변경 이력 로그
+  if (oldPay !== newPay) {
+    const companyName = local ? getCompanyName(local.company_id) : '';
+    const workerName = getWorkerName(workerId);
+    await logChange('company_workers', assignId, 'update',
+      [{ field: 'pay_amount', oldVal: oldPay, newVal: newPay }],
+      `${workerName} - ${companyName} (${selectedMonth}) 지급금액 수정`
+    );
+  }
+
   // 로컬 데이터 업데이트
-  const local = adminData.assignments.find(a => a.id === assignId);
   if (local) local.pay_amount = newPay;
 
   toast('지급금액 수정됨');
