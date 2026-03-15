@@ -144,6 +144,7 @@ function switchTab(tabName, el) {
     notices:      renderNotices,
     leads:        renderLeads,
     billing:      renderBilling,
+    billingAlert: renderBillingAlert,
     staffPay:     renderStaffPay,
     areaSummary:  renderAreaSummary,
     revenue:      renderRevenue,

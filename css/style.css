@@ -1237,12 +1237,157 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
 
 
 /* ════════════════════════════════════════════════════
+   미입금 / 미발행 경고
+   ════════════════════════════════════════════════════ */
+
+/* 카드 클릭 활성 */
+.ba-stat {
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.15s, background 0.2s;
+  position: relative;
+}
+.ba-stat:hover {
+  border-color: var(--accent);
+}
+.ba-stat:active {
+  transform: scale(0.97);
+}
+.ba-stat.active {
+  border-color: var(--accent);
+  background: linear-gradient(135deg, rgba(59,130,246,0.1), var(--card));
+}
+.ba-stat.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px; left: 50%;
+  transform: translateX(-50%);
+  width: 24px; height: 3px;
+  background: var(--accent);
+  border-radius: 3px 3px 0 0;
+}
+.ba-unit {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text2);
+  margin-left: 2px;
+}
+
+/* 필터 바 */
+.ba-filter-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.ba-filter-select {
+  padding: 8px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  min-width: 130px;
+  transition: border-color 0.2s;
+}
+.ba-filter-select:focus {
+  border-color: var(--accent);
+}
+.ba-search-wrap {
+  flex: 1;
+  min-width: 150px;
+}
+.ba-search-input {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.ba-search-input:focus {
+  border-color: var(--accent);
+}
+
+/* 결과 건수 */
+.ba-result-count {
+  font-size: 12px;
+  color: var(--text2);
+  margin-bottom: 12px;
+}
+
+/* 테이블 행 */
+.ba-row {
+  transition: background 0.15s;
+}
+.ba-row:hover td {
+  background: rgba(59,130,246,0.06);
+}
+
+/* PC/모바일 분기 */
+.ba-table-pc { display: block; }
+.ba-cards-mobile { display: none; }
+
+/* 모바일 카드 */
+.ba-card {
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.15s;
+}
+.ba-card:hover {
+  border-color: var(--accent);
+}
+.ba-card:active {
+  transform: scale(0.98);
+}
+.ba-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+.ba-card-name {
+  font-size: 15px;
+  font-weight: 700;
+}
+.ba-card-month {
+  font-size: 12px;
+  color: var(--text2);
+  margin-top: 2px;
+}
+.ba-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ba-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+.ba-card-label {
+  color: var(--text2);
+  font-size: 12px;
+}
+.ba-card-outstanding {
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  margin-top: 2px;
+}
+
+
+/* ════════════════════════════════════════════════════
    반응형
    ════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
   .stats-grid-4 { grid-template-columns: repeat(2, 1fr); }
   .today-table-pc { display: none; }
   .today-cards-mobile { display: block; }
+  .ba-table-pc { display: none; }
+  .ba-cards-mobile { display: block; }
 }
 
 @media (max-width: 480px) {
@@ -1269,6 +1414,11 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   .today-filter-select { width: 100%; min-width: unset; }
   .today-table-pc { display: none; }
   .today-cards-mobile { display: block; }
+  .ba-filter-bar { flex-direction: column; }
+  .ba-filter-select { width: 100%; min-width: unset; }
+  .ba-search-wrap { width: 100%; }
+  .ba-table-pc { display: none; }
+  .ba-cards-mobile { display: block; }
 }
 
 @media (max-width: 360px) {

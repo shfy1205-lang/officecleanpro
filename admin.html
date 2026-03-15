@@ -6,7 +6,7 @@
   <title>오피스클린프로 - 관리자</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=20260315e">
+  <link rel="stylesheet" href="css/style.css?v=20260315f">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 </head>
@@ -35,6 +35,7 @@
       <button class="tab" onclick="switchTab('notices', this)">공지관리</button>
       <button class="tab" onclick="switchTab('leads', this)">견적관리</button>
       <button class="tab" onclick="switchTab('billing', this)">정산관리</button>
+      <button class="tab" onclick="switchTab('billingAlert', this)">미수경고</button>
       <button class="tab" onclick="switchTab('staffPay', this)">담당자급여</button>
       <button class="tab" onclick="switchTab('areaSummary', this)">구역별</button>
       <button class="tab" onclick="switchTab('revenue', this)">수익관리</button>
@@ -52,19 +53,20 @@
   </div>
 
   <!-- 공통 -->
-  <script src="js/supabase.js?v=20260315e"></script>
-  <script src="js/utils.js?v=20260315e"></script>
-  <script src="js/export.js?v=20260315e"></script>
+  <script src="js/supabase.js?v=20260315f"></script>
+  <script src="js/utils.js?v=20260315f"></script>
+  <script src="js/export.js?v=20260315f"></script>
 
   <!-- 관리자 모듈 -->
-  <script src="js/admin/admin-core.js?v=20260315e"></script>
-  <script src="js/admin/admin-dashboard.js?v=20260315e"></script>
-  <script src="js/admin/admin-companies.js?v=20260315e"></script>
-  <script src="js/admin/admin-requests.js?v=20260315e"></script>
-  <script src="js/admin/admin-notices.js?v=20260315e"></script>
-  <script src="js/admin/admin-leads.js?v=20260315e"></script>
-  <script src="js/admin/admin-billing.js?v=20260315e"></script>
-  <script src="js/admin/admin-staffpay.js?v=20260315e"></script>
-  <script src="js/admin/admin-revenue.js?v=20260315e"></script>
+  <script src="js/admin/admin-core.js?v=20260315f"></script>
+  <script src="js/admin/admin-dashboard.js?v=20260315f"></script>
+  <script src="js/admin/admin-companies.js?v=20260315f"></script>
+  <script src="js/admin/admin-requests.js?v=20260315f"></script>
+  <script src="js/admin/admin-notices.js?v=20260315f"></script>
+  <script src="js/admin/admin-leads.js?v=20260315f"></script>
+  <script src="js/admin/admin-billing.js?v=20260315f"></script>
+  <script src="js/admin/admin-billing-alert.js?v=20260315f"></script>
+  <script src="js/admin/admin-staffpay.js?v=20260315f"></script>
+  <script src="js/admin/admin-revenue.js?v=20260315f"></script>
 </body>
 </html>
