@@ -145,6 +145,28 @@ function buildFinMap(financials, month) {
 }
 
 // ════════════════════════════════════════════════════
+// 격주 매칭 판별 (공통)
+// ════════════════════════════════════════════════════
+
+/**
+ * 격주(biweekly) 스케줄에서 특정 날짜가 매칭되는지 판별
+ * anchor 날짜 기준으로 2주 간격에 해당하는 주인지 계산
+ *
+ * @param {string} anchorDate - 기준일 ('YYYY-MM-DD')
+ * @param {string} targetDateStr - 판별 대상일 ('YYYY-MM-DD')
+ * @returns {boolean} 매칭 여부
+ */
+function isBiweeklyMatch(anchorDate, targetDateStr) {
+  if (!anchorDate) return true;
+  const anchor = new Date(anchorDate + 'T00:00:00');
+  const target = new Date(targetDateStr + 'T00:00:00');
+  const diffMs = target.getTime() - anchor.getTime();
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+  const diffWeeks = Math.floor(diffDays / 7);
+  return (Math.abs(diffWeeks) % 2) === 0;
+}
+
+// ════════════════════════════════════════════════════
 // 한글 IME 조합 방지 검색 헬퍼 (공통)
 // ════════════════════════════════════════════════════
 

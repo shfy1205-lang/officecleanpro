@@ -26,15 +26,7 @@ const DASH_BILLING_START = '2026-03';
 //  빈도 관련 유틸리티
 // ═══════════════════════════════════════════════════════
 
-function isBiweeklyMatch(anchorDate, targetDateStr) {
-  if (!anchorDate) return true;
-  const anchor = new Date(anchorDate + 'T00:00:00');
-  const target = new Date(targetDateStr + 'T00:00:00');
-  const diffMs = target.getTime() - anchor.getTime();
-  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-  const diffWeeks = Math.floor(diffDays / 7);
-  return (Math.abs(diffWeeks) % 2) === 0;
-}
+// isBiweeklyMatch()는 utils.js로 이동됨 (공통 함수)
 
 function isScheduleActiveOnDate(schedule, dateStr) {
   const d = new Date(dateStr + 'T00:00:00');
