@@ -27,8 +27,7 @@ function renderNotices() {
     </div>
 
     <div class="search-box" style="margin-bottom:16px">
-      <input placeholder="공지 검색 (제목, 내용)" value="${noticeSearch}"
-             oninput="noticeSearch=this.value;renderNotices()">
+      <input id="noticeSearchInput" placeholder="공지 검색 (제목, 내용)" value="${noticeSearch}">
     </div>
 
     <p class="text-muted" style="margin-bottom:12px">총 ${list.length}개 공지</p>
@@ -64,6 +63,12 @@ function renderNotices() {
       </div>
     `}
   `;
+
+  // 한글 IME 조합 방지 검색 바인딩
+  bindSearchInput('noticeSearchInput', (val) => {
+    noticeSearch = val;
+    renderNotices();
+  });
 }
 
 function openNoticeForm(noticeId) {

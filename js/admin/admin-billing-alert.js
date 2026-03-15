@@ -173,9 +173,8 @@ function renderBillingAlertHTML() {
         <option value="done"${alertStatusFilter === 'done' ? ' selected' : ''}>완료</option>
       </select>
       <div class="ba-search-wrap">
-        <input class="ba-search-input" type="text" placeholder="업체명 검색"
-               value="${alertCompanySearch}"
-               oninput="changeAlertSearch(this.value)">
+        <input id="alertSearchInput" class="ba-search-input" type="text" placeholder="업체명 검색"
+               value="${alertCompanySearch}">
       </div>
     </div>
 
@@ -276,6 +275,11 @@ function renderBillingAlertHTML() {
       </div>
     `}
   `;
+
+  // 한글 IME 조합 방지 검색 바인딩
+  bindSearchInput('alertSearchInput', (val) => {
+    changeAlertSearch(val);
+  });
 }
 
 /* ─── 필터 핸들러 ─── */

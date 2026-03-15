@@ -145,6 +145,38 @@ function buildFinMap(financials, month) {
 }
 
 // ════════════════════════════════════════════════════
+// 한글 IME 조합 방지 검색 헬퍼 (공통)
+// ════════════════════════════════════════════════════
+
+/**
+ * 검색 입력란에 한글 IME 조합 방지 이벤트를 바인딩
+ * compositionstart/compositionend로 조합 중 검색 실행을 방지하고
+ * 조합 완료 후에만 콜백을 실행한다.
+ *
+ * @param {string} inputId - input 요소의 id
+ * @param {Function} callback - 검색 실행 콜백 (value를 인자로 받음)
+ */
+function bindSearchInput(inputId, callback) {
+  const el = document.getElementById(inputId);
+  if (!el) return;
+
+  let isComposing = false;
+
+  el.addEventListener('compositionstart', () => { isComposing = true; });
+  el.addEventListener('compositionend', () => {
+    isComposing = false;
+    // 조합 완료 후 즉시 콜백 실행
+    callback(el.value);
+  });
+  el.addEventListener('input', () => {
+    // IME 조합 중이면 무시 (영문/숫자는 isComposing=false이므로 즉시 실행)
+    if (!isComposing) {
+      callback(el.value);
+    }
+  });
+}
+
+// ════════════════════════════════════════════════════
 // 변경 이력 로그 (공통)
 // ════════════════════════════════════════════════════
 

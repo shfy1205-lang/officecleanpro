@@ -104,8 +104,7 @@ async function renderChangeLog() {
         <option value="all"${changeLogPeriod === 'all' ? ' selected' : ''}>전체 기간</option>
       </select>
       <div class="search-box" style="flex:1;margin-bottom:0">
-        <input placeholder="검색 (메모, 필드, 값)" value="${changeLogSearch}"
-               oninput="changeLogSearch=this.value;renderChangeLog()">
+        <input id="changeLogSearchInput" placeholder="검색 (메모, 필드, 값)" value="${changeLogSearch}">
       </div>
     </div>
 
@@ -189,6 +188,12 @@ async function renderChangeLog() {
       </div>
     `}
   `;
+
+  // 한글 IME 조합 방지 검색 바인딩
+  bindSearchInput('changeLogSearchInput', (val) => {
+    changeLogSearch = val;
+    renderChangeLog();
+  });
 }
 
 /** 값 표시 (길면 잘라서) */

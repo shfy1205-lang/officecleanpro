@@ -51,8 +51,7 @@ function renderLeads() {
 
     <div class="admin-filter-bar">
       <div class="search-box" style="flex:1;margin-bottom:0">
-        <input placeholder="업체명, 담당자, 위치 검색" value="${leadSearch}"
-               oninput="leadSearch=this.value;renderLeads()">
+        <input id="leadSearchInput" placeholder="업체명, 담당자, 위치 검색" value="${leadSearch}">
       </div>
       <select class="admin-area-select" onchange="leadFilter=this.value;renderLeads()">
         <option value="all"${leadFilter === 'all' ? ' selected' : ''}>전체 상태</option>
@@ -91,6 +90,12 @@ function renderLeads() {
       </div>
     `}
   `;
+
+  // 한글 IME 조합 방지 검색 바인딩
+  bindSearchInput('leadSearchInput', (val) => {
+    leadSearch = val;
+    renderLeads();
+  });
 }
 
 function openLeadForm(leadId) {

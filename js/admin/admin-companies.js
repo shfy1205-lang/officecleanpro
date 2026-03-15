@@ -45,8 +45,7 @@ function renderAllClients() {
 
     <div class="admin-filter-bar">
       <div class="search-box" style="flex:1;margin-bottom:0">
-        <input placeholder="업체명, 주소, 구역 검색" value="${clientSearch}"
-               oninput="clientSearch=this.value;renderAllClients()">
+        <input id="clientSearchInput" placeholder="업체명, 주소, 구역 검색" value="${clientSearch}">
       </div>
       <select class="admin-area-select" onchange="clientAreaFilter=this.value;renderAllClients()">
         <option value="">전체 구역</option>
@@ -90,6 +89,12 @@ function renderAllClients() {
       `;
     }).join('')}
   `;
+
+  // 한글 IME 조합 방지 검색 바인딩
+  bindSearchInput('clientSearchInput', (val) => {
+    clientSearch = val;
+    renderAllClients();
+  });
 }
 
 
