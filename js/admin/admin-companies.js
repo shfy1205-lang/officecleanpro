@@ -1,0 +1,459 @@
+/**
+ * admin-companies.js - 업체관리 탭
+ * 업체 목록, 등록/수정/삭제, 상세 모달, 스케줄, 배정, 주차/분리수거
+ */
+
+// ════════════════════════════════════════════════════
+// 업체 목록 조회
+// ════════════════════════════════════════════════════
+
+function renderAllClients() {
+  const mc = $('mainContent');
+  const areas = getUniqueAreas();
+
+  let filtered = adminData.companies;
+  if (clientSearch) {
+    const q = clientSearch.toLowerCase();
+    filtered = filtered.filter(c =>
+      c.name.toLowerCase().includes(q) ||
+      (c.location || '').toLowerCase().includes(q) ||
+      (c.area_name || '').toLowerCase().includes(q)
+    );
+  }
+  if (clientAreaFilter) {
+    filtered = filtered.filter(c => c.area_name === clientAreaFilter);
+  }
+
+  mc.innerHTML = `
+    <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
+      업체관리
+      <div style="display:flex;gap:6px">
+        <button class="btn-sm btn-blue" onclick="exportCompanies()" style="font-size:11px;padding:6px 10px">📥 엑셀</button>
+        <button class="btn-sm btn-green" onclick="openCompanyForm()">+ 업체 등록</button>
+      </div>
+    </div>
+
+    <div class="admin-filter-bar">
+      <div class="search-box" style="flex:1;margin-bottom:0">
+        <input placeholder="업체명, 주소, 구역 검색" value="${clientSearch}"
+               oninput="clientSearch=this.value;renderAllClients()">
+      </div>
+      <select class="admin-area-select" onchange="clientAreaFilter=this.value;renderAllClients()">
+        <option value="">전체 구역</option>
+        ${areas.map(a => `<option value="${a}"${a === clientAreaFilter ? ' selected' : ''}>${a}</option>`).join('')}
+      </select>
+    </div>
+
+    <p class="text-muted" style="margin-bottom:12px">총 ${filtered.length}개 업체</p>
+
+    ${filtered.map(c => {
+      const scheds = getCompanySchedules(c.id);
+      const days = scheds.map(s => WEEKDAY_NAMES[s.weekday]).join(', ') || '-';
+      const assigns = getCompanyAssignments(c.id, selectedMonth);
+      const workers = assigns.map(a => getWorkerName(a.worker_id)).join(', ') || '미배정';
+
+      const statusBadge = c.status === 'active'
+        ? '<span class="badge badge-done">활성</span>'
+        : c.status === 'paused'
+          ? '<span class="badge badge-today">중지</span>'
+          : '<span class="badge badge-warn">해지</span>';
+
+      return `
+        <div class="card company-card" onclick="openCompanyDetail('${c.id}')">
+          <div class="card-header">
+            <div>
+              <div class="card-title">${c.name}</div>
+              <div class="card-subtitle">${c.location || ''} ${c.area_name ? '· ' + c.area_name : ''}</div>
+            </div>
+            ${statusBadge}
+          </div>
+          <div class="company-card-info">
+            <span class="info-chip">📅 ${days}</span>
+            <span class="info-chip">👤 ${workers}</span>
+          </div>
+        </div>
+      `;
+    }).join('')}
+  `;
+}
+
+
+// ════════════════════════════════════════════════════
+// 업체 등록/수정 폼
+// ════════════════════════════════════════════════════
+
+function openCompanyForm(companyId) {
+  const isEdit = !!companyId;
+  const c = isEdit ? adminData.companies.find(x => x.id === companyId) : {};
+
+  const html = `
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <h3>${isEdit ? '업체 수정' : '업체 등록'}</h3>
+
+    <div class="field">
+      <label>업체명 *</label>
+      <input id="fName" value="${c.name || ''}" placeholder="업체명 입력">
+    </div>
+    <div class="field">
+      <label>주소 (위치)</label>
+      <input id="fLocation" value="${c.location || ''}" placeholder="주소 입력">
+    </div>
+    <div class="admin-row-2">
+      <div class="field">
+        <label>구역 코드</label>
+        <input id="fAreaCode" value="${c.area_code || ''}" placeholder="예: ACE21">
+      </div>
+      <div class="field">
+        <label>구역명</label>
+        <input id="fAreaName" value="${c.area_name || ''}" placeholder="예: 에이스하이테크21">
+      </div>
+    </div>
+    <div class="admin-row-2">
+      <div class="field">
+        <label>담당자명</label>
+        <input id="fContact" value="${c.contact_name || ''}" placeholder="담당자명">
+      </div>
+      <div class="field">
+        <label>담당자 연락처</label>
+        <input id="fPhone" value="${c.contact_phone || ''}" placeholder="010-0000-0000">
+      </div>
+    </div>
+    <div class="field">
+      <label>상태</label>
+      <select id="fStatus">
+        <option value="active"${c.status === 'active' ? ' selected' : ''}>활성</option>
+        <option value="paused"${c.status === 'paused' ? ' selected' : ''}>중지</option>
+        <option value="terminated"${c.status === 'terminated' ? ' selected' : ''}>해지</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>메모</label>
+      <textarea id="fMemo" rows="2" placeholder="메모">${c.memo || ''}</textarea>
+    </div>
+
+    <button class="btn" onclick="saveCompany('${companyId || ''}')">${isEdit ? '수정 저장' : '등록하기'}</button>
+    ${isEdit ? `<button class="btn" style="background:var(--red);margin-top:8px" onclick="deleteCompany('${companyId}')">업체 삭제</button>` : ''}
+  `;
+
+  $('modalBody').innerHTML = html;
+  $('detailModal').classList.add('show');
+}
+
+async function saveCompany(companyId) {
+  const name = $('fName').value.trim();
+  if (!name) return toast('업체명을 입력하세요', 'error');
+
+  const payload = {
+    name,
+    location:      $('fLocation').value.trim(),
+    area_code:     $('fAreaCode').value.trim(),
+    area_name:     $('fAreaName').value.trim(),
+    contact_name:  $('fContact').value.trim(),
+    contact_phone: $('fPhone').value.trim(),
+    status:        $('fStatus').value,
+    memo:          $('fMemo').value.trim(),
+  };
+
+  let error;
+  if (companyId) {
+    ({ error } = await sb.from('companies').update(payload).eq('id', companyId));
+  } else {
+    const { data: newCompany, error: insertErr } = await sb.from('companies').insert(payload).select().single();
+    error = insertErr;
+
+    // 신규 업체: 현재 선택된 월에 빈 financials 레코드 자동 생성
+    if (!error && newCompany) {
+      await sb.from('company_financials').insert({
+        company_id:      newCompany.id,
+        month:           selectedMonth || currentMonth(),
+        contract_amount: 0,
+        ocp_amount:      0,
+        eco_amount:      0,
+        worker_pay_total: 0,
+      });
+    }
+  }
+
+  if (error) return toast(error.message, 'error');
+
+  toast(companyId ? '수정 완료' : '등록 완료');
+  closeModal();
+  await loadAdminData();
+  renderAllClients();
+}
+
+async function deleteCompany(companyId) {
+  if (!confirm('이 업체를 삭제하시겠습니까? 관련 데이터가 모두 삭제됩니다.')) return;
+
+  // 관련 데이터 먼저 삭제 (FK cascade가 없을 수 있으므로)
+  await sb.from('company_financials').delete().eq('company_id', companyId);
+  await sb.from('company_workers').delete().eq('company_id', companyId);
+  await sb.from('company_schedule').delete().eq('company_id', companyId);
+  await sb.from('company_notes').delete().eq('company_id', companyId);
+  await sb.from('billing_records').delete().eq('company_id', companyId);
+
+  const { error } = await sb.from('companies').delete().eq('id', companyId);
+  if (error) return toast(error.message, 'error');
+
+  toast('삭제 완료');
+  closeModal();
+  await loadAdminData();
+  renderAllClients();
+}
+
+
+// ════════════════════════════════════════════════════
+// 업체 상세 (주차/분리수거 + 스케줄 + 배정 + 급여)
+// ════════════════════════════════════════════════════
+
+function getCompanyNote(companyId) {
+  return (adminData.notes || []).find(n => n.company_id === companyId);
+}
+
+async function saveAdminNoteInfo(companyId, noteId) {
+  const parking = document.getElementById('admin_parking_' + companyId)?.value?.trim() || '';
+  const recycling = document.getElementById('admin_recycling_' + companyId)?.value?.trim() || '';
+  const payload = { parking_info: parking, recycling_location: recycling };
+
+  if (noteId) {
+    const { error } = await sb.from('company_notes').update(payload).eq('id', noteId);
+    if (error) return toast(error.message, 'error');
+  } else {
+    payload.company_id = companyId;
+    const { error } = await sb.from('company_notes').insert(payload);
+    if (error) return toast(error.message, 'error');
+  }
+  toast('저장 완료');
+  await loadAdminData();
+}
+
+async function openCompanyDetail(companyId) {
+  const c = adminData.companies.find(x => x.id === companyId);
+  if (!c) return;
+
+  const scheds = getCompanySchedules(companyId);
+  const assigns = getCompanyAssignments(companyId, selectedMonth);
+  const allWorkers = getActiveWorkers();
+  const note = getCompanyNote(companyId);
+
+  const html = `
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <h3>${c.name}</h3>
+    <div class="detail-location">${c.location || ''} ${c.area_name ? '· ' + c.area_name : ''}</div>
+
+    <div class="detail-section">
+      <button class="btn-sm btn-blue" onclick="openCompanyForm('${companyId}')">기본정보 수정</button>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">🅿️ 주차 / ♻️ 분리수거 정보</div>
+      <div class="info-cards-grid">
+        <div class="info-mini-card">
+          <div class="info-mini-icon">🅿️</div>
+          <div class="info-mini-title">주차 정보</div>
+          <textarea id="admin_parking_${companyId}" class="info-edit-textarea" placeholder="주차 정보 입력">${note?.parking_info || ''}</textarea>
+        </div>
+        <div class="info-mini-card">
+          <div class="info-mini-icon">♻️</div>
+          <div class="info-mini-title">분리수거장</div>
+          <textarea id="admin_recycling_${companyId}" class="info-edit-textarea" placeholder="분리수거장 위치 입력">${note?.recycling_location || ''}</textarea>
+        </div>
+      </div>
+      <button class="btn-sm btn-blue" style="width:100%;margin-top:8px" onclick="saveAdminNoteInfo('${companyId}', '${note?.id || ''}')">주차/분리수거 정보 저장</button>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">📅 청소 요일 설정</div>
+      <div class="weekday-grid" id="weekdayGrid_${companyId}">
+        ${WEEKDAY_NAMES.map((name, idx) => {
+          const active = scheds.some(s => s.weekday === idx);
+          return `<button class="weekday-btn${active ? ' active' : ''}"
+                    onclick="toggleWeekday('${companyId}', ${idx}, this)">${name}</button>`;
+        }).join('')}
+      </div>
+      <div class="admin-time-row" style="margin-top:10px">
+        <div class="field" style="margin-bottom:0">
+          <label>시작</label>
+          <input type="time" id="schedStart_${companyId}" value="${scheds[0]?.start_time?.slice(0,5) || ''}">
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label>종료</label>
+          <input type="time" id="schedEnd_${companyId}" value="${scheds[0]?.end_time?.slice(0,5) || ''}">
+        </div>
+        <button class="btn-sm btn-blue" style="align-self:flex-end"
+                onclick="saveScheduleTimes('${companyId}')">시간 저장</button>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">
+        👤 ${selectedMonth.split('-')[1]}월 직원 배정
+      </div>
+
+      <div id="assignList_${companyId}">
+        ${assigns.length > 0 ? assigns.map(a => `
+          <div class="assign-row">
+            <div class="assign-info">
+              <span class="assign-name">${getWorkerName(a.worker_id)}</span>
+              ${a.is_primary ? '<span class="badge badge-area">주담당</span>' : ''}
+            </div>
+            <div class="assign-actions">
+              <input type="number" class="assign-pay-input" value="${a.pay_amount || 0}"
+                     onchange="updatePayAmount('${a.id}', this.value)" placeholder="지급액">
+              <span class="assign-pay-unit">원</span>
+              <button class="btn-sm btn-red" style="padding:4px 10px;font-size:11px"
+                      onclick="removeAssignment('${a.id}', '${companyId}')">삭제</button>
+            </div>
+          </div>
+        `).join('') : '<p class="text-muted">배정된 직원이 없습니다.</p>'}
+      </div>
+
+      <div class="admin-add-assign" style="margin-top:12px">
+        <select id="newWorker_${companyId}" class="admin-worker-select">
+          <option value="">직원 선택</option>
+          ${allWorkers.filter(w => !assigns.some(a => a.worker_id === w.id)).map(w =>
+            `<option value="${w.id}">${w.name}</option>`
+          ).join('')}
+        </select>
+        <input type="number" id="newPay_${companyId}" class="assign-pay-input" placeholder="지급액" value="0">
+        <button class="btn-sm btn-green" onclick="addAssignment('${companyId}')">배정</button>
+      </div>
+    </div>
+
+    ${c.contact_name || c.contact_phone ? `
+    <div class="detail-section">
+      <div class="detail-section-title">📞 담당자</div>
+      <p class="text-muted">${c.contact_name || ''} ${c.contact_phone || ''}</p>
+    </div>
+    ` : ''}
+
+    ${c.memo ? `
+    <div class="detail-section">
+      <div class="detail-section-title">📝 메모</div>
+      <div class="special-notes-box">${c.memo.replace(/\n/g, '<br>')}</div>
+    </div>
+    ` : ''}
+  `;
+
+  $('modalBody').innerHTML = html;
+  $('detailModal').classList.add('show');
+}
+
+
+// ════════════════════════════════════════════════════
+// 청소 요일 설정
+// ════════════════════════════════════════════════════
+
+async function toggleWeekday(companyId, weekday, btn) {
+  const isActive = btn.classList.contains('active');
+
+  if (isActive) {
+    const existing = adminData.schedules.find(
+      s => s.company_id === companyId && s.weekday === weekday
+    );
+    if (existing) {
+      const { error } = await sb.from('company_schedule')
+        .update({ is_active: false })
+        .eq('id', existing.id);
+      if (error) return toast(error.message, 'error');
+      existing.is_active = false;
+    }
+    btn.classList.remove('active');
+  } else {
+    const existing = adminData.schedules.find(
+      s => s.company_id === companyId && s.weekday === weekday
+    );
+    if (existing) {
+      const { error } = await sb.from('company_schedule')
+        .update({ is_active: true })
+        .eq('id', existing.id);
+      if (error) return toast(error.message, 'error');
+      existing.is_active = true;
+    } else {
+      const { data, error } = await sb.from('company_schedule')
+        .insert({ company_id: companyId, weekday, is_active: true })
+        .select().single();
+      if (error) return toast(error.message, 'error');
+      adminData.schedules.push(data);
+    }
+    btn.classList.add('active');
+  }
+
+  toast('요일 변경됨');
+}
+
+async function saveScheduleTimes(companyId) {
+  const startTime = $(`schedStart_${companyId}`).value || null;
+  const endTime = $(`schedEnd_${companyId}`).value || null;
+
+  const activeScheds = adminData.schedules.filter(
+    s => s.company_id === companyId && s.is_active
+  );
+
+  if (activeScheds.length === 0) return toast('먼저 요일을 선택하세요', 'error');
+
+  for (const s of activeScheds) {
+    const { error } = await sb.from('company_schedule')
+      .update({ start_time: startTime, end_time: endTime })
+      .eq('id', s.id);
+    if (error) { toast(error.message, 'error'); return; }
+    s.start_time = startTime;
+    s.end_time = endTime;
+  }
+
+  toast('시간 저장됨');
+}
+
+
+// ════════════════════════════════════════════════════
+// 직원 배정
+// ════════════════════════════════════════════════════
+
+async function addAssignment(companyId) {
+  const workerId = $(`newWorker_${companyId}`).value;
+  const payAmount = parseInt($(`newPay_${companyId}`).value) || 0;
+
+  if (!workerId) return toast('직원을 선택하세요', 'error');
+
+  const { data, error } = await sb.from('company_workers').insert({
+    company_id: companyId,
+    worker_id:  workerId,
+    month:      selectedMonth,
+    pay_amount: payAmount,
+  }).select().single();
+
+  if (error) {
+    if (error.code === '23505') return toast('이미 배정된 직원입니다', 'error');
+    return toast(error.message, 'error');
+  }
+
+  adminData.assignments.push(data);
+  toast('배정 완료');
+  await openCompanyDetail(companyId);
+}
+
+async function removeAssignment(assignId, companyId) {
+  if (!confirm('이 배정을 삭제하시겠습니까?')) return;
+
+  const { error } = await sb.from('company_workers').delete().eq('id', assignId);
+  if (error) return toast(error.message, 'error');
+
+  adminData.assignments = adminData.assignments.filter(a => a.id !== assignId);
+  toast('배정 삭제됨');
+  await openCompanyDetail(companyId);
+}
+
+async function updatePayAmount(assignId, value) {
+  const payAmount = parseInt(value) || 0;
+
+  const { error } = await sb.from('company_workers')
+    .update({ pay_amount: payAmount })
+    .eq('id', assignId);
+
+  if (error) return toast(error.message, 'error');
+
+  const local = adminData.assignments.find(a => a.id === assignId);
+  if (local) local.pay_amount = payAmount;
+
+  toast('지급액 수정됨');
+}
