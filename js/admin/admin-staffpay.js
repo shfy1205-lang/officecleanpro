@@ -1,10 +1,10 @@
 /**
  * admin-staffpay.js - 담당자급여, 구역별 현황, AI분석 탭
- * 3.3% 공제 계산, 업체별 금액 수정, 급여 확정/해제 기능 포함
+ * 3.3% 공제 계산, 업체별 금액 수정, 급여 확정/해제, 급여명세서 보기/다운로드 기능 포함
  */
 
 // ════════════════════════════════════════════════════
-// 담당자급여 탭 - 자동 계산 + 3.3% 공제 + 급여 확정
+// 담당자급여 탭 - 자동 계산 + 3.3% 공제 + 급여 확정 + 급여명세서
 // ════════════════════════════════════════════════════
 
 /**
@@ -134,6 +134,7 @@ function renderStaffPay() {
     <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
       담당자급여
       <div style="display:flex;gap:6px;align-items:center">
+        ${allConfirmed ? `<button class="btn-sm btn-green" onclick="downloadAllPayslips()" style="font-size:11px;padding:6px 10px">📄 전체명세서</button>` : ''}
         <button class="btn-sm btn-blue" onclick="exportStaffPay()" style="font-size:11px;padding:6px 10px">📥 엑셀</button>
       </div>
     </div>
@@ -377,7 +378,7 @@ async function unconfirmAllPay() {
   renderStaffPay();
 }
 
-/** 직원별 상세 모달: 업체별 급여 내역 + 3.3% + 금액 수정 + 확정 상태 */
+/** 직원별 상세 모달: 업체별 급여 내역 + 3.3% + 금액 수정 + 확정 상태 + 명세서 다운로드 */
 function openStaffPayDetail(workerId) {
   const month = selectedMonth;
   const { rows } = calcStaffPayData(month);
@@ -392,11 +393,15 @@ function openStaffPayDetail(workerId) {
     <button class="modal-close" onclick="closeModal()">&times;</button>
     <h3>${worker.name} - ${monthLabel}월 급여 상세</h3>
 
-    <!-- 확정 상태 표시 + 토글 버튼 -->
+    <!-- 확정 상태 표시 + 토글 버튼 + 다운로드 -->
     <div class="sp-confirm-detail-bar">
       ${confirmed
         ? `<span class="sp-confirm-badge sp-confirmed">✅ 급여 확정됨</span>
-           <button class="btn-sm btn-red" style="font-size:11px;padding:4px 10px" onclick="togglePayConfirm('${workerId}');closeModal();">확정 해제</button>`
+           <div style="display:flex;gap:6px;align-items:center">
+             <button class="btn-sm btn-blue" style="font-size:11px;padding:4px 10px" onclick="downloadPayslipExcel('${workerId}')">📥 엑셀</button>
+             <button class="btn-sm" style="font-size:11px;padding:4px 10px;background:var(--bg3);color:var(--text)" onclick="downloadPayslipPDF('${workerId}')">📄 PDF</button>
+             <button class="btn-sm btn-red" style="font-size:11px;padding:4px 10px" onclick="togglePayConfirm('${workerId}');closeModal();">확정 해제</button>
+           </div>`
         : `<span class="sp-confirm-badge sp-pending">⏳ 미확정</span>
            <button class="btn-sm btn-green" style="font-size:11px;padding:4px 10px" onclick="togglePayConfirm('${workerId}');closeModal();">급여 확정</button>`
       }
@@ -511,6 +516,176 @@ async function changePayMonth(month) {
   selectedMonth = month;
   await ensureMonthData(month);
   renderStaffPay();
+}
+
+
+// ════════════════════════════════════════════════════
+// 급여명세서 다운로드 (관리자)
+// ════════════════════════════════════════════════════
+
+/** 개별 직원 급여명세서 엑셀 다운로드 */
+function downloadPayslipExcel(workerId) {
+  const month = selectedMonth;
+  const { rows } = calcStaffPayData(month);
+  const worker = rows.find(r => r.workerId === workerId);
+  if (!worker) return toast('급여 데이터를 찾을 수 없습니다', 'error');
+
+  if (!isPayConfirmed(workerId, month)) {
+    return toast('급여가 확정된 후에만 명세서를 다운로드할 수 있습니다', 'error');
+  }
+
+  const { deduction, netPay } = calcDeduction(worker.totalPay);
+
+  // 시트1: 급여 요약
+  const summaryHeaders = ['항목', '금액'];
+  const summaryRows = [
+    ['직원명', worker.name],
+    ['대상 월', month],
+    ['담당 업체 수', worker.companies.length + '개'],
+    ['총급여', worker.totalPay],
+    ['3.3% 공제액', deduction],
+    ['실지급액', netPay],
+  ];
+
+  // 시트2: 업체별 지급내역
+  const detailHeaders = ['업체명', '지급금액(원)'];
+  const detailRows = worker.companies.map(c => [c.companyName, c.finalPay]);
+  detailRows.push(['합계', worker.totalPay]);
+
+  downloadExcelMultiSheet(
+    `급여명세_${worker.name}_${month}.xlsx`,
+    [
+      { name: '급여요약', headers: summaryHeaders, rows: summaryRows, colWidths: [16, 16] },
+      { name: '업체별내역', headers: detailHeaders, rows: detailRows, colWidths: [20, 16] },
+    ]
+  );
+}
+
+/** 개별 직원 급여명세서 PDF 다운로드 */
+function downloadPayslipPDF(workerId) {
+  const month = selectedMonth;
+  const { rows } = calcStaffPayData(month);
+  const worker = rows.find(r => r.workerId === workerId);
+  if (!worker) return toast('급여 데이터를 찾을 수 없습니다', 'error');
+
+  if (!isPayConfirmed(workerId, month)) {
+    return toast('급여가 확정된 후에만 명세서를 다운로드할 수 있습니다', 'error');
+  }
+
+  const { deduction, netPay } = calcDeduction(worker.totalPay);
+
+  if (typeof jspdf === 'undefined' && typeof window.jspdf === 'undefined') {
+    toast('PDF 라이브러리를 불러오지 못했습니다. 엑셀 다운로드를 이용해주세요.', 'error');
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+  // 한글 폰트 미지원 시 기본 폰트 사용 → 한글 깨짐 방지를 위해 유니코드 지원
+  // jsPDF 기본 폰트는 한글 미지원이므로, HTML 캔버스 방식 대신 텍스트 기반으로 생성
+  // 한글 깨짐 이슈를 최소화하기 위해 표 형태의 간결한 레이아웃 사용
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  let y = 20;
+
+  // 제목
+  doc.setFontSize(16);
+  doc.text(`Pay Statement - ${month}`, pageWidth / 2, y, { align: 'center' });
+  y += 12;
+
+  // 기본 정보
+  doc.setFontSize(11);
+  doc.text(`Employee: ${worker.name}`, 20, y); y += 7;
+  doc.text(`Period: ${month}`, 20, y); y += 7;
+  doc.text(`Companies: ${worker.companies.length}`, 20, y); y += 10;
+
+  // 급여 요약
+  doc.setFontSize(12);
+  doc.text('Payment Summary', 20, y); y += 8;
+
+  doc.setFontSize(10);
+  doc.text(`Total Pay: ${fmt(worker.totalPay)} KRW`, 25, y); y += 6;
+  doc.text(`Tax (3.3%): -${fmt(deduction)} KRW`, 25, y); y += 6;
+  doc.text(`Net Pay: ${fmt(netPay)} KRW`, 25, y); y += 10;
+
+  // 업체별 내역 테이블
+  doc.setFontSize(12);
+  doc.text('Company Details', 20, y); y += 8;
+
+  // 테이블 헤더
+  doc.setFontSize(9);
+  doc.setDrawColor(100);
+  doc.line(20, y, pageWidth - 20, y);
+  y += 5;
+  doc.text('Company', 25, y);
+  doc.text('Amount (KRW)', pageWidth - 55, y, { align: 'right' });
+  y += 3;
+  doc.line(20, y, pageWidth - 20, y);
+  y += 5;
+
+  // 테이블 행
+  worker.companies.forEach(c => {
+    if (y > 270) {
+      doc.addPage();
+      y = 20;
+    }
+    doc.text(c.companyName, 25, y);
+    doc.text(fmt(c.finalPay), pageWidth - 55, y, { align: 'right' });
+    y += 6;
+  });
+
+  // 합계
+  doc.line(20, y, pageWidth - 20, y);
+  y += 5;
+  doc.setFontSize(10);
+  doc.text('Total', 25, y);
+  doc.text(fmt(worker.totalPay), pageWidth - 55, y, { align: 'right' });
+
+  doc.save(`급여명세_${worker.name}_${month}.pdf`);
+  toast(`급여명세_${worker.name}_${month}.pdf 다운로드 완료`);
+}
+
+/** 전체 직원 급여명세서 일괄 엑셀 다운로드 (확정된 직원만) */
+function downloadAllPayslips() {
+  const month = selectedMonth;
+  const { rows } = calcStaffPayData(month);
+  const confirmedRows = rows.filter(r => isPayConfirmed(r.workerId, month));
+
+  if (confirmedRows.length === 0) {
+    return toast('확정된 급여가 없습니다', 'error');
+  }
+
+  const sheets = confirmedRows.map(worker => {
+    const { deduction, netPay } = calcDeduction(worker.totalPay);
+
+    const headers = ['항목', '내용'];
+    const dataRows = [
+      ['직원명', worker.name],
+      ['대상 월', month],
+      ['담당 업체 수', worker.companies.length + '개'],
+      ['', ''],
+      ['── 업체별 지급내역 ──', ''],
+    ];
+
+    worker.companies.forEach(c => {
+      dataRows.push([c.companyName, c.finalPay]);
+    });
+
+    dataRows.push(['', '']);
+    dataRows.push(['총급여', worker.totalPay]);
+    dataRows.push(['3.3% 공제액', deduction]);
+    dataRows.push(['실지급액', netPay]);
+
+    return {
+      name: worker.name,
+      headers: headers,
+      rows: dataRows,
+      colWidths: [20, 16],
+    };
+  });
+
+  downloadExcelMultiSheet(`급여명세_전체_${month}.xlsx`, sheets);
 }
 
 
