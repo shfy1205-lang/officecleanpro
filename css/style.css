@@ -1799,6 +1799,38 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
 }
 
 
+/* ─── 대시보드 요약 그리드 (6열) ─── */
+.dash-summary-grid {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+/* 대시보드 요약 박스 (미확인 요청 / 미입금 / 변경이력) */
+.dash-summary-box {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.dash-summary-box .table-wrap { margin-top: 10px; }
+.dash-summary-box table th { font-size: 12px; }
+.dash-summary-box table td { font-size: 12px; }
+
+.dash-box-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dash-box-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+.dash-box-cards-mobile {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
 /* ════════════════════════════════════════════════════
    반응형
    ════════════════════════════════════════════════════ */
@@ -1819,6 +1851,9 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   .ag-preview-table-pc { display: none; }
   .ag-preview-cards-mobile { display: block; }
   .ag-result-stats { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .dash-summary-grid { grid-template-columns: repeat(3, 1fr); }
+  .dash-summary-box .table-wrap { display: none; }
+  .dash-box-cards-mobile { display: flex; }
 }
 
 @media (max-width: 480px) {
@@ -1865,6 +1900,9 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   .ag-result-stats { grid-template-columns: repeat(2, 1fr); }
   .mg-control-bar { flex-direction: column; }
   .mg-month-input { width: 100%; }
+  .dash-summary-grid { grid-template-columns: repeat(2, 1fr); }
+  .dash-summary-box { padding: 12px; }
+  .dash-box-title { font-size: 14px; }
 }
 
 /* ─── 월간 캘린더 ─── */
