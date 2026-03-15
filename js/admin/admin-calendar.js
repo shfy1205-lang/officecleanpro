@@ -94,6 +94,12 @@ async function renderCalendar() {
   const mc = $('mainContent');
   mc.innerHTML = '<div class="empty-state"><div class="spinner" style="width:30px;height:30px;border-width:3px"></div><p>일정을 불러오는 중...</p></div>';
 
+  // 스케줄 캐시 최신화 (다른 탭에서 변경된 경우 반영)
+  try {
+    const { data: freshSched } = await sb.from('company_schedule').select('*');
+    if (freshSched) adminData.schedules = freshSched;
+  } catch (e) { console.error('schedule refresh error:', e); }
+
   await loadCalendarTasks();
 
   const tasks = getFilteredCalTasks();
