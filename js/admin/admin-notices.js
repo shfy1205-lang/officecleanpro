@@ -2,7 +2,7 @@
  * admin-notices.js - 공지관리 탭
  */
 
-function renderNotices() {
+function renderNotices(listOnly) {
   const mc = $('mainContent');
 
   let list = adminData.notices;
@@ -20,18 +20,9 @@ function renderNotices() {
     return new Date(b.created_at) - new Date(a.created_at);
   });
 
-  mc.innerHTML = `
-    <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
-      공지관리
-      <button class="btn-sm btn-green" onclick="openNoticeForm()">+ 공지 작성</button>
-    </div>
-
-    <div class="search-box" style="margin-bottom:16px">
-      <input id="noticeSearchInput" placeholder="공지 검색 (제목, 내용)" value="${noticeSearch}">
-    </div>
-
+  // 목록 HTML 생성
+  const listHTML = `
     <p class="text-muted" style="margin-bottom:12px">총 ${list.length}개 공지</p>
-
     ${list.length > 0 ? list.map(n => {
       const parsed = parseNoticeTarget(n.title);
       const targetBadge = parsed.type === 'worker'
@@ -64,10 +55,30 @@ function renderNotices() {
     `}
   `;
 
+  // 검색 시: 목록 컨테이너만 갱신 (input 보존 → IME 유지)
+  if (listOnly) {
+    const lc = document.getElementById('noticeListContainer');
+    if (lc) { lc.innerHTML = listHTML; return; }
+  }
+
+  // 전체 렌더
+  mc.innerHTML = `
+    <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
+      공지관리
+      <button class="btn-sm btn-green" onclick="openNoticeForm()">+ 공지 작성</button>
+    </div>
+
+    <div class="search-box" style="margin-bottom:16px">
+      <input id="noticeSearchInput" placeholder="공지 검색 (제목, 내용)" value="${noticeSearch}">
+    </div>
+
+    <div id="noticeListContainer">${listHTML}</div>
+  `;
+
   // 한글 IME 조합 방지 검색 바인딩
   bindSearchInput('noticeSearchInput', (val) => {
     noticeSearch = val;
-    renderNotices();
+    renderNotices(true);
   });
 }
 

@@ -17,9 +17,8 @@ function getFreqLabel(freq) {
 // 업체 목록 조회
 // ════════════════════════════════════════════════════
 
-function renderAllClients() {
+function renderAllClients(listOnly) {
   const mc = $('mainContent');
-  const areas = getUniqueAreas();
 
   let filtered = adminData.companies;
   if (clientSearch) {
@@ -34,30 +33,11 @@ function renderAllClients() {
     filtered = filtered.filter(c => c.area_name === clientAreaFilter);
   }
 
-  mc.innerHTML = `
-    <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
-      업체관리
-      <div style="display:flex;gap:6px">
-        <button class="btn-sm btn-blue" onclick="exportCompanies()" style="font-size:11px;padding:6px 10px">📥 엑셀</button>
-        <button class="btn-sm btn-green" onclick="openCompanyForm()">+ 업체 등록</button>
-      </div>
-    </div>
-
-    <div class="admin-filter-bar">
-      <div class="search-box" style="flex:1;margin-bottom:0">
-        <input id="clientSearchInput" placeholder="업체명, 주소, 구역 검색" value="${clientSearch}">
-      </div>
-      <select class="admin-area-select" onchange="clientAreaFilter=this.value;renderAllClients()">
-        <option value="">전체 구역</option>
-        ${areas.map(a => `<option value="${a}"${a === clientAreaFilter ? ' selected' : ''}>${a}</option>`).join('')}
-      </select>
-    </div>
-
+  // 목록 HTML 생성
+  const listHTML = `
     <p class="text-muted" style="margin-bottom:12px">총 ${filtered.length}개 업체</p>
-
     ${filtered.map(c => {
       const scheds = getCompanySchedules(c.id);
-      // 빈도 표시: 요일 + 빈도
       const daysWithFreq = scheds.map(s => {
         const freq = s.frequency || 'weekly';
         const label = WEEKDAY_NAMES[s.weekday];
@@ -90,10 +70,40 @@ function renderAllClients() {
     }).join('')}
   `;
 
+  // 검색 시: 목록 컨테이너만 갱신 (input 보존 → IME 유지)
+  if (listOnly) {
+    const lc = document.getElementById('clientListContainer');
+    if (lc) { lc.innerHTML = listHTML; return; }
+  }
+
+  // 전체 렌더
+  const areas = getUniqueAreas();
+  mc.innerHTML = `
+    <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
+      업체관리
+      <div style="display:flex;gap:6px">
+        <button class="btn-sm btn-blue" onclick="exportCompanies()" style="font-size:11px;padding:6px 10px">📥 엑셀</button>
+        <button class="btn-sm btn-green" onclick="openCompanyForm()">+ 업체 등록</button>
+      </div>
+    </div>
+
+    <div class="admin-filter-bar">
+      <div class="search-box" style="flex:1;margin-bottom:0">
+        <input id="clientSearchInput" placeholder="업체명, 주소, 구역 검색" value="${clientSearch}">
+      </div>
+      <select class="admin-area-select" onchange="clientAreaFilter=this.value;renderAllClients()">
+        <option value="">전체 구역</option>
+        ${areas.map(a => `<option value="${a}"${a === clientAreaFilter ? ' selected' : ''}>${a}</option>`).join('')}
+      </select>
+    </div>
+
+    <div id="clientListContainer">${listHTML}</div>
+  `;
+
   // 한글 IME 조합 방지 검색 바인딩
   bindSearchInput('clientSearchInput', (val) => {
     clientSearch = val;
-    renderAllClients();
+    renderAllClients(true);
   });
 }
 

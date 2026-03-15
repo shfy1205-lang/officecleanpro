@@ -6,6 +6,7 @@
 let changeLogFilter = 'all';   // all | company_workers | company_schedule | billing_records
 let changeLogPeriod = '30';    // 7 | 30 | all
 let changeLogSearch = '';
+let _changeLogCachedLogs = [];  // DB 조회 결과 캐시 (검색 시 재사용)
 
 const ENTITY_TYPE_LABELS = {
   company_workers:    '지급금액/배정',
@@ -26,38 +27,49 @@ const ACTION_TYPE_BADGES = {
   insert: 'badge-done',
 };
 
-async function renderChangeLog() {
+async function renderChangeLog(listOnly) {
   const mc = $('mainContent');
-  mc.innerHTML = '<div style="text-align:center;padding:40px"><div class="spinner"></div></div>';
 
-  // DB에서 직접 조회 (adminData 캐시 대신 실시간)
-  let query = sb.from('change_logs')
-    .select('*')
-    .order('changed_at', { ascending: false })
-    .limit(200);
+  let logs;
 
-  // 기간 필터
-  if (changeLogPeriod !== 'all') {
-    const days = parseInt(changeLogPeriod);
-    const since = new Date();
-    since.setDate(since.getDate() - days);
-    query = query.gte('changed_at', since.toISOString());
-  }
+  if (listOnly && _changeLogCachedLogs.length > 0) {
+    // 검색만 변경된 경우: 캐시된 로그 재사용 (DB 재조회 안 함)
+    logs = _changeLogCachedLogs;
+  } else {
+    // 전체 렌더 또는 캐시 없음: DB 조회
+    if (!listOnly) {
+      mc.innerHTML = '<div style="text-align:center;padding:40px"><div class="spinner"></div></div>';
+    }
 
-  // 대상종류 필터
-  if (changeLogFilter !== 'all') {
-    query = query.eq('entity_type', changeLogFilter);
-  }
+    let query = sb.from('change_logs')
+      .select('*')
+      .order('changed_at', { ascending: false })
+      .limit(200);
 
-  const { data: logs, error } = await query;
+    if (changeLogPeriod !== 'all') {
+      const days = parseInt(changeLogPeriod);
+      const since = new Date();
+      since.setDate(since.getDate() - days);
+      query = query.gte('changed_at', since.toISOString());
+    }
 
-  if (error) {
-    mc.innerHTML = `<div class="empty-state"><div class="empty-icon">❌</div><p>로그 조회 오류: ${error.message}</p></div>`;
-    return;
+    if (changeLogFilter !== 'all') {
+      query = query.eq('entity_type', changeLogFilter);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      mc.innerHTML = `<div class="empty-state"><div class="empty-icon">❌</div><p>로그 조회 오류: ${error.message}</p></div>`;
+      return;
+    }
+
+    logs = data || [];
+    _changeLogCachedLogs = logs;
   }
 
   // 검색어 필터 (클라이언트 사이드)
-  let filtered = logs || [];
+  let filtered = logs;
   if (changeLogSearch) {
     const q = changeLogSearch.toLowerCase();
     filtered = filtered.filter(l =>
@@ -68,46 +80,8 @@ async function renderChangeLog() {
     );
   }
 
-  // 통계
-  const todayStr = today();
-  const todayLogs = (logs || []).filter(l => l.changed_at && l.changed_at.startsWith(todayStr));
-  const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
-  const weekLogs = (logs || []).filter(l => l.changed_at && new Date(l.changed_at) >= weekAgo);
-
-  mc.innerHTML = `
-    <div class="section-title">변경이력</div>
-
-    <!-- 통계 카드 -->
-    <div class="stats-grid" style="margin-bottom:16px">
-      <div class="stat-card">
-        <div class="stat-label">오늘 변경</div>
-        <div class="stat-value blue">${todayLogs.length}건</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">최근 7일</div>
-        <div class="stat-value green">${weekLogs.length}건</div>
-      </div>
-    </div>
-
-    <!-- 필터 바 -->
-    <div class="admin-filter-bar" style="margin-bottom:16px">
-      <select class="admin-area-select" onchange="changeLogFilter=this.value;renderChangeLog()">
-        <option value="all"${changeLogFilter === 'all' ? ' selected' : ''}>전체 종류</option>
-        <option value="company_workers"${changeLogFilter === 'company_workers' ? ' selected' : ''}>지급금액/배정</option>
-        <option value="company_schedule"${changeLogFilter === 'company_schedule' ? ' selected' : ''}>스케줄</option>
-        <option value="billing_records"${changeLogFilter === 'billing_records' ? ' selected' : ''}>정산</option>
-        <option value="company_financials"${changeLogFilter === 'company_financials' ? ' selected' : ''}>업체 수수료</option>
-      </select>
-      <select class="admin-area-select" onchange="changeLogPeriod=this.value;renderChangeLog()">
-        <option value="7"${changeLogPeriod === '7' ? ' selected' : ''}>최근 7일</option>
-        <option value="30"${changeLogPeriod === '30' ? ' selected' : ''}>최근 30일</option>
-        <option value="all"${changeLogPeriod === 'all' ? ' selected' : ''}>전체 기간</option>
-      </select>
-      <div class="search-box" style="flex:1;margin-bottom:0">
-        <input id="changeLogSearchInput" placeholder="검색 (메모, 필드, 값)" value="${changeLogSearch}">
-      </div>
-    </div>
-
+  // 목록 HTML 생성
+  const listHTML = `
     <p class="text-muted" style="margin-bottom:8px">총 ${filtered.length}건</p>
 
     ${filtered.length > 0 ? `
@@ -189,10 +163,59 @@ async function renderChangeLog() {
     `}
   `;
 
+  // 검색 시: 목록 컨테이너만 갱신 (input 보존 → IME 유지)
+  if (listOnly) {
+    const lc = document.getElementById('changeLogListContainer');
+    if (lc) { lc.innerHTML = listHTML; return; }
+  }
+
+  // 전체 렌더
+  const todayStr = today();
+  const todayLogs = logs.filter(l => l.changed_at && l.changed_at.startsWith(todayStr));
+  const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+  const weekLogs = logs.filter(l => l.changed_at && new Date(l.changed_at) >= weekAgo);
+
+  mc.innerHTML = `
+    <div class="section-title">변경이력</div>
+
+    <!-- 통계 카드 -->
+    <div class="stats-grid" style="margin-bottom:16px">
+      <div class="stat-card">
+        <div class="stat-label">오늘 변경</div>
+        <div class="stat-value blue">${todayLogs.length}건</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">최근 7일</div>
+        <div class="stat-value green">${weekLogs.length}건</div>
+      </div>
+    </div>
+
+    <!-- 필터 바 -->
+    <div class="admin-filter-bar" style="margin-bottom:16px">
+      <select class="admin-area-select" onchange="changeLogFilter=this.value;renderChangeLog()">
+        <option value="all"${changeLogFilter === 'all' ? ' selected' : ''}>전체 종류</option>
+        <option value="company_workers"${changeLogFilter === 'company_workers' ? ' selected' : ''}>지급금액/배정</option>
+        <option value="company_schedule"${changeLogFilter === 'company_schedule' ? ' selected' : ''}>스케줄</option>
+        <option value="billing_records"${changeLogFilter === 'billing_records' ? ' selected' : ''}>정산</option>
+        <option value="company_financials"${changeLogFilter === 'company_financials' ? ' selected' : ''}>업체 수수료</option>
+      </select>
+      <select class="admin-area-select" onchange="changeLogPeriod=this.value;renderChangeLog()">
+        <option value="7"${changeLogPeriod === '7' ? ' selected' : ''}>최근 7일</option>
+        <option value="30"${changeLogPeriod === '30' ? ' selected' : ''}>최근 30일</option>
+        <option value="all"${changeLogPeriod === 'all' ? ' selected' : ''}>전체 기간</option>
+      </select>
+      <div class="search-box" style="flex:1;margin-bottom:0">
+        <input id="changeLogSearchInput" placeholder="검색 (메모, 필드, 값)" value="${changeLogSearch}">
+      </div>
+    </div>
+
+    <div id="changeLogListContainer">${listHTML}</div>
+  `;
+
   // 한글 IME 조합 방지 검색 바인딩
   bindSearchInput('changeLogSearchInput', (val) => {
     changeLogSearch = val;
-    renderChangeLog();
+    renderChangeLog(true);
   });
 }
 

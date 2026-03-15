@@ -2,7 +2,7 @@
  * admin-leads.js - 견적관리 탭
  */
 
-function renderLeads() {
+function renderLeads(listOnly) {
   const mc = $('mainContent');
 
   let list = adminData.leads;
@@ -20,6 +20,44 @@ function renderLeads() {
     );
   }
 
+  // 목록 HTML 생성
+  const listHTML = `
+    <p class="text-muted" style="margin-bottom:12px">총 ${list.length}건</p>
+    ${list.length > 0 ? list.map(l => {
+      const st = LEAD_STATUS_MAP[l.status] || LEAD_STATUS_MAP.new;
+      return `
+        <div class="card lead-card" onclick="openLeadDetail('${l.id}')">
+          <div class="card-header">
+            <div>
+              <div class="card-title">${l.company_name}</div>
+              <div class="card-subtitle">
+                ${l.contact_name || ''} ${l.contact_phone ? '· ' + l.contact_phone : ''} · ${formatDate(l.created_at)}
+              </div>
+            </div>
+            <span class="badge ${st.badge}">${st.label}</span>
+          </div>
+          <div class="lead-card-info">
+            ${l.estimated_amount ? `<span class="info-chip">💰 ${fmt(l.estimated_amount)}원</span>` : ''}
+            ${l.location ? `<span class="info-chip">📍 ${l.location}</span>` : ''}
+            ${l.assigned_to ? `<span class="info-chip">👤 ${getWorkerName(l.assigned_to)}</span>` : ''}
+          </div>
+        </div>
+      `;
+    }).join('') : `
+      <div class="empty-state">
+        <div class="empty-icon">📊</div>
+        <p>견적 데이터가 없습니다</p>
+      </div>
+    `}
+  `;
+
+  // 검색 시: 목록 컨테이너만 갱신 (input 보존 → IME 유지)
+  if (listOnly) {
+    const lc = document.getElementById('leadListContainer');
+    if (lc) { lc.innerHTML = listHTML; return; }
+  }
+
+  // 전체 렌더
   const statusCounts = {};
   adminData.leads.forEach(l => {
     statusCounts[l.status] = (statusCounts[l.status] || 0) + 1;
@@ -61,40 +99,13 @@ function renderLeads() {
       </select>
     </div>
 
-    <p class="text-muted" style="margin-bottom:12px">총 ${list.length}건</p>
-
-    ${list.length > 0 ? list.map(l => {
-      const st = LEAD_STATUS_MAP[l.status] || LEAD_STATUS_MAP.new;
-      return `
-        <div class="card lead-card" onclick="openLeadDetail('${l.id}')">
-          <div class="card-header">
-            <div>
-              <div class="card-title">${l.company_name}</div>
-              <div class="card-subtitle">
-                ${l.contact_name || ''} ${l.contact_phone ? '· ' + l.contact_phone : ''} · ${formatDate(l.created_at)}
-              </div>
-            </div>
-            <span class="badge ${st.badge}">${st.label}</span>
-          </div>
-          <div class="lead-card-info">
-            ${l.estimated_amount ? `<span class="info-chip">💰 ${fmt(l.estimated_amount)}원</span>` : ''}
-            ${l.location ? `<span class="info-chip">📍 ${l.location}</span>` : ''}
-            ${l.assigned_to ? `<span class="info-chip">👤 ${getWorkerName(l.assigned_to)}</span>` : ''}
-          </div>
-        </div>
-      `;
-    }).join('') : `
-      <div class="empty-state">
-        <div class="empty-icon">📊</div>
-        <p>견적 데이터가 없습니다</p>
-      </div>
-    `}
+    <div id="leadListContainer">${listHTML}</div>
   `;
 
   // 한글 IME 조합 방지 검색 바인딩
   bindSearchInput('leadSearchInput', (val) => {
     leadSearch = val;
-    renderLeads();
+    renderLeads(true);
   });
 }
 
