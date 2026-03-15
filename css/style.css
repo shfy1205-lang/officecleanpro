@@ -1984,16 +1984,115 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
 .cal-detail-green strong { color: var(--green); }
 .cal-detail-red strong { color: var(--red); }
 
-/* 캘린더 모바일 */
+/* 날짜 상세 모달 - 모바일 카드 (기본은 숨김) */
+.cal-detail-cards-mobile {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+.cal-detail-card {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.cal-detail-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+}
+.cal-detail-card-name {
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+.cal-detail-card-addr {
+  font-size: 11px;
+  color: var(--text2);
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cal-detail-card-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text2);
+}
+
+/* 캘린더 모바일 - 태블릿 */
+@media (max-width: 768px) {
+  .cal-cell { min-height: 70px; padding: 3px 4px; }
+  .cal-company-name { font-size: 9px; }
+  .cal-company-more { font-size: 8px; }
+}
+
+/* 캘린더 모바일 - 폰 */
 @media (max-width: 640px) {
-  .cal-cell { min-height: 60px; padding: 3px 4px; }
-  .cal-day-num { font-size: 11px; }
-  .cal-badge { font-size: 8px; padding: 0 3px; }
+  .cal-nav {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .cal-nav-left {
+    justify-content: center;
+    gap: 6px;
+  }
+  .cal-nav > .btn-sm {
+    align-self: center;
+  }
+  .cal-month-title { font-size: 15px; min-width: 90px; }
+
+  .cal-filters {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .cal-filter-select {
+    min-width: unset;
+    width: 100%;
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+  .cal-filters .cal-filter-select:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .cal-stats { gap: 6px; justify-content: center; }
+  .cal-stat { padding: 4px 8px; font-size: 11px; }
+
+  .cal-dow { font-size: 11px; padding: 6px 2px; }
+
+  .cal-cell {
+    min-height: 48px;
+    padding: 2px 3px;
+  }
+  .cal-day-num { font-size: 11px; margin-bottom: 1px; }
+  .cal-badges { gap: 2px; margin-bottom: 1px; }
+  .cal-badge { font-size: 7px; padding: 0 3px; line-height: 1.5; border-radius: 3px; }
   .cal-companies { display: none; }
-  .cal-month-title { font-size: 14px; min-width: 90px; }
-  .cal-nav { flex-wrap: wrap; gap: 6px; }
-  .cal-filters { gap: 4px; }
-  .cal-filter-select { min-width: 80px; font-size: 11px; padding: 4px 6px; }
+
+  /* 날짜 상세 모달 모바일 */
+  .cal-detail-table-pc { display: none !important; }
+  .cal-detail-cards-mobile { display: flex; }
+}
+
+/* 캘린더 모바일 - 작은 폰 */
+@media (max-width: 400px) {
+  .cal-cell { min-height: 38px; padding: 1px 2px; }
+  .cal-day-num { font-size: 10px; }
+  .cal-badge { font-size: 6px; padding: 0 2px; }
+  .cal-dow { font-size: 10px; padding: 4px 1px; }
+  .cal-stat { padding: 3px 6px; font-size: 10px; }
 }
 
 @media (max-width: 360px) {

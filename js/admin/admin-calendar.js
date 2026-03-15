@@ -250,9 +250,36 @@ function openCalendarDayDetail(dateStr) {
     else scheduled++;
   });
 
+  // 공통 데이터 매핑
+  const taskItems = tasks.map(t => {
+    const comp = adminData.companies.find(c => c.id === t.company_id);
+    const compName = comp ? comp.name : '알 수 없음';
+    const compAddr = comp ? (comp.location || '-') : '-';
+    const workerName = getWorkerName(t.worker_id);
+    const st = getTaskDisplayStatus(t);
+
+    let statusBadge = '';
+    if (st === 'completed') statusBadge = '<span class="badge badge-done">완료</span>';
+    else if (st === 'issue') statusBadge = '<span class="badge badge-warn">문제발생</span>';
+    else if (st === 'cancelled') statusBadge = '<span class="badge" style="background:var(--bg3);color:var(--text2)">취소</span>';
+    else statusBadge = '<span class="badge badge-today">예정</span>';
+
+    const completedAt = t.status === 'completed' && t.updated_at
+      ? formatDateShort(t.updated_at) : '-';
+
+    const openReqs = adminData.requests.filter(
+      r => r.company_id === t.company_id && !r.is_resolved && !isExpired(r.expires_at)
+    ).length;
+    const reqBadge = openReqs > 0
+      ? `<span class="badge badge-warn" style="font-size:10px">${openReqs}건</span>`
+      : '<span style="color:var(--text2);font-size:11px">없음</span>';
+
+    return { compName, compAddr, workerName, statusBadge, completedAt, reqBadge, taskDate: t.task_date };
+  });
+
   const html = `
     <button class="modal-close" onclick="closeModal()">&times;</button>
-    <h3>📅 ${dateLabel} 일정</h3>
+    <h3 style="font-size:16px">📅 ${dateLabel} 일정</h3>
 
     <div class="cal-detail-summary">
       <span class="cal-detail-stat">전체 <strong>${tasks.length}</strong></span>
@@ -261,7 +288,8 @@ function openCalendarDayDetail(dateStr) {
       ${issue > 0 ? `<span class="cal-detail-stat cal-detail-red">문제 <strong>${issue}</strong></span>` : ''}
     </div>
 
-    <div class="table-wrap" style="margin-top:12px">
+    <!-- PC 테이블 -->
+    <div class="table-wrap cal-detail-table-pc" style="margin-top:12px">
       <table>
         <thead>
           <tr>
@@ -269,48 +297,39 @@ function openCalendarDayDetail(dateStr) {
             <th>주소</th>
             <th>담당직원</th>
             <th>상태</th>
-            <th>예정일</th>
             <th>완료일</th>
             <th>요청</th>
           </tr>
         </thead>
         <tbody>
-          ${tasks.map(t => {
-            const comp = adminData.companies.find(c => c.id === t.company_id);
-            const compName = comp ? comp.name : '알 수 없음';
-            const compAddr = comp ? (comp.location || '-') : '-';
-            const workerName = getWorkerName(t.worker_id);
-            const st = getTaskDisplayStatus(t);
-
-            let statusBadge = '';
-            if (st === 'completed') statusBadge = '<span class="badge badge-done">완료</span>';
-            else if (st === 'issue') statusBadge = '<span class="badge badge-warn">문제발생</span>';
-            else if (st === 'cancelled') statusBadge = '<span class="badge" style="background:var(--bg3);color:var(--text2)">취소</span>';
-            else statusBadge = '<span class="badge badge-today">예정</span>';
-
-            const completedAt = t.status === 'completed' && t.updated_at
-              ? formatDateShort(t.updated_at) : '-';
-
-            // 해당 업체 미해결 요청 수
-            const openReqs = adminData.requests.filter(
-              r => r.company_id === t.company_id && !r.is_resolved && !isExpired(r.expires_at)
-            ).length;
-            const reqBadge = openReqs > 0
-              ? `<span class="badge badge-warn" style="font-size:10px">${openReqs}건</span>`
-              : '<span style="color:var(--text2);font-size:11px">없음</span>';
-
-            return `<tr>
-              <td style="font-weight:600">${compName}</td>
-              <td style="font-size:11px;color:var(--text2);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${compAddr}</td>
-              <td>${workerName}</td>
-              <td>${statusBadge}</td>
-              <td style="font-size:11px">${t.task_date}</td>
-              <td style="font-size:11px">${completedAt}</td>
-              <td>${reqBadge}</td>
-            </tr>`;
-          }).join('')}
+          ${taskItems.map(ti => `<tr>
+            <td style="font-weight:600">${ti.compName}</td>
+            <td style="font-size:11px;color:var(--text2);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ti.compAddr}</td>
+            <td>${ti.workerName}</td>
+            <td>${ti.statusBadge}</td>
+            <td style="font-size:11px">${ti.completedAt}</td>
+            <td>${ti.reqBadge}</td>
+          </tr>`).join('')}
         </tbody>
       </table>
+    </div>
+
+    <!-- 모바일 카드 -->
+    <div class="cal-detail-cards-mobile">
+      ${taskItems.map(ti => `
+        <div class="cal-detail-card">
+          <div class="cal-detail-card-header">
+            <span class="cal-detail-card-name">${ti.compName}</span>
+            ${ti.statusBadge}
+          </div>
+          <div class="cal-detail-card-addr">${ti.compAddr}</div>
+          <div class="cal-detail-card-info">
+            <span>담당: ${ti.workerName}</span>
+            <span>${ti.completedAt !== '-' ? '완료: ' + ti.completedAt : ''}</span>
+            ${ti.reqBadge}
+          </div>
+        </div>
+      `).join('')}
     </div>
   `;
 
