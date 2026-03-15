@@ -1,10 +1,10 @@
 /**
  * admin-staffpay.js - 담당자급여, 구역별 현황, AI분석 탭
- * 3.3% 공제 계산 및 업체별 금액 수정 기능 포함
+ * 3.3% 공제 계산, 업체별 금액 수정, 급여 확정/해제 기능 포함
  */
 
 // ════════════════════════════════════════════════════
-// 담당자급여 탭 - 자동 계산 + 3.3% 공제
+// 담당자급여 탭 - 자동 계산 + 3.3% 공제 + 급여 확정
 // ════════════════════════════════════════════════════
 
 /**
@@ -95,6 +95,27 @@ function calcDeduction(totalPay) {
   return { deduction, netPay };
 }
 
+/**
+ * 해당 직원의 해당 월 확정 여부 조회
+ */
+function isPayConfirmed(workerId, month) {
+  const pc = adminData.payConfirmations.find(
+    p => p.worker_id === workerId && p.month === month
+  );
+  return pc && pc.confirmed;
+}
+
+/**
+ * 해당 월의 확정 현황 카운트
+ */
+function getConfirmationCounts(month, rows) {
+  let confirmed = 0;
+  rows.forEach(r => {
+    if (isPayConfirmed(r.workerId, month)) confirmed++;
+  });
+  return { confirmed, total: rows.length };
+}
+
 function renderStaffPay() {
   const mc = $('mainContent');
   const month = selectedMonth;
@@ -105,12 +126,36 @@ function renderStaffPay() {
   const totalDeduction = Math.round(grandTotal * 0.033);
   const totalNetPay = grandTotal - totalDeduction;
 
+  // 확정 현황
+  const { confirmed: confirmedCount, total: totalWorkers } = getConfirmationCounts(month, rows);
+  const allConfirmed = totalWorkers > 0 && confirmedCount === totalWorkers;
+
   mc.innerHTML = `
     <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
       담당자급여
-      <button class="btn-sm btn-blue" onclick="exportStaffPay()" style="font-size:11px;padding:6px 10px">📥 엑셀</button>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="btn-sm btn-blue" onclick="exportStaffPay()" style="font-size:11px;padding:6px 10px">📥 엑셀</button>
+      </div>
     </div>
     ${monthSelectorHTML(selectedMonth, 'changePayMonth')}
+
+    <!-- 확정 현황 바 -->
+    ${rows.length > 0 ? `
+      <div class="sp-confirm-bar">
+        <div class="sp-confirm-info">
+          <span class="sp-confirm-status ${allConfirmed ? 'sp-confirmed' : ''}">
+            ${allConfirmed ? '✅ 전체 확정 완료' : `📋 확정 ${confirmedCount}/${totalWorkers}명`}
+          </span>
+          ${!allConfirmed
+            ? `<button class="btn-sm btn-green sp-confirm-all-btn" onclick="confirmAllPay()">전체 확정</button>`
+            : `<button class="btn-sm btn-red sp-confirm-all-btn" onclick="unconfirmAllPay()">전체 해제</button>`
+          }
+        </div>
+        <div class="sp-confirm-progress">
+          <div class="sp-confirm-progress-bar" style="width:${totalWorkers > 0 ? (confirmedCount / totalWorkers * 100) : 0}%"></div>
+        </div>
+      </div>
+    ` : ''}
 
     <!-- 요약 카드 5개 -->
     <div class="sp-summary-grid sp-summary-grid-5">
@@ -148,18 +193,26 @@ function renderStaffPay() {
                 <th>총급여</th>
                 <th>3.3% 공제액</th>
                 <th>실지급액</th>
+                <th>상태</th>
                 <th>상세</th>
               </tr>
             </thead>
             <tbody>
               ${rows.map(r => {
                 const { deduction, netPay } = calcDeduction(r.totalPay);
+                const confirmed = isPayConfirmed(r.workerId, month);
                 return `<tr class="sp-row">
                   <td style="font-weight:600">${r.name}</td>
                   <td>${r.companies.length}개</td>
                   <td class="admin-pay-cell">${fmt(r.totalPay)}원</td>
                   <td style="color:var(--red)">${fmt(deduction)}원</td>
                   <td class="admin-pay-cell" style="font-weight:700">${fmt(netPay)}원</td>
+                  <td>
+                    ${confirmed
+                      ? `<span class="badge badge-done sp-badge-confirmed" onclick="event.stopPropagation();togglePayConfirm('${r.workerId}')" style="cursor:pointer">확정됨</span>`
+                      : `<span class="badge badge-warn sp-badge-pending" onclick="event.stopPropagation();togglePayConfirm('${r.workerId}')" style="cursor:pointer">미확정</span>`
+                    }
+                  </td>
                   <td>
                     <button class="btn-sm btn-blue" style="font-size:11px;padding:4px 10px"
                             onclick="openStaffPayDetail('${r.workerId}')">상세</button>
@@ -175,6 +228,7 @@ function renderStaffPay() {
                 <td style="color:var(--red)">${fmt(totalDeduction)}원</td>
                 <td class="admin-pay-cell">${fmt(totalNetPay)}원</td>
                 <td></td>
+                <td></td>
               </tr>
             </tfoot>
           </table>
@@ -185,11 +239,18 @@ function renderStaffPay() {
       <div class="sp-cards-mobile">
         ${rows.map(r => {
           const { deduction, netPay } = calcDeduction(r.totalPay);
+          const confirmed = isPayConfirmed(r.workerId, month);
           return `
             <div class="card pay-card" onclick="openStaffPayDetail('${r.workerId}')" style="cursor:pointer">
               <div class="card-header">
                 <div>
-                  <div class="card-title">${r.name}</div>
+                  <div class="card-title">
+                    ${r.name}
+                    ${confirmed
+                      ? '<span class="badge badge-done" style="margin-left:6px;font-size:10px">확정</span>'
+                      : '<span class="badge badge-warn" style="margin-left:6px;font-size:10px">미확정</span>'
+                    }
+                  </div>
                   <div class="card-subtitle">${r.companies.length}개 업체</div>
                 </div>
                 <div class="card-amount">${fmt(netPay)}원</div>
@@ -209,7 +270,114 @@ function renderStaffPay() {
   `;
 }
 
-/** 직원별 상세 모달: 업체별 급여 내역 + 3.3% + 금액 수정 */
+/** 개별 직원 급여 확정/해제 토글 */
+async function togglePayConfirm(workerId) {
+  const month = selectedMonth;
+  const current = isPayConfirmed(workerId, month);
+
+  if (current) {
+    // 확정 해제
+    const { error } = await sb.from('pay_confirmations')
+      .update({ confirmed: false, confirmed_at: null })
+      .eq('worker_id', workerId)
+      .eq('month', month);
+    if (error) return toast(error.message, 'error');
+
+    const local = adminData.payConfirmations.find(p => p.worker_id === workerId && p.month === month);
+    if (local) { local.confirmed = false; local.confirmed_at = null; }
+
+    toast(getWorkerName(workerId) + ' 급여 확정 해제');
+  } else {
+    // 확정 처리 (upsert)
+    const { data, error } = await sb.from('pay_confirmations')
+      .upsert({
+        month: month,
+        worker_id: workerId,
+        confirmed: true,
+        confirmed_at: new Date().toISOString(),
+        confirmed_by: currentWorker.id,
+      }, { onConflict: 'month,worker_id' })
+      .select();
+    if (error) return toast(error.message, 'error');
+
+    // 로컬 데이터 업데이트
+    const idx = adminData.payConfirmations.findIndex(p => p.worker_id === workerId && p.month === month);
+    if (idx >= 0) {
+      adminData.payConfirmations[idx] = data[0];
+    } else {
+      adminData.payConfirmations.push(data[0]);
+    }
+
+    toast(getWorkerName(workerId) + ' 급여 확정됨');
+  }
+
+  renderStaffPay();
+}
+
+/** 전체 확정 */
+async function confirmAllPay() {
+  const month = selectedMonth;
+  const { rows } = calcStaffPayData(month);
+  const unconfirmed = rows.filter(r => !isPayConfirmed(r.workerId, month));
+
+  if (unconfirmed.length === 0) return toast('이미 전체 확정됨');
+
+  const upsertData = unconfirmed.map(r => ({
+    month: month,
+    worker_id: r.workerId,
+    confirmed: true,
+    confirmed_at: new Date().toISOString(),
+    confirmed_by: currentWorker.id,
+  }));
+
+  const { data, error } = await sb.from('pay_confirmations')
+    .upsert(upsertData, { onConflict: 'month,worker_id' })
+    .select();
+  if (error) return toast(error.message, 'error');
+
+  // 로컬 데이터 업데이트
+  (data || []).forEach(d => {
+    const idx = adminData.payConfirmations.findIndex(p => p.worker_id === d.worker_id && p.month === d.month);
+    if (idx >= 0) {
+      adminData.payConfirmations[idx] = d;
+    } else {
+      adminData.payConfirmations.push(d);
+    }
+  });
+
+  toast(`${unconfirmed.length}명 급여 전체 확정됨`);
+  renderStaffPay();
+}
+
+/** 전체 해제 */
+async function unconfirmAllPay() {
+  const month = selectedMonth;
+  const { rows } = calcStaffPayData(month);
+  const confirmedRows = rows.filter(r => isPayConfirmed(r.workerId, month));
+
+  if (confirmedRows.length === 0) return toast('확정된 항목 없음');
+
+  const workerIds = confirmedRows.map(r => r.workerId);
+
+  const { error } = await sb.from('pay_confirmations')
+    .update({ confirmed: false, confirmed_at: null })
+    .eq('month', month)
+    .in('worker_id', workerIds);
+  if (error) return toast(error.message, 'error');
+
+  // 로컬 데이터 업데이트
+  adminData.payConfirmations.forEach(p => {
+    if (p.month === month && workerIds.includes(p.worker_id)) {
+      p.confirmed = false;
+      p.confirmed_at = null;
+    }
+  });
+
+  toast(`${confirmedRows.length}명 급여 확정 해제됨`);
+  renderStaffPay();
+}
+
+/** 직원별 상세 모달: 업체별 급여 내역 + 3.3% + 금액 수정 + 확정 상태 */
 function openStaffPayDetail(workerId) {
   const month = selectedMonth;
   const { rows } = calcStaffPayData(month);
@@ -218,10 +386,21 @@ function openStaffPayDetail(workerId) {
 
   const monthLabel = month.split('-')[1];
   const { deduction, netPay } = calcDeduction(worker.totalPay);
+  const confirmed = isPayConfirmed(workerId, month);
 
   const html = `
     <button class="modal-close" onclick="closeModal()">&times;</button>
     <h3>${worker.name} - ${monthLabel}월 급여 상세</h3>
+
+    <!-- 확정 상태 표시 + 토글 버튼 -->
+    <div class="sp-confirm-detail-bar">
+      ${confirmed
+        ? `<span class="sp-confirm-badge sp-confirmed">✅ 급여 확정됨</span>
+           <button class="btn-sm btn-red" style="font-size:11px;padding:4px 10px" onclick="togglePayConfirm('${workerId}');closeModal();">확정 해제</button>`
+        : `<span class="sp-confirm-badge sp-pending">⏳ 미확정</span>
+           <button class="btn-sm btn-green" style="font-size:11px;padding:4px 10px" onclick="togglePayConfirm('${workerId}');closeModal();">급여 확정</button>`
+      }
+    </div>
 
     <!-- 급여 요약 카드 (3.3% 포함) -->
     <div class="sp-detail-summary">
@@ -239,7 +418,7 @@ function openStaffPayDetail(workerId) {
       </div>
     </div>
 
-    <!-- 업체별 내역 (금액 수정 가능) -->
+    <!-- 업체별 내역 (확정 시 수정 불가) -->
     <div class="section-title" style="font-size:14px;margin:16px 0 8px">업체별 지급금액</div>
     <div class="table-wrap">
       <table>
@@ -250,7 +429,7 @@ function openStaffPayDetail(workerId) {
             <th>수수료</th>
             <th>배분율</th>
             <th>지급금액</th>
-            <th>수정</th>
+            ${!confirmed ? '<th>수정</th>' : ''}
           </tr>
         </thead>
         <tbody>
@@ -265,14 +444,14 @@ function openStaffPayDetail(workerId) {
                 : '<span class="badge badge-area">수동</span>'
               }</td>
               <td class="admin-pay-cell">${fmt(c.finalPay)}원</td>
-              <td>
+              ${!confirmed ? `<td>
                 <div style="display:flex;gap:4px;align-items:center">
                   <input type="number" id="editPay_${c.assignId}" class="sp-edit-input"
                          value="${c.finalPay}" placeholder="금액">
                   <button class="btn-sm btn-green" style="font-size:10px;padding:4px 8px;white-space:nowrap"
                           onclick="savePayAmount('${c.assignId}', '${workerId}')">저장</button>
                 </div>
-              </td>
+              </td>` : ''}
             </tr>`;
           }).join('')}
         </tbody>
@@ -283,11 +462,17 @@ function openStaffPayDetail(workerId) {
             <td></td>
             <td></td>
             <td class="admin-pay-cell">${fmt(worker.totalPay)}원</td>
-            <td></td>
+            ${!confirmed ? '<td></td>' : ''}
           </tr>
         </tfoot>
       </table>
     </div>
+
+    ${confirmed ? `
+      <div style="margin-top:12px;padding:10px 14px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:8px;font-size:12px;color:var(--green)">
+        🔒 급여가 확정되어 금액을 수정할 수 없습니다. 수정하려면 확정을 해제하세요.
+      </div>
+    ` : ''}
 
     <div style="margin-top:12px;font-size:11px;color:var(--text2);line-height:1.6">
       <strong>계산 방식:</strong> 계약금액 - 오피스수수료 - 에코수수료 = 작업자풀 → 작업자풀 × 배분율(%) = 급여<br>

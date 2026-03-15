@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ─── 데이터 로드 ───
 
 async function loadAdminData() {
-  const [companies, financials, assignments, workers, schedules, requests, notices, leads, billings, notes] = await Promise.all([
+  const [companies, financials, assignments, workers, schedules, requests, notices, leads, billings, notes, payConfirmations] = await Promise.all([
     sb.from('companies').select('*').order('name'),
     sb.from('company_financials').select('*'),
     sb.from('company_workers').select('*'),
@@ -47,18 +47,20 @@ async function loadAdminData() {
     sb.from('leads').select('*').order('created_at', { ascending: false }),
     sb.from('billing_records').select('*').order('month', { ascending: false }),
     sb.from('company_notes').select('*'),
+    sb.from('pay_confirmations').select('*'),
   ]);
 
-  adminData.companies   = companies.data || [];
-  adminData.financials  = financials.data || [];
-  adminData.assignments = assignments.data || [];
-  adminData.workers     = workers.data || [];
-  adminData.schedules   = schedules.data || [];
-  adminData.requests    = requests.data || [];
-  adminData.notices     = notices.data || [];
-  adminData.leads       = leads.data || [];
-  adminData.billings    = billings.data || [];
-  adminData.notes       = notes?.data || [];
+  adminData.companies        = companies.data || [];
+  adminData.financials       = financials.data || [];
+  adminData.assignments      = assignments.data || [];
+  adminData.workers          = workers.data || [];
+  adminData.schedules        = schedules.data || [];
+  adminData.requests         = requests.data || [];
+  adminData.notices          = notices.data || [];
+  adminData.leads            = leads.data || [];
+  adminData.billings         = billings.data || [];
+  adminData.notes            = notes?.data || [];
+  adminData.payConfirmations = payConfirmations?.data || [];
 }
 
 // ─── 월별 데이터 자동 생성 ───

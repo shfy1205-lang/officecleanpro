@@ -2,7 +2,15 @@
  * staff-pay.js - 내 급여 탭
  * 총급여, 3.3% 공제액, 실지급액 표시
  * 업체별 지급금액 목록
+ * 급여 확정 상태 표시
  */
+
+function isMyPayConfirmed(month) {
+  const pc = staffData.payConfirmations.find(
+    p => p.month === month
+  );
+  return pc && pc.confirmed;
+}
 
 function renderMyPay() {
   const mc = $('mainContent');
@@ -13,14 +21,25 @@ function renderMyPay() {
   const deduction = Math.round(totalPay * 0.033);
   const netPay = totalPay - deduction;
   const monthLabel = selectedMonth.split('-')[1];
+  const confirmed = isMyPayConfirmed(selectedMonth);
 
   let html = `
     <div class="section-title">내 급여</div>
     ${monthSelectorHTML(selectedMonth, 'changePayMonth')}
 
+    <!-- 확정 상태 배너 -->
+    ${confirmed
+      ? `<div class="sp-staff-confirm-banner sp-staff-confirmed">
+           <span>✅ ${monthLabel}월 급여가 확정되었습니다</span>
+         </div>`
+      : `<div class="sp-staff-confirm-banner sp-staff-pending">
+           <span>⏳ ${monthLabel}월 급여 미확정 (예상 금액)</span>
+         </div>`
+    }
+
     <!-- 급여 요약 카드: 총급여 / 공제 / 실지급 -->
     <div class="pay-summary-card">
-      <div class="pay-total-label">${monthLabel}월 예상 실지급액</div>
+      <div class="pay-total-label">${monthLabel}월 ${confirmed ? '확정' : '예상'} 실지급액</div>
       <div class="pay-total-amount">${fmt(netPay)}원</div>
       <div class="pay-total-sub">총 ${companyCount}개 업체</div>
     </div>
