@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   $('app').style.display = 'block';
 
   await loadStaffData();
-  renderMyCompanies();
+  renderTodayTasks();
 });
 
 // ─── 데이터 로드 (RLS가 자동으로 본인 데이터만 반환) ───
@@ -54,6 +54,7 @@ function switchTab(tabName, el) {
   el.classList.add('active');
 
   const renderers = {
+    todayTasks:   renderTodayTasks,
     myCompanies:  renderMyCompanies,
     myPay:        renderMyPay,
     taskHistory:  renderTaskHistory,
