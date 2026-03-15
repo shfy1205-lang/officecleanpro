@@ -1,6 +1,7 @@
 /**
  * admin-dashboard.js - 대시보드 탭
  * 오늘 청소 현황 + 월간 요약 + 자동 일정 생성 (일별 / 월별)
+ * 빈도 지원: weekly(매주), biweekly(격주) — anchor_date 기반
  */
 
 // ─── 오늘 청소 현황 상태 ───
@@ -15,6 +16,49 @@ let monthGenResult = null;       // 월별 생성 결과
 let monthGenMonth = '';           // 월별 생성 선택 월
 let monthGenBusy = false;         // 월별 생성 진행 중
 
+// ═══════════════════════════════════════════════════════
+//  빈도 관련 유틸리티
+// ═══════════════════════════════════════════════════════
+
+/**
+ * 격주(biweekly) 스케줄이 해당 날짜에 해당하는지 판단.
+ * anchor_date를 기준으로 주 차이가 짝수이면 '활성 주'.
+ * anchor_date가 없으면 항상 활성(fallback).
+ */
+function isBiweeklyMatch(anchorDate, targetDateStr) {
+  if (!anchorDate) return true; // anchor 미설정 시 매주 취급
+  const anchor = new Date(anchorDate + 'T00:00:00');
+  const target = new Date(targetDateStr + 'T00:00:00');
+  const diffMs = target.getTime() - anchor.getTime();
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+  const diffWeeks = Math.floor(diffDays / 7);
+  return (Math.abs(diffWeeks) % 2) === 0;
+}
+
+/**
+ * 주어진 날짜에 해당 스케줄이 활성인지 판단.
+ * - weekly: 요일만 매칭되면 항상 활성
+ * - biweekly: 요일 매칭 + anchor_date 기반 격주 체크
+ */
+function isScheduleActiveOnDate(schedule, dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const weekday = d.getDay();
+
+  // 요일 불일치
+  if (schedule.weekday !== weekday) return false;
+  // 비활성 스케줄
+  if (!schedule.is_active) return false;
+
+  const freq = schedule.frequency || 'weekly';
+
+  if (freq === 'biweekly') {
+    return isBiweeklyMatch(schedule.anchor_date, dateStr);
+  }
+
+  // weekly (기본)
+  return true;
+}
+
 // ─── 오늘 청소 데이터 로드 (선택된 날짜 기준) ───
 async function loadTodayCleaning(dateStr) {
   const { data: tasks, error } = await sb.from('tasks')
@@ -25,15 +69,9 @@ async function loadTodayCleaning(dateStr) {
     console.error('loadTodayCleaning error:', error);
   }
 
-  const d = new Date(dateStr + 'T00:00:00');
-  const weekday = d.getDay(); // 0=일 ~ 6=토
-
-  // 해당 요일에 스케줄이 잡힌 업체 목록
-  const scheduledCompanyIds = [...new Set(
-    adminData.schedules
-      .filter(s => s.weekday === weekday && s.is_active)
-      .map(s => s.company_id)
-  )];
+  // 빈도 기반으로 해당 날짜에 활성인 스케줄만 필터링
+  const matchedSchedules = adminData.schedules.filter(s => isScheduleActiveOnDate(s, dateStr));
+  const scheduledCompanyIds = [...new Set(matchedSchedules.map(s => s.company_id))];
 
   const month = dateStr.substring(0, 7); // YYYY-MM
 
@@ -94,7 +132,7 @@ function getFilteredCleaning() {
 }
 
 // ═══════════════════════════════════════════════════════
-//  일별 자동 청소 일정 생성
+//  일별 자동 청소 일정 생성 (빈도 지원)
 // ═══════════════════════════════════════════════════════
 
 async function generateTodayTasks() {
@@ -110,9 +148,8 @@ async function generateTodayTasks() {
   let noWorkerSkipped = 0;
   const createdList = [];
 
-  const matchedSchedules = adminData.schedules.filter(
-    s => s.weekday === weekday && s.is_active
-  );
+  // 빈도 기반으로 해당 날짜에 활성인 스케줄만 필터링
+  const matchedSchedules = adminData.schedules.filter(s => isScheduleActiveOnDate(s, dateStr));
 
   if (matchedSchedules.length === 0) {
     autoGenResult = { created: 0, duplicated: 0, inactiveSkipped: 0, noWorkerSkipped: 0, list: [], dateStr, dayName };
@@ -277,7 +314,7 @@ function closeAutoGenResult() {
 
 
 // ═══════════════════════════════════════════════════════
-//  월 전체 청소 일정 생성
+//  월 전체 청소 일정 생성 (빈도 지원)
 // ═══════════════════════════════════════════════════════
 
 /**
@@ -286,7 +323,9 @@ function closeAutoGenResult() {
  * 로직:
  * 1) 해당 월의 1일~말일 날짜 배열 생성
  * 2) company_schedule의 is_active=true 스케줄 조회
- * 3) 각 날짜의 요일과 스케줄 weekday 매칭
+ * 3) 각 날짜의 요일과 스케줄 weekday 매칭 + 빈도(frequency) 체크
+ *    - weekly: 매주 해당 요일
+ *    - biweekly: anchor_date 기준 격주 체크
  * 4) companies.status='active' + company_workers 담당직원 확인
  * 5) tasks에서 해당 월 전체 기존 데이터 조회 → 중복 체크 Set
  * 6) 중복 아닌 건만 일괄 INSERT (200건 배치)
@@ -343,7 +382,7 @@ async function _doGenerateMonthlyTasks(month) {
     return;
   }
 
-  // 요일별 스케줄 맵: weekday → [{ company_id }]
+  // 요일별 스케줄 맵: weekday → [schedule objects]
   const schedByWeekday = {};
   for (const s of activeSchedules) {
     if (!schedByWeekday[s.weekday]) schedByWeekday[s.weekday] = [];
@@ -379,7 +418,7 @@ async function _doGenerateMonthlyTasks(month) {
     (existingTasks || []).map(t => `${t.company_id}|${t.worker_id}|${t.task_date}`)
   );
 
-  // 5) 날짜별 순회하며 INSERT 대상 수집
+  // 5) 날짜별 순회하며 INSERT 대상 수집 (빈도 체크 포함)
   let created = 0;
   let duplicated = 0;
   let inactiveSkipped = 0;
@@ -396,7 +435,11 @@ async function _doGenerateMonthlyTasks(month) {
     const daySchedules = schedByWeekday[weekday];
     if (!daySchedules) continue;
 
-    const companyIds = [...new Set(daySchedules.map(s => s.company_id))];
+    // 빈도 체크를 통과한 스케줄만 필터링
+    const matchedSchedules = daySchedules.filter(s => isScheduleActiveOnDate(s, dateStr));
+    if (matchedSchedules.length === 0) continue;
+
+    const companyIds = [...new Set(matchedSchedules.map(s => s.company_id))];
 
     for (const companyId of companyIds) {
       const company = adminData.companies.find(c => c.id === companyId);
@@ -686,7 +729,7 @@ function renderDashboardHTML() {
           <span class="ag-gen-icon">📅</span> 월 일정 생성
         </button>
       </div>
-      <p class="text-muted" style="font-size:11px;margin-top:6px">선택한 월의 모든 스케줄 요일에 대해 청소 일정을 일괄 생성합니다. 기존 일정은 중복 생성되지 않습니다.</p>
+      <p class="text-muted" style="font-size:11px;margin-top:6px">선택한 월의 모든 스케줄 요일에 대해 청소 일정을 일괄 생성합니다. 격주 스케줄은 기준일(anchor) 기반으로 격주 판별됩니다.</p>
       ${buildMonthGenResultHTML()}
     </div>
 

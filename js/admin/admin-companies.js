@@ -1,7 +1,17 @@
 /**
  * admin-companies.js - 업체관리 탭
- * 업체 목록, 등록/수정/삭제, 상세 모달, 스케줄, 배정, 주차/분리수거
+ * 업체 목록, 등록/수정/삭제, 상세 모달, 스케줄(빈도 포함), 배정, 주차/분리수거
  */
+
+// ─── 빈도 라벨 매핑 ───
+const FREQ_LABELS = {
+  weekly:   '매주',
+  biweekly: '격주',
+};
+
+function getFreqLabel(freq) {
+  return FREQ_LABELS[freq] || '매주';
+}
 
 // ════════════════════════════════════════════════════
 // 업체 목록 조회
@@ -48,7 +58,12 @@ function renderAllClients() {
 
     ${filtered.map(c => {
       const scheds = getCompanySchedules(c.id);
-      const days = scheds.map(s => WEEKDAY_NAMES[s.weekday]).join(', ') || '-';
+      // 빈도 표시: 요일 + 빈도
+      const daysWithFreq = scheds.map(s => {
+        const freq = s.frequency || 'weekly';
+        const label = WEEKDAY_NAMES[s.weekday];
+        return freq === 'biweekly' ? label + '(격주)' : label;
+      }).join(', ') || '-';
       const assigns = getCompanyAssignments(c.id, selectedMonth);
       const workers = assigns.map(a => getWorkerName(a.worker_id)).join(', ') || '미배정';
 
@@ -68,7 +83,7 @@ function renderAllClients() {
             ${statusBadge}
           </div>
           <div class="company-card-info">
-            <span class="info-chip">📅 ${days}</span>
+            <span class="info-chip">📅 ${daysWithFreq}</span>
             <span class="info-chip">👤 ${workers}</span>
           </div>
         </div>
@@ -236,6 +251,10 @@ async function openCompanyDetail(companyId) {
   const allWorkers = getActiveWorkers();
   const note = getCompanyNote(companyId);
 
+  // 현재 빈도 결정 (활성 스케줄 중 첫 번째 기준, 없으면 weekly)
+  const currentFreq = scheds.length > 0 ? (scheds[0].frequency || 'weekly') : 'weekly';
+  const currentAnchor = scheds.length > 0 ? (scheds[0].anchor_date || '') : '';
+
   const html = `
     <button class="modal-close" onclick="closeModal()">&times;</button>
     <h3>${c.name}</h3>
@@ -263,7 +282,27 @@ async function openCompanyDetail(companyId) {
     </div>
 
     <div class="detail-section">
-      <div class="detail-section-title">📅 청소 요일 설정</div>
+      <div class="detail-section-title">📅 청소 요일 및 빈도 설정</div>
+
+      <!-- 빈도 선택 -->
+      <div class="freq-setting" style="margin-bottom:12px">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <label style="font-size:13px;font-weight:600;color:var(--text1);min-width:50px">빈도</label>
+          <select id="freqSelect_${companyId}" class="today-filter-select" style="min-width:100px" onchange="onFreqChange('${companyId}', this.value)">
+            <option value="weekly"${currentFreq === 'weekly' ? ' selected' : ''}>매주</option>
+            <option value="biweekly"${currentFreq === 'biweekly' ? ' selected' : ''}>격주</option>
+          </select>
+          <div id="anchorWrap_${companyId}" style="display:${currentFreq === 'biweekly' ? 'flex' : 'none'};gap:6px;align-items:center">
+            <label style="font-size:12px;color:var(--text2);white-space:nowrap">기준일</label>
+            <input type="date" id="anchorDate_${companyId}" class="today-date-input" style="width:140px" value="${currentAnchor}">
+          </div>
+        </div>
+        <p class="text-muted" style="font-size:11px;margin-top:4px" id="freqHint_${companyId}">
+          ${currentFreq === 'biweekly' ? '기준일로부터 격주(2주 간격)로 청소 일정이 생성됩니다.' : '선택한 요일마다 매주 청소 일정이 생성됩니다.'}
+        </p>
+      </div>
+
+      <!-- 요일 그리드 -->
       <div class="weekday-grid" id="weekdayGrid_${companyId}">
         ${WEEKDAY_NAMES.map((name, idx) => {
           const active = scheds.some(s => s.weekday === idx);
@@ -271,6 +310,7 @@ async function openCompanyDetail(companyId) {
                     onclick="toggleWeekday('${companyId}', ${idx}, this)">${name}</button>`;
         }).join('')}
       </div>
+
       <div class="admin-time-row" style="margin-top:10px">
         <div class="field" style="margin-bottom:0">
           <label>시작</label>
@@ -281,7 +321,7 @@ async function openCompanyDetail(companyId) {
           <input type="time" id="schedEnd_${companyId}" value="${scheds[0]?.end_time?.slice(0,5) || ''}">
         </div>
         <button class="btn-sm btn-blue" style="align-self:flex-end"
-                onclick="saveScheduleTimes('${companyId}')">시간 저장</button>
+                onclick="saveScheduleSettings('${companyId}')">저장</button>
       </div>
     </div>
 
@@ -341,7 +381,25 @@ async function openCompanyDetail(companyId) {
 
 
 // ════════════════════════════════════════════════════
-// 청소 요일 설정
+// 빈도 변경 UI 핸들러
+// ════════════════════════════════════════════════════
+
+function onFreqChange(companyId, freq) {
+  const anchorWrap = $(`anchorWrap_${companyId}`);
+  const hint = $(`freqHint_${companyId}`);
+
+  if (freq === 'biweekly') {
+    if (anchorWrap) anchorWrap.style.display = 'flex';
+    if (hint) hint.textContent = '기준일로부터 격주(2주 간격)로 청소 일정이 생성됩니다.';
+  } else {
+    if (anchorWrap) anchorWrap.style.display = 'none';
+    if (hint) hint.textContent = '선택한 요일마다 매주 청소 일정이 생성됩니다.';
+  }
+}
+
+
+// ════════════════════════════════════════════════════
+// 청소 요일 설정 (빈도 + 시간 통합 저장)
 // ════════════════════════════════════════════════════
 
 async function toggleWeekday(companyId, weekday, btn) {
@@ -360,18 +418,26 @@ async function toggleWeekday(companyId, weekday, btn) {
     }
     btn.classList.remove('active');
   } else {
+    // 현재 선택된 빈도 가져오기
+    const freqSelect = $(`freqSelect_${companyId}`);
+    const freq = freqSelect ? freqSelect.value : 'weekly';
+    const anchorInput = $(`anchorDate_${companyId}`);
+    const anchorDate = (freq === 'biweekly' && anchorInput) ? (anchorInput.value || null) : null;
+
     const existing = adminData.schedules.find(
       s => s.company_id === companyId && s.weekday === weekday
     );
     if (existing) {
       const { error } = await sb.from('company_schedule')
-        .update({ is_active: true })
+        .update({ is_active: true, frequency: freq, anchor_date: anchorDate })
         .eq('id', existing.id);
       if (error) return toast(error.message, 'error');
       existing.is_active = true;
+      existing.frequency = freq;
+      existing.anchor_date = anchorDate;
     } else {
       const { data, error } = await sb.from('company_schedule')
-        .insert({ company_id: companyId, weekday, is_active: true })
+        .insert({ company_id: companyId, weekday, is_active: true, frequency: freq, anchor_date: anchorDate })
         .select().single();
       if (error) return toast(error.message, 'error');
       adminData.schedules.push(data);
@@ -382,9 +448,16 @@ async function toggleWeekday(companyId, weekday, btn) {
   toast('요일 변경됨');
 }
 
-async function saveScheduleTimes(companyId) {
+/**
+ * 시간 + 빈도 + anchor_date를 모든 활성 스케줄에 일괄 저장
+ */
+async function saveScheduleSettings(companyId) {
   const startTime = $(`schedStart_${companyId}`).value || null;
   const endTime = $(`schedEnd_${companyId}`).value || null;
+  const freqSelect = $(`freqSelect_${companyId}`);
+  const freq = freqSelect ? freqSelect.value : 'weekly';
+  const anchorInput = $(`anchorDate_${companyId}`);
+  const anchorDate = (freq === 'biweekly' && anchorInput) ? (anchorInput.value || null) : null;
 
   const activeScheds = adminData.schedules.filter(
     s => s.company_id === companyId && s.is_active
@@ -394,14 +467,26 @@ async function saveScheduleTimes(companyId) {
 
   for (const s of activeScheds) {
     const { error } = await sb.from('company_schedule')
-      .update({ start_time: startTime, end_time: endTime })
+      .update({
+        start_time: startTime,
+        end_time: endTime,
+        frequency: freq,
+        anchor_date: anchorDate,
+      })
       .eq('id', s.id);
     if (error) { toast(error.message, 'error'); return; }
     s.start_time = startTime;
     s.end_time = endTime;
+    s.frequency = freq;
+    s.anchor_date = anchorDate;
   }
 
-  toast('시간 저장됨');
+  toast('스케줄 설정 저장됨');
+}
+
+// 기존 saveScheduleTimes는 saveScheduleSettings로 대체
+async function saveScheduleTimes(companyId) {
+  return saveScheduleSettings(companyId);
 }
 
 
