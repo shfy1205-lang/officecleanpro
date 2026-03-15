@@ -1,5 +1,7 @@
 /**
  * staff-pay.js - 내 급여 탭
+ * 총급여, 3.3% 공제액, 실지급액 표시
+ * 업체별 지급금액 목록
  */
 
 function renderMyPay() {
@@ -8,15 +10,34 @@ function renderMyPay() {
 
   const totalPay = assigns.reduce((sum, a) => sum + (a.pay_amount || 0), 0);
   const companyCount = assigns.length;
+  const deduction = Math.round(totalPay * 0.033);
+  const netPay = totalPay - deduction;
+  const monthLabel = selectedMonth.split('-')[1];
 
   let html = `
     <div class="section-title">내 급여</div>
     ${monthSelectorHTML(selectedMonth, 'changePayMonth')}
 
+    <!-- 급여 요약 카드: 총급여 / 공제 / 실지급 -->
     <div class="pay-summary-card">
-      <div class="pay-total-label">${selectedMonth.split('-')[1]}월 총 급여</div>
-      <div class="pay-total-amount">${fmt(totalPay)}원</div>
+      <div class="pay-total-label">${monthLabel}월 예상 실지급액</div>
+      <div class="pay-total-amount">${fmt(netPay)}원</div>
       <div class="pay-total-sub">총 ${companyCount}개 업체</div>
+    </div>
+
+    <div class="sp-pay-breakdown">
+      <div class="sp-pay-breakdown-item">
+        <span class="sp-pay-breakdown-label">총급여</span>
+        <span class="sp-pay-breakdown-value">${fmt(totalPay)}원</span>
+      </div>
+      <div class="sp-pay-breakdown-item sp-pay-minus">
+        <span class="sp-pay-breakdown-label">3.3% 공제액</span>
+        <span class="sp-pay-breakdown-value">-${fmt(deduction)}원</span>
+      </div>
+      <div class="sp-pay-breakdown-item sp-pay-result">
+        <span class="sp-pay-breakdown-label">실지급액</span>
+        <span class="sp-pay-breakdown-value">${fmt(netPay)}원</span>
+      </div>
     </div>
   `;
 
@@ -32,7 +53,10 @@ function renderMyPay() {
   // 업체별 급여 목록 (금액 내림차순)
   const sorted = [...assigns].sort((a, b) => (b.pay_amount || 0) - (a.pay_amount || 0));
 
-  html += `<div class="pay-list">`;
+  html += `
+    <div class="section-title" style="font-size:14px;margin-top:20px">업체별 지급금액</div>
+    <div class="pay-list">
+  `;
   sorted.forEach(a => {
     const comp = getCompanyById(a.company_id);
     if (!comp) return;

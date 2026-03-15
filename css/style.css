@@ -1600,6 +1600,106 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
 
 
 /* ════════════════════════════════════════════════════
+   담당자급여 5열 요약 + 3.3% 공제
+   ════════════════════════════════════════════════════ */
+.sp-summary-grid-5 {
+  grid-template-columns: repeat(5, 1fr);
+}
+.sp-deduction-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text2);
+  margin-top: 4px;
+  padding: 0 2px;
+}
+/* 상세 모달 급여 요약 */
+.sp-detail-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.sp-detail-card {
+  background: var(--bg3);
+  border-radius: 8px;
+  padding: 12px 10px;
+  text-align: center;
+}
+.sp-detail-label {
+  font-size: 11px;
+  color: var(--text2);
+  margin-bottom: 4px;
+}
+.sp-detail-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+.sp-detail-red .sp-detail-value { color: var(--red); }
+.sp-detail-green .sp-detail-value { color: var(--green); }
+
+/* 금액 수정 인풋 */
+.sp-edit-input {
+  width: 90px;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg2);
+  color: var(--text);
+  font-size: 12px;
+  text-align: right;
+}
+.sp-edit-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* ════════════════════════════════════════════════════
+   직원 급여 3.3% 공제 내역 (staff-pay)
+   ════════════════════════════════════════════════════ */
+.sp-pay-breakdown {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin: 12px 0 16px;
+}
+.sp-pay-breakdown-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  font-size: 14px;
+}
+.sp-pay-breakdown-item + .sp-pay-breakdown-item {
+  border-top: 1px solid var(--border);
+}
+.sp-pay-breakdown-label {
+  color: var(--text2);
+}
+.sp-pay-breakdown-value {
+  font-weight: 600;
+  color: var(--text);
+}
+.sp-pay-minus .sp-pay-breakdown-value {
+  color: var(--red);
+}
+.sp-pay-result {
+  padding-top: 10px !important;
+}
+.sp-pay-result .sp-pay-breakdown-label {
+  font-weight: 700;
+  color: var(--text);
+}
+.sp-pay-result .sp-pay-breakdown-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--green);
+}
+
+
+/* ════════════════════════════════════════════════════
    반응형
    ════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
@@ -1609,8 +1709,11 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   .ba-table-pc { display: none; }
   .ba-cards-mobile { display: block; }
   .sp-summary-grid { grid-template-columns: repeat(3, 1fr); }
+  .sp-summary-grid-5 { grid-template-columns: repeat(3, 1fr); }
   .sp-table-pc { display: none; }
   .sp-cards-mobile { display: block; }
+  .sp-detail-summary { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .sp-edit-input { width: 70px; }
   .rv-table-pc { display: none; }
   .rv-cards-mobile { display: block; }
   .ag-preview-table-pc { display: none; }
@@ -1648,8 +1751,12 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   .ba-table-pc { display: none; }
   .ba-cards-mobile { display: block; }
   .sp-summary-grid { grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .sp-summary-grid-5 { grid-template-columns: repeat(2, 1fr); gap: 6px; }
   .sp-table-pc { display: none; }
   .sp-cards-mobile { display: block; }
+  .sp-detail-summary { grid-template-columns: 1fr; gap: 6px; }
+  .sp-detail-card { padding: 10px 8px; }
+  .sp-detail-value { font-size: 14px; }
   .rv-table-pc { display: none; }
   .rv-cards-mobile { display: block; }
   .ag-gen-btn { width: 100%; justify-content: center; }
