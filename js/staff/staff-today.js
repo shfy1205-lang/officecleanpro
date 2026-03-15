@@ -187,6 +187,7 @@ async function completeTodayTask(companyId) {
     worker_id:  currentWorker.id,
     task_date:  today(),
     status:     'completed',
+    task_source: 'manual',
     memo:       memo || null,
   }).select().single();
 

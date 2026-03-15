@@ -15,6 +15,7 @@ async function toggleTask(companyId) {
     worker_id:  currentWorker.id,
     task_date:  today(),
     status:     'completed',
+    task_source: 'manual',
   });
 
   if (error) {

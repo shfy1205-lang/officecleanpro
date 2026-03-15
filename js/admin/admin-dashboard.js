@@ -205,6 +205,7 @@ async function generateTodayTasks() {
         worker_id: assign.worker_id,
         task_date: dateStr,
         status: 'scheduled',
+        task_source: 'auto',
         memo: null,
       });
 
@@ -225,6 +226,16 @@ async function generateTodayTasks() {
     }
     created = toInsert.length;
   }
+
+  // 생성 로그 기록
+  await saveGenerationLog({
+    action_type: 'today_generate',
+    target_month: month,
+    created_count: created,
+    skipped_count: duplicated,
+    excluded_inactive: inactiveSkipped,
+    excluded_no_worker: noWorkerSkipped,
+  });
 
   autoGenResult = { created, duplicated, inactiveSkipped, noWorkerSkipped, list: createdList, dateStr, dayName };
 
@@ -476,6 +487,7 @@ async function _doGenerateMonthlyTasks(month) {
           worker_id: assign.worker_id,
           task_date: dateStr,
           status: 'scheduled',
+          task_source: 'auto',
           memo: null,
         });
 
@@ -507,7 +519,17 @@ async function _doGenerateMonthlyTasks(month) {
   }
   created = toInsert.length;
 
-  // 7) 결과 저장
+  // 7) 생성 로그 기록
+  await saveGenerationLog({
+    action_type: 'month_generate',
+    target_month: month,
+    created_count: created,
+    skipped_count: duplicated,
+    excluded_inactive: inactiveSkipped,
+    excluded_no_worker: noWorkerSkipped,
+  });
+
+  // 8) 결과 저장
   monthGenResult = {
     month,
     created,
@@ -894,4 +916,129 @@ async function changeDashMonth(month) {
   selectedMonth = month;
   await ensureMonthData(month);
   renderDashboardHTML();
+}
+
+
+// ═══════════════════════════════════════════════════════
+//  일정 생성 로그 기록 / 조회 / UI
+// ═══════════════════════════════════════════════════════
+
+/** 생성 로그를 schedule_generation_log 테이블에 저장 */
+async function saveGenerationLog(info) {
+  try {
+    const row = {
+      action_type:       info.action_type,
+      target_month:      info.target_month,
+      created_count:     info.created_count || 0,
+      skipped_count:     info.skipped_count || 0,
+      excluded_inactive: info.excluded_inactive || 0,
+      excluded_no_worker: info.excluded_no_worker || 0,
+      created_by:        currentWorker?.id || null,
+    };
+    const { error } = await sb.from('schedule_generation_log').insert(row);
+    if (error) console.error('saveGenerationLog error:', error);
+    // 로컬 캐시 갱신
+    if (adminData.generationLogs) {
+      adminData.generationLogs.unshift({ ...row, created_at: new Date().toISOString() });
+    }
+  } catch (e) {
+    console.error('saveGenerationLog exception:', e);
+  }
+}
+
+/** 일정 생성 로그 탭 렌더링 */
+async function renderScheduleLog() {
+  const mc = $('mainContent');
+  mc.innerHTML = '<div class="empty-state"><div class="spinner" style="width:30px;height:30px;border-width:3px"></div><p>로그를 불러오는 중...</p></div>';
+
+  // DB에서 최신 로그 가져오기
+  const { data, error } = await sb.from('schedule_generation_log')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (error) {
+    mc.innerHTML = '<div class="empty-state"><p>로그 조회 실패: ' + error.message + '</p></div>';
+    return;
+  }
+
+  const logs = data || [];
+  adminData.generationLogs = logs;
+
+  if (logs.length === 0) {
+    mc.innerHTML = `
+      <div class="section-title">일정 생성 로그</div>
+      <div class="empty-state" style="padding:40px 20px">
+        <div class="empty-icon">📋</div>
+        <p>기록된 일정 생성 로그가 없습니다.</p>
+      </div>
+    `;
+    return;
+  }
+
+  // 통계
+  const totalCreated = logs.reduce((s, l) => s + (l.created_count || 0), 0);
+  const totalSkipped = logs.reduce((s, l) => s + (l.skipped_count || 0), 0);
+  const todayLogs = logs.filter(l => l.created_at && l.created_at.startsWith(today()));
+
+  mc.innerHTML = `
+    <div class="section-title">일정 생성 로그</div>
+
+    <div class="stats-grid stats-grid-4" style="margin-bottom:16px">
+      <div class="stat-card">
+        <div class="stat-label">총 실행 횟수</div>
+        <div class="stat-value blue">${logs.length}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">총 생성 건수</div>
+        <div class="stat-value green">${totalCreated.toLocaleString()}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">총 중복 제외</div>
+        <div class="stat-value yellow">${totalSkipped.toLocaleString()}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">오늘 실행</div>
+        <div class="stat-value">${todayLogs.length}</div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>생성 일시</th>
+            <th>방식</th>
+            <th>대상 월</th>
+            <th>생성</th>
+            <th>중복 제외</th>
+            <th>비활성 제외</th>
+            <th>담당자 없음</th>
+            <th>실행자</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${logs.map(l => {
+            const typeLabel = l.action_type === 'today_generate'
+              ? '<span class="badge badge-today" style="font-size:10px">일별</span>'
+              : '<span class="badge badge-done" style="font-size:10px">월별</span>';
+            const createdBy = l.created_by ? getWorkerName(l.created_by) : '-';
+            const dateStr = l.created_at ? formatDate(l.created_at) : '-';
+            return `<tr>
+              <td style="font-size:12px;white-space:nowrap">${dateStr}</td>
+              <td>${typeLabel}</td>
+              <td>${l.target_month || '-'}</td>
+              <td><strong class="green">${l.created_count || 0}</strong></td>
+              <td class="yellow">${l.skipped_count || 0}</td>
+              <td style="color:var(--text2)">${l.excluded_inactive || 0}</td>
+              <td class="red">${l.excluded_no_worker || 0}</td>
+              <td>${createdBy}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    <p class="text-muted" style="margin-top:8px;font-size:11px">최근 50건까지 표시됩니다.</p>
+  `;
 }
