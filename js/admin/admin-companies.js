@@ -439,6 +439,9 @@ async function toggleWeekday(companyId, weekday, btn) {
       );
 
       existing.is_active = false;
+
+      // ── 미래 미완료 tasks 자동 삭제 ──
+      await syncTasksOnScheduleChange(companyId, weekday, false);
     }
     btn.classList.remove('active');
   } else {
@@ -466,6 +469,9 @@ async function toggleWeekday(companyId, weekday, btn) {
       existing.is_active = true;
       existing.frequency = freq;
       existing.anchor_date = anchorDate;
+
+      // ── 해당 요일 tasks 자동 생성 ──
+      await syncTasksOnScheduleChange(companyId, weekday, true, freq, anchorDate);
     } else {
       const { data, error } = await sb.from('company_schedule')
         .insert({ company_id: companyId, weekday, is_active: true, frequency: freq, anchor_date: anchorDate })
@@ -479,11 +485,117 @@ async function toggleWeekday(companyId, weekday, btn) {
       );
 
       adminData.schedules.push(data);
+
+      // ── 새 스케줄 tasks 자동 생성 ──
+      await syncTasksOnScheduleChange(companyId, weekday, true, freq, anchorDate);
     }
     btn.classList.add('active');
   }
 
   toast('요일 변경됨');
+}
+
+/**
+ * 스케줄 변경 시 미래 tasks 자동 동기화
+ * - 비활성화: 오늘 이후 해당 업체+요일의 scheduled tasks 삭제
+ * - 활성화/추가: 현재 월 + 다음 월에 해당 업체+요일 tasks 자동 생성
+ */
+async function syncTasksOnScheduleChange(companyId, weekday, activate, freq, anchorDate) {
+  try {
+    const todayStr = today();
+    const companyName = getCompanyName(companyId);
+    const dayNames = ['일','월','화','수','목','금','토'];
+
+    if (!activate) {
+      // ── 비활성화: 미래 미완료 tasks 삭제 ──
+      const { data: futureTasks, error: fetchErr } = await sb.from('tasks')
+        .select('id, task_date')
+        .eq('company_id', companyId)
+        .eq('status', 'scheduled')
+        .gte('task_date', todayStr);
+
+      if (fetchErr || !futureTasks) return;
+
+      const toDelete = futureTasks.filter(t => {
+        const d = new Date(t.task_date + 'T00:00:00');
+        return d.getDay() === weekday;
+      });
+
+      if (toDelete.length > 0) {
+        const ids = toDelete.map(t => t.id);
+        await sb.from('tasks').delete().in('id', ids);
+        toast(`${companyName} ${dayNames[weekday]}요일 미래 일정 ${toDelete.length}건 자동 삭제`, 'info');
+      }
+    } else {
+      // ── 활성화: 현재 월 + 다음 월 tasks 자동 생성 ──
+      const nowDate = new Date(todayStr + 'T00:00:00');
+      const curMonth = `${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, '0')}`;
+      const nextMonthDate = new Date(nowDate.getFullYear(), nowDate.getMonth() + 1, 1);
+      const nextMonth = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}`;
+
+      const months = [curMonth, nextMonth];
+      let totalCreated = 0;
+
+      for (const month of months) {
+        const [y, m] = month.split('-').map(Number);
+        const daysInMonth = new Date(y, m, 0).getDate();
+
+        // 해당 월 배정 확인
+        const assigns = adminData.assignments.filter(a => a.company_id === companyId && a.month === month);
+        if (assigns.length === 0) continue;
+
+        // 해당 월의 매칭 날짜 수집
+        const dates = [];
+        for (let day = 1; day <= daysInMonth; day++) {
+          const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          if (dateStr < todayStr) continue; // 과거 제외
+          const d = new Date(dateStr + 'T00:00:00');
+          if (d.getDay() !== weekday) continue;
+          // 격주 체크
+          if (freq === 'biweekly' && !isBiweeklyMatch(anchorDate, dateStr)) continue;
+          dates.push(dateStr);
+        }
+
+        if (dates.length === 0) continue;
+
+        // 기존 tasks 확인
+        const { data: existing } = await sb.from('tasks')
+          .select('task_date, worker_id')
+          .eq('company_id', companyId)
+          .in('task_date', dates);
+
+        const existingSet = new Set((existing || []).map(t => `${t.task_date}|${t.worker_id}`));
+
+        const toInsert = [];
+        for (const dateStr of dates) {
+          for (const a of assigns) {
+            const key = `${dateStr}|${a.worker_id}`;
+            if (!existingSet.has(key)) {
+              toInsert.push({
+                company_id: companyId,
+                worker_id: a.worker_id,
+                task_date: dateStr,
+                status: 'scheduled',
+                task_source: 'auto',
+                memo: null,
+              });
+            }
+          }
+        }
+
+        if (toInsert.length > 0) {
+          const { error: insertErr } = await sb.from('tasks').insert(toInsert);
+          if (!insertErr) totalCreated += toInsert.length;
+        }
+      }
+
+      if (totalCreated > 0) {
+        toast(`${companyName} ${dayNames[weekday]}요일 일정 ${totalCreated}건 자동 생성`, 'info');
+      }
+    }
+  } catch (e) {
+    console.error('syncTasksOnScheduleChange error:', e);
+  }
 }
 
 /**
