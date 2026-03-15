@@ -314,8 +314,11 @@ function openCalendarDayDetail(dateStr) {
     </div>
   `;
 
-  $('modalBody').innerHTML = html;
+  const modalEl = $('modalBody');
+  modalEl.innerHTML = html;
+  modalEl.style.maxWidth = '750px';
   $('detailModal').classList.add('show');
+  $('detailModal').scrollTop = 0;
 }
 
 // ─── 네비게이션 ───
