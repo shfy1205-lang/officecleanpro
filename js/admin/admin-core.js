@@ -151,6 +151,7 @@ function switchTab(tabName, el) {
     areaSummary:  renderAreaSummary,
     revenue:      renderRevenue,
     analysis:     renderAnalysis,
+    calendar:     renderCalendar,
   };
 
   if (renderers[tabName]) renderers[tabName]();
