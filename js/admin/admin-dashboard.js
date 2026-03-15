@@ -1,6 +1,6 @@
 /**
  * admin-dashboard.js - 대시보드 탭
- * 오늘 청소 현황 + 월간 요약
+ * 오늘 청소 현황 + 월간 요약 + 자동 일정 생성
  */
 
 // ─── 오늘 청소 현황 상태 ───
@@ -8,6 +8,9 @@ let todayDate = '';
 let todayWorkerFilter = '';
 let todayStatusFilter = 'all';
 let todayCleaningCache = null;
+
+// ─── 자동 일정 생성 상태 ───
+let autoGenResult = null;   // 마지막 생성 결과
 
 // ─── 오늘 청소 데이터 로드 (선택된 날짜 기준) ───
 async function loadTodayCleaning(dateStr) {
@@ -85,6 +88,211 @@ function getFilteredCleaning() {
   }
 
   return data;
+}
+
+// ═══════════════════════════════════════════════════════
+//  자동 청소 일정 생성
+// ═══════════════════════════════════════════════════════
+
+/**
+ * 오늘(또는 선택된 날짜)의 청소 일정을 자동 생성한다.
+ *
+ * 로직:
+ * 1) company_schedule에서 해당 요일 + is_active=true 필터
+ * 2) 각 업체 status='active' 확인
+ * 3) company_workers에서 해당 월 담당 직원 확인
+ * 4) tasks에서 같은 날짜 기존 데이터 조회 → 중복 방지
+ * 5) 신규 tasks INSERT (status='scheduled')
+ */
+async function generateTodayTasks() {
+  const dateStr = todayDate || today();
+  const d = new Date(dateStr + 'T00:00:00');
+  const weekday = d.getDay();
+  const month = dateStr.substring(0, 7);
+  const dayName = WEEKDAY_NAMES[weekday];
+
+  // 결과 카운터
+  let created = 0;
+  let duplicated = 0;
+  let inactiveSkipped = 0;
+  let noWorkerSkipped = 0;
+  const createdList = [];  // 생성된 일정 미리보기 데이터
+
+  // 1) 해당 요일 스케줄 조회 (adminData에서)
+  const matchedSchedules = adminData.schedules.filter(
+    s => s.weekday === weekday && s.is_active
+  );
+
+  if (matchedSchedules.length === 0) {
+    autoGenResult = { created: 0, duplicated: 0, inactiveSkipped: 0, noWorkerSkipped: 0, list: [], dateStr, dayName };
+    renderDashboardHTML();
+    toast(`${dayName}요일에 예정된 스케줄이 없습니다`, 'info');
+    return;
+  }
+
+  // 고유 업체 ID 추출
+  const companyIds = [...new Set(matchedSchedules.map(s => s.company_id))];
+
+  // 2) 해당 날짜의 기존 tasks 조회 (DB에서 직접 - 최신 데이터)
+  const { data: existingTasks, error: taskErr } = await sb.from('tasks')
+    .select('company_id, worker_id')
+    .eq('task_date', dateStr);
+
+  if (taskErr) {
+    toast('기존 일정 조회 실패: ' + taskErr.message, 'error');
+    return;
+  }
+
+  // 중복 체크용 Set: "companyId|workerId"
+  const existingSet = new Set(
+    (existingTasks || []).map(t => `${t.company_id}|${t.worker_id}`)
+  );
+
+  // 3) 업체별 처리
+  const toInsert = [];
+
+  for (const companyId of companyIds) {
+    const company = adminData.companies.find(c => c.id === companyId);
+
+    // 비활성 업체 제외
+    if (!company || company.status !== 'active') {
+      inactiveSkipped++;
+      continue;
+    }
+
+    // 담당 직원 조회
+    const assigns = adminData.assignments.filter(
+      a => a.company_id === companyId && a.month === month
+    );
+
+    if (assigns.length === 0) {
+      noWorkerSkipped++;
+      continue;
+    }
+
+    // 각 직원별로 task 생성
+    for (const assign of assigns) {
+      const key = `${companyId}|${assign.worker_id}`;
+
+      if (existingSet.has(key)) {
+        duplicated++;
+        continue;
+      }
+
+      toInsert.push({
+        company_id: companyId,
+        worker_id: assign.worker_id,
+        task_date: dateStr,
+        status: 'scheduled',
+        memo: null,
+      });
+
+      createdList.push({
+        companyName: company.name,
+        workerName: getWorkerName(assign.worker_id),
+        date: dateStr,
+        status: 'scheduled',
+      });
+    }
+  }
+
+  // 4) 일괄 INSERT
+  if (toInsert.length > 0) {
+    const { error: insertErr } = await sb.from('tasks').insert(toInsert);
+    if (insertErr) {
+      toast('일정 생성 실패: ' + insertErr.message, 'error');
+      return;
+    }
+    created = toInsert.length;
+  }
+
+  // 5) 결과 저장 & 다시 렌더
+  autoGenResult = { created, duplicated, inactiveSkipped, noWorkerSkipped, list: createdList, dateStr, dayName };
+
+  // 대시보드 데이터 새로고침
+  await loadTodayCleaning(dateStr);
+  renderDashboardHTML();
+
+  if (created > 0) {
+    toast(`${created}건 일정 생성 완료!`);
+  } else {
+    toast('새로 생성할 일정이 없습니다', 'info');
+  }
+}
+
+// ─── 생성 결과 HTML ───
+function buildAutoGenResultHTML() {
+  if (!autoGenResult) return '';
+
+  const r = autoGenResult;
+  const hasResult = r.created > 0 || r.duplicated > 0 || r.inactiveSkipped > 0 || r.noWorkerSkipped > 0;
+  if (!hasResult) return '';
+
+  let html = `
+    <div class="ag-result-box">
+      <div class="ag-result-header">
+        <span class="ag-result-title">일정 생성 결과</span>
+        <span class="text-muted" style="font-size:11px">${r.dateStr} (${r.dayName})</span>
+        <button class="btn-sm btn-gray" onclick="closeAutoGenResult()" style="margin-left:auto;font-size:10px;padding:3px 8px">닫기</button>
+      </div>
+      <div class="ag-result-stats">
+        <div class="ag-stat">
+          <span class="ag-stat-num green">${r.created}</span>
+          <span class="ag-stat-label">생성</span>
+        </div>
+        <div class="ag-stat">
+          <span class="ag-stat-num yellow">${r.duplicated}</span>
+          <span class="ag-stat-label">중복 제외</span>
+        </div>
+        <div class="ag-stat">
+          <span class="ag-stat-num" style="color:var(--text2)">${r.inactiveSkipped}</span>
+          <span class="ag-stat-label">비활성 제외</span>
+        </div>
+        <div class="ag-stat">
+          <span class="ag-stat-num red">${r.noWorkerSkipped}</span>
+          <span class="ag-stat-label">담당자 없음</span>
+        </div>
+      </div>`;
+
+  // 생성된 일정 미리보기 테이블
+  if (r.list.length > 0) {
+    html += `
+      <div class="ag-preview">
+        <div class="ag-preview-title">생성된 일정 (${r.list.length}건)</div>
+        <div class="ag-preview-table-pc">
+          <table>
+            <thead><tr><th>업체명</th><th>담당직원</th><th>날짜</th><th>상태</th></tr></thead>
+            <tbody>${r.list.map(item => `
+              <tr>
+                <td style="font-weight:600">${item.companyName}</td>
+                <td>${item.workerName}</td>
+                <td>${item.date}</td>
+                <td><span class="badge badge-today">예정</span></td>
+              </tr>
+            `).join('')}</tbody>
+          </table>
+        </div>
+        <div class="ag-preview-cards-mobile">
+          ${r.list.map(item => `
+            <div class="ag-preview-card">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="font-weight:600">${item.companyName}</span>
+                <span class="badge badge-today">예정</span>
+              </div>
+              <div class="text-muted" style="font-size:12px;margin-top:4px">${item.workerName} · ${item.date}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>`;
+  }
+
+  html += '</div>';
+  return html;
+}
+
+function closeAutoGenResult() {
+  autoGenResult = null;
+  renderDashboardHTML();
 }
 
 // ─── 대시보드 렌더링 (진입점) ───
@@ -178,7 +386,12 @@ function renderDashboardHTML() {
           <option value="incomplete"${todayStatusFilter === 'incomplete' ? ' selected' : ''}>미완료</option>
           <option value="problem"${todayStatusFilter === 'problem' ? ' selected' : ''}>문제발생</option>
         </select>
+        <button class="btn-sm btn-green ag-gen-btn" onclick="generateTodayTasks()">
+          <span class="ag-gen-icon">⚡</span> 오늘 일정 생성
+        </button>
       </div>
+
+      ${buildAutoGenResultHTML()}
 
       ${filtered.length > 0 ? buildTodayTable(filtered) + buildTodayCards(filtered) : `
         <div class="empty-state" style="padding:32px 20px">
@@ -324,6 +537,7 @@ async function changeTodayDate(dateStr) {
   todayDate = dateStr;
   todayWorkerFilter = '';
   todayStatusFilter = 'all';
+  autoGenResult = null;  // 날짜 변경 시 결과 초기화
   await loadTodayCleaning(todayDate);
   renderDashboardHTML();
 }

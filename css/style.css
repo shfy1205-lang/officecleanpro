@@ -1477,6 +1477,98 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
 
 
 /* ════════════════════════════════════════════════════
+   자동 일정 생성 (ag- prefix)
+   ════════════════════════════════════════════════════ */
+
+/* 생성 버튼 */
+.ag-gen-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.ag-gen-icon {
+  font-size: 13px;
+}
+.btn-green {
+  background: var(--green);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.btn-green:hover {
+  opacity: 0.85;
+}
+
+/* 결과 박스 */
+.ag-result-box {
+  margin: 12px 0;
+  padding: 14px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.ag-result-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.ag-result-title {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+/* 통계 4칸 */
+.ag-result-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.ag-stat {
+  text-align: center;
+  padding: 8px 4px;
+  background: var(--bg3);
+  border-radius: 8px;
+}
+.ag-stat-num {
+  display: block;
+  font-size: 20px;
+  font-weight: 700;
+}
+.ag-stat-label {
+  display: block;
+  font-size: 11px;
+  color: var(--text2);
+  margin-top: 2px;
+}
+
+/* 미리보기 */
+.ag-preview {
+  margin-top: 8px;
+}
+.ag-preview-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text2);
+}
+.ag-preview-table-pc { display: block; }
+.ag-preview-cards-mobile { display: none; }
+.ag-preview-card {
+  padding: 10px 12px;
+  background: var(--bg3);
+  border-radius: 8px;
+  margin-bottom: 6px;
+}
+
+
+/* ════════════════════════════════════════════════════
    반응형
    ════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
@@ -1490,6 +1582,9 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   .sp-cards-mobile { display: block; }
   .rv-table-pc { display: none; }
   .rv-cards-mobile { display: block; }
+  .ag-preview-table-pc { display: none; }
+  .ag-preview-cards-mobile { display: block; }
+  .ag-result-stats { grid-template-columns: repeat(4, 1fr); gap: 6px; }
 }
 
 @media (max-width: 480px) {
@@ -1526,6 +1621,10 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   .sp-cards-mobile { display: block; }
   .rv-table-pc { display: none; }
   .rv-cards-mobile { display: block; }
+  .ag-gen-btn { width: 100%; justify-content: center; }
+  .ag-preview-table-pc { display: none; }
+  .ag-preview-cards-mobile { display: block; }
+  .ag-result-stats { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 360px) {
