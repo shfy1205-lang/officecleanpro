@@ -1,28 +1,28 @@
 /**
- * login.js - ë¡ê·¸ì¸ / Supabase ì¤ì  ì²ë¦¬
+ * login.js - 로그인 / Supabase 설정 처리
  *
- * ì­í :
- * - ì´ë©ì¼+ë¹ë°ë²í¸ ë¡ê·¸ì¸ (Supabase Auth)
- * - Supabase URL/Key ì¤ì  (localStorage ì ì¥)
- * - ë¡ê·¸ì¸ ì±ê³µ ì workers íì´ë¸ìì role íì¸
- * - role = admin â admin.html ì´ë
- * - role = staff â staff.html ì´ë
- * - workersì íë¡í ìì¼ë©´ ìë¬ ì²ë¦¬
+ * 역할:
+ * - 이메일+비밀번호 로그인 (Supabase Auth)
+ * - Supabase URL/Key 설정 (localStorage 저장)
+ * - 로그인 성공 시 workers 테이블에서 role 확인
+ * - role = admin → admin.html 이동
+ * - role = staff → staff.html 이동
+ * - workers에 프로필 없으면 에러 처리
  *
- * ì°¸ì¡° íì´ë¸: workers (auth_user_id, role, name, status)
+ * 참조 테이블: workers (auth_user_id, role, name, status)
  */
 
-// âââ íì´ì§ ì´ê¸°í âââ
+// ─── 페이지 초기화 ───
 
 document.addEventListener('DOMContentLoaded', async () => {
   const loading = $('loading');
   const loginScreen = $('loginScreen');
 
-  // 1) Supabase ì´ê¸°í ìë
+  // 1) Supabase 초기화 시도
   const hasConfig = initFromStorage();
 
   if (hasConfig) {
-    // 2) ì´ë¯¸ ë¡ê·¸ì¸ ì¸ìì´ ìì¼ë©´ ë°ë¡ ë¦¬ë¤ì´ë í¸
+    // 2) 이미 로그인 세션이 있으면 바로 리다이렉트
     const session = await loadSession();
     if (session) {
       redirectByRole();
@@ -30,61 +30,61 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // 3) ë¡ê·¸ì¸ íë©´ íì
+  // 3) 로그인 화면 표시
   loading.classList.add('hidden');
   loginScreen.style.display = 'flex';
 
-  // 4) ì¤ì ì´ ìì¼ë©´ ì¤ì  í¨ë ìë ì¤í
+  // 4) 설정이 없으면 설정 패널 자동 오픈
   if (!hasConfig) {
     toggleSettings();
   }
 });
 
-// âââ ë¡ê·¸ì¸ âââ
+// ─── 로그인 ───
 
 /**
- * ë¡ê·¸ì¸ ì¤í
+ * 로그인 실행
  * - Supabase Auth signInWithPassword
- * - ì±ê³µ ì workers íì´ë¸ìì role ì¡°í
- * - roleì ë°ë¼ admin.html ëë staff.htmlë¡ ì´ë
+ * - 성공 시 workers 테이블에서 role 조회
+ * - role에 따라 admin.html 또는 staff.html로 이동
  */
 async function doLogin() {
   const email = $('loginEmail').value.trim();
   const pw = $('loginPw').value.trim();
 
-  // ìë ¥ê° ê²ì¦
+  // 입력값 검증
   if (!email || !pw) {
-    return toast('ì´ë©ì¼ê³¼ ë¹ë°ë²í¸ë¥¼ ìë ¥íì¸ì', 'error');
+    return toast('이메일과 비밀번호를 입력하세요', 'error');
   }
 
-  // Supabase í´ë¼ì´ì¸í¸ íì¸
+  // Supabase 클라이언트 확인
   if (!sb) {
     const ok = initFromStorage();
     if (!ok) {
-      return toast('ë¨¼ì  Supabase ì¤ì ì í´ì£¼ì¸ì', 'error');
+      return toast('먼저 Supabase 설정을 해주세요', 'error');
     }
   }
 
-  // ë²í¼ ë¹íì±í (ì¤ë³µ í´ë¦­ ë°©ì§)
+  // 버튼 비활성화 (중복 클릭 방지)
   const btn = $('loginBtn');
   btn.disabled = true;
-  btn.textContent = 'ë¡ê·¸ì¸ ì¤...';
+  btn.textContent = '로그인 중...';
 
   try {
-    // ââ Step 1: Supabase Auth ë¡ê·¸ì¸ ââ
+    // ── Step 1: Supabase Auth 로그인 ──
     const { data: authData, error: authError } =
       await sb.auth.signInWithPassword({ email, password: pw });
 
     if (authError) {
       btn.disabled = false;
-      btn.textContent = 'ë¡ê·¸ì¸';
+      btn.textContent = '로그인';
 
-      // ìë¬ ë©ìì§ íê¸í
+      // 에러 메시지 한글화
       const msg = translateAuthError(authError.message);
       return toast(msg, 'error');
     }
 
-    // ââ Step 2: workers íì´ë¸ìì íë¡í ì¡°í ââ
+    // ── Step 2: workers 테이블에서 프로필 조회 ──
     const { data: worker, error: workerError } = await sb.from('workers')
       .select('id, name, role, status')
       .eq('auth_user_id', authData.user.id)
@@ -92,38 +92,38 @@ async function doLogin() {
 
     if (workerError || !worker) {
       btn.disabled = false;
-      btn.textContent = 'ë¡ê·¸ì¸';
-      // ë¡ê·¸ì¸ì ëì§ë§ íë¡íì´ ìì â ë¡ê·¸ìì ì²ë¦¬
+      btn.textContent = '로그인';
+      // 로그인은 됐지만 프로필이 없음 → 로그아웃 처리
       await sb.auth.signOut();
-      return toast('ì§ì ì ë³´ê° ë±ë¡ëì§ ìììµëë¤. ê´ë¦¬ììê² ë¬¸ìíì¸ì.', 'error');
+      return toast('직원 정보가 등록되지 않았습니다. 관리자에게 문의하세요.', 'error');
     }
 
-    // ââ Step 3: ë¹íì± ê³ì  ì²´í¬ ââ
+    // ── Step 3: 비활성 계정 체크 ──
     if (worker.status === 'inactive') {
       btn.disabled = false;
-      btn.textContent = 'ë¡ê·¸ì¸';
+      btn.textContent = '로그인';
       await sb.auth.signOut();
-      return toast('ë¹íì±íë ê³ì ìëë¤. ê´ë¦¬ììê² ë¬¸ìíì¸ì.', 'error');
+      return toast('비활성화된 계정입니다. 관리자에게 문의하세요.', 'error');
     }
 
-    // ââ Step 4: ì ì­ ë³ì ì¤ì  ââ
+    // ── Step 4: 전역 변수 설정 ──
     currentUser = authData.user;
     currentWorker = worker;
 
-    // ââ Step 5: ì­í ë³ ë¦¬ë¤ì´ë í¸ ââ
-    toast(`${worker.name}ë íìí©ëë¤!`);
+    // ── Step 5: 역할별 리다이렉트 ──
+    toast(`${worker.name}님 환영합니다!`);
     setTimeout(() => redirectByRole(), 500);
 
   } catch (e) {
     btn.disabled = false;
-    btn.textContent = 'ë¡ê·¸ì¸';
+    btn.textContent = '로그인';
     console.error('Login error:', e);
-    toast('ë¡ê·¸ì¸ ì¤ ì¤ë¥ê° ë°ìíìµëë¤.', 'error');
+    toast('로그인 중 오류가 발생했습니다.', 'error');
   }
 }
 
 /**
- * ì­í ë³ íì´ì§ ì´ë
+ * 역할별 페이지 이동
  */
 function redirectByRole() {
   if (isAdmin()) {
@@ -134,15 +134,15 @@ function redirectByRole() {
 }
 
 /**
- * Supabase Auth ìë¬ ë©ìì§ íê¸í
+ * Supabase Auth 에러 메시지 한글화
  */
 function translateAuthError(msg) {
   const map = {
-    'Invalid login credentials':          'ì´ë©ì¼ ëë ë¹ë°ë²í¸ê° ì¬ë°ë¥´ì§ ììµëë¤.',
-    'Email not confirmed':                'ì´ë©ì¼ ì¸ì¦ì´ ìë£ëì§ ìììµëë¤.',
-    'Database error querying schema':     'ë°ì´í°ë² ì´ì¤ ì¤ë¥ìëë¤. ê´ë¦¬ììê² ë¬¸ìíì¸ì.',
-    'For security purposes, you can only request this after': 'ë³´ìì ì ì í ë¤ì ìëí´ì£¼ì¸ì.',
-    'User already registered':            'ì´ë¯¸ ë±ë¡ë ì¬ì©ììëë¤.',
+    'Invalid login credentials':          '이메일 또는 비밀번호가 올바르지 않습니다.',
+    'Email not confirmed':                '이메일 인증이 완료되지 않았습니다.',
+    'Database error querying schema':     '데이터베이스 오류입니다. 관리자에게 문의하세요.',
+    'For security purposes, you can only request this after': '보안상 잠시 후 다시 시도해주세요.',
+    'User already registered':            '이미 등록된 사용자입니다.',
   };
 
   for (const [key, val] of Object.entries(map)) {
@@ -151,16 +151,16 @@ function translateAuthError(msg) {
   return msg;
 }
 
-// âââ Supabase ì¤ì  í¨ë âââ
+// ─── Supabase 설정 패널 ───
 
 /**
- * ì¤ì  í¨ë í ê¸
+ * 설정 패널 토글
  */
 function toggleSettings() {
   const panel = $('settingsPanel');
   panel.classList.toggle('show');
 
-  // íì¬ ì ì¥ë ê° íì
+  // 현재 저장된 값 표시
   $('supaUrl').value =
     localStorage.getItem('supa_url') || 'https://gcbgzfrffekgcaktspyj.supabase.co';
   $('supaKey').value =
@@ -168,29 +168,29 @@ function toggleSettings() {
 }
 
 /**
- * Supabase ì¤ì  ì ì¥
+ * Supabase 설정 저장
  */
 function saveSettings() {
   const url = $('supaUrl').value.trim();
   const key = $('supaKey').value.trim();
 
-  // ê²ì¦
+  // 검증
   if (!url || !key) {
-    return toast('URLê³¼ Keyë¥¼ ëª¨ë ìë ¥íì¸ì', 'error');
+    return toast('URL과 Key를 모두 입력하세요', 'error');
   }
   if (!url.startsWith('https://')) {
-    return toast('URLì https://ë¡ ììí´ì¼ í©ëë¤', 'error');
+    return toast('URL은 https://로 시작해야 합니다', 'error');
   }
 
-  // ì ì¥ + ì´ê¸°í
+  // 저장 + 초기화
   localStorage.setItem('supa_url', url);
   localStorage.setItem('supa_key', key);
 
   const ok = initSupabase(url, key);
   if (!ok) {
-    return toast('ì°ê²°ì ì¤í¨íìµëë¤. URLê³¼ Keyë¥¼ íì¸íì¸ì', 'error');
+    return toast('연결에 실패했습니다. URL과 Key를 확인하세요', 'error');
   }
 
   toggleSettings();
-  toast('ì¤ì ì´ ì ì¥ëììµëë¤');
+  toast('설정이 저장되었습니다');
 }

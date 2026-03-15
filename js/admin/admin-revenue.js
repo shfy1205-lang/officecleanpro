@@ -1,5 +1,6 @@
 /**
  * admin-revenue.js - 수익관리 탭
+ * 핵심 개념: 오피스클린프로 수수료(ocp_amount) = 오피스클린프로 순수익
  */
 
 function calcFee(contractAmount, type, value) {
@@ -27,6 +28,17 @@ function getWorkerPayTotal(companyId, month) {
   return assigns.reduce((s, a) => s + (a.pay_amount || 0), 0);
 }
 
+/* ─── 계약 형태 판별 ─── */
+function getContractType(meta) {
+  const parts = [];
+  if (meta.ocp_type === 'percent') parts.push('OCP 정률');
+  else if (meta.ocp_type === 'fixed') parts.push('OCP 정액');
+  if (meta.eco_type === 'percent') parts.push('에코 정률');
+  else if (meta.eco_type === 'fixed') parts.push('에코 정액');
+  return parts.length > 0 ? parts.join(' / ') : '-';
+}
+
+/* ─── 메인 렌더 ─── */
 function renderRevenue() {
   const mc = $('mainContent');
 
@@ -40,28 +52,25 @@ function renderRevenue() {
 
   // 요약 계산
   let totalContract = 0;
-  let totalOcp = 0;
-  let totalEco = 0;
   let totalWorkerPay = 0;
-  let totalNet = 0;
+  let totalEco = 0;
+  let totalOcp = 0; // = 총 순수익
 
   const rows = activeCompanies.map(c => {
     const fin = finMap[c.id];
     const contract = fin?.contract_amount || 0;
-    const ocp = fin?.ocp_amount || 0;
+    const ocp = fin?.ocp_amount || 0;       // 오피스클린프로 수수료 = 순수익
     const eco = fin?.eco_amount || 0;
     const workerPay = fin?.worker_pay_total || getWorkerPayTotal(c.id, revenueMonth);
-    const net = contract - ocp - eco - workerPay;
 
     totalContract += contract;
-    totalOcp += ocp;
-    totalEco += eco;
     totalWorkerPay += workerPay;
-    totalNet += net;
+    totalEco += eco;
+    totalOcp += ocp;
 
     const meta = parseFeeMetadata(fin?.memo);
 
-    return { company: c, contract, ocp, eco, workerPay, net, meta, fin };
+    return { company: c, contract, ocp, eco, workerPay, meta, fin };
   });
 
   mc.innerHTML = `
@@ -77,66 +86,101 @@ function renderRevenue() {
         <div class="stat-value blue">${fmt(totalContract)}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">수수료 합계</div>
-        <div class="stat-value yellow">${fmt(totalOcp + totalEco)}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">인건비 합계</div>
+        <div class="stat-label">총 직원 지급액</div>
         <div class="stat-value red">${fmt(totalWorkerPay)}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">최종 수익</div>
-        <div class="stat-value ${totalNet >= 0 ? 'green' : 'red'}">${fmt(totalNet)}</div>
+        <div class="stat-label">총 에코 수수료</div>
+        <div class="stat-value yellow">${fmt(totalEco)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">총 OCP 순수익</div>
+        <div class="stat-value ${totalOcp >= 0 ? 'green' : 'red'}">${fmt(totalOcp)}</div>
       </div>
     </div>
 
     <div class="revenue-summary-bar">
-      <div class="revenue-bar-section revenue-bar-ocp" style="width:${totalContract > 0 ? ((totalOcp / totalContract) * 100).toFixed(1) : 0}%" title="OCP 수수료"></div>
+      <div class="revenue-bar-section revenue-bar-worker" style="width:${totalContract > 0 ? ((totalWorkerPay / totalContract) * 100).toFixed(1) : 0}%" title="직원 지급"></div>
       <div class="revenue-bar-section revenue-bar-eco" style="width:${totalContract > 0 ? ((totalEco / totalContract) * 100).toFixed(1) : 0}%" title="에코 수수료"></div>
-      <div class="revenue-bar-section revenue-bar-worker" style="width:${totalContract > 0 ? ((totalWorkerPay / totalContract) * 100).toFixed(1) : 0}%" title="인건비"></div>
-      <div class="revenue-bar-section revenue-bar-net" style="width:${totalContract > 0 ? (Math.max(0, totalNet) / totalContract * 100).toFixed(1) : 0}%" title="순수익"></div>
+      <div class="revenue-bar-section revenue-bar-net" style="width:${totalContract > 0 ? ((totalOcp / totalContract) * 100).toFixed(1) : 0}%" title="OCP 순수익"></div>
     </div>
     <div class="revenue-legend">
-      <span><span class="legend-dot" style="background:var(--accent)"></span> OCP 수수료</span>
+      <span><span class="legend-dot" style="background:var(--red)"></span> 직원 지급</span>
       <span><span class="legend-dot" style="background:var(--orange)"></span> 에코 수수료</span>
-      <span><span class="legend-dot" style="background:var(--red)"></span> 인건비</span>
-      <span><span class="legend-dot" style="background:var(--green)"></span> 순수익</span>
+      <span><span class="legend-dot" style="background:var(--green)"></span> OCP 순수익</span>
     </div>
 
     <p class="text-muted" style="margin:16px 0 12px">총 ${rows.length}개 업체</p>
 
     ${rows.length > 0 ? `
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>업체</th>
-              <th>계약금액</th>
-              <th>수수료</th>
-              <th>인건비</th>
-              <th>순수익</th>
-            </tr>
-          </thead>
-          <tbody>${rows.map(r => {
-            const feeLabel = [];
-            if (r.ocp > 0) feeLabel.push('OCP ' + fmt(r.ocp));
-            if (r.eco > 0) feeLabel.push('에코 ' + fmt(r.eco));
-            const feeStr = feeLabel.length > 0 ? feeLabel.join('+') : '-';
+      <!-- PC 테이블 -->
+      <div class="rv-table-pc">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>업체명</th>
+                <th>총 계약금액</th>
+                <th>직원 지급 총액</th>
+                <th>에코 수수료</th>
+                <th>OCP 수수료</th>
+                <th>계약형태</th>
+                <th>비고</th>
+              </tr>
+            </thead>
+            <tbody>${rows.map(r => {
+              const contractType = getContractType(r.meta);
+              const memoText = r.meta.ocp_rate ? r.meta.ocp_rate + '%' : (r.meta.eco_rate ? r.meta.eco_rate + '%' : '');
 
-            return `<tr class="revenue-row" onclick="openRevenueForm('${r.company.id}')" style="cursor:pointer">
-              <td>
-                <div style="font-weight:600">${r.company.name}</div>
-                <div class="text-muted" style="font-size:11px">${r.company.area_name || ''}</div>
-              </td>
-              <td>${r.contract > 0 ? fmt(r.contract) + '원' : '-'}</td>
-              <td style="font-size:12px">${feeStr}</td>
-              <td>${r.workerPay > 0 ? fmt(r.workerPay) + '원' : '-'}</td>
-              <td style="font-weight:700;color:${r.net >= 0 ? 'var(--green)' : 'var(--red)'}">
-                ${r.contract > 0 ? fmt(r.net) + '원' : '-'}
-              </td>
-            </tr>`;
-          }).join('')}</tbody>
-        </table>
+              return `<tr class="revenue-row" onclick="openRevenueForm('${r.company.id}')" style="cursor:pointer">
+                <td>
+                  <div style="font-weight:600">${r.company.name}</div>
+                  <div class="text-muted" style="font-size:11px">${r.company.area_name || ''}</div>
+                </td>
+                <td>${r.contract > 0 ? fmt(r.contract) + '원' : '-'}</td>
+                <td>${r.workerPay > 0 ? fmt(r.workerPay) + '원' : '-'}</td>
+                <td>${r.eco > 0 ? fmt(r.eco) + '원' : '-'}</td>
+                <td style="font-weight:700;color:${r.ocp > 0 ? 'var(--green)' : 'var(--text2)'}">
+                  ${r.ocp > 0 ? fmt(r.ocp) + '원' : '-'}
+                </td>
+                <td style="font-size:12px">${contractType}</td>
+                <td style="font-size:12px;color:var(--text2)">${memoText}</td>
+              </tr>`;
+            }).join('')}</tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 모바일 카드 -->
+      <div class="rv-cards-mobile">
+        ${rows.map(r => {
+          const contractType = getContractType(r.meta);
+          return `<div class="card rv-card" onclick="openRevenueForm('${r.company.id}')" style="cursor:pointer">
+            <div class="rv-card-header">
+              <div>
+                <div style="font-weight:600;font-size:14px">${r.company.name}</div>
+                <div class="text-muted" style="font-size:11px">${r.company.area_name || ''} · ${contractType}</div>
+              </div>
+              <span style="font-weight:700;color:${r.ocp > 0 ? 'var(--green)' : 'var(--text2)'};font-size:14px">
+                ${r.ocp > 0 ? fmt(r.ocp) + '원' : '-'}
+              </span>
+            </div>
+            <div class="rv-card-body">
+              <div class="rv-card-row">
+                <span class="rv-card-label">계약금액</span>
+                <span>${r.contract > 0 ? fmt(r.contract) + '원' : '-'}</span>
+              </div>
+              <div class="rv-card-row">
+                <span class="rv-card-label">직원 지급</span>
+                <span style="color:var(--red)">${r.workerPay > 0 ? fmt(r.workerPay) + '원' : '-'}</span>
+              </div>
+              <div class="rv-card-row">
+                <span class="rv-card-label">에코 수수료</span>
+                <span>${r.eco > 0 ? fmt(r.eco) + '원' : '-'}</span>
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
       </div>
     ` : `
       <div class="empty-state">
@@ -175,8 +219,6 @@ function openRevenueForm(companyId) {
   const workerPayStored = fin?.worker_pay_total || 0;
   const workerPay = workerPayStored > 0 ? workerPayStored : workerPayCalc;
 
-  const net = contractAmount - ocpAmount - ecoAmount - workerPay;
-
   // 해당 월 배정 직원 목록
   const assigns = adminData.assignments.filter(
     a => a.company_id === companyId && a.month === revenueMonth
@@ -194,7 +236,7 @@ function openRevenueForm(companyId) {
     </div>
 
     <div class="detail-section" style="margin-top:16px">
-      <div class="detail-section-title">오피스클린프로 수수료</div>
+      <div class="detail-section-title">오피스클린프로 수수료 (= 순수익)</div>
       <div class="admin-row-2">
         <div class="field">
           <label>수수료 방식</label>
@@ -212,7 +254,7 @@ function openRevenueForm(companyId) {
         </div>
       </div>
       <p class="text-muted" id="ocpPreview" style="margin-top:4px;font-size:12px">
-        ${ocpAmount > 0 ? '→ ' + fmt(ocpAmount) + '원' : ''}
+        ${ocpAmount > 0 ? '→ ' + fmt(ocpAmount) + '원 (순수익)' : ''}
       </p>
     </div>
 
@@ -240,7 +282,7 @@ function openRevenueForm(companyId) {
     </div>
 
     <div class="detail-section" style="margin-top:16px">
-      <div class="detail-section-title">👤 직원 지급 총액</div>
+      <div class="detail-section-title">직원 지급 총액</div>
       ${assigns.length > 0 ? `
         <div style="margin-bottom:8px">
           ${assigns.map(a => `
@@ -258,28 +300,24 @@ function openRevenueForm(companyId) {
     </div>
 
     <div class="revenue-result-card" id="rvResultCard">
-      <div class="revenue-result-title">최종 수익</div>
-      <div class="revenue-result-formula">
-        <span>${fmt(contractAmount)}</span>
-        <span>-</span>
-        <span id="rvFormulaOcp">${fmt(ocpAmount)}</span>
-        <span>-</span>
-        <span id="rvFormulaEco">${fmt(ecoAmount)}</span>
-        <span>-</span>
-        <span>${fmt(workerPay)}</span>
-        <span>=</span>
-        <span id="rvFormulaNet" class="${net >= 0 ? 'positive' : 'negative'}">${fmt(net)}</span>
-      </div>
-      <div class="revenue-result-labels">
-        <span>계약금액</span>
-        <span></span>
-        <span>OCP</span>
-        <span></span>
-        <span>에코</span>
-        <span></span>
-        <span>인건비</span>
-        <span></span>
-        <span>순수익</span>
+      <div class="revenue-result-title">수익 구조</div>
+      <div class="rv-result-grid">
+        <div class="rv-result-item">
+          <div class="rv-result-label">계약금액</div>
+          <div class="rv-result-value" id="rvResContract">${fmt(contractAmount)}원</div>
+        </div>
+        <div class="rv-result-item">
+          <div class="rv-result-label">직원 지급</div>
+          <div class="rv-result-value" style="color:var(--red)">${fmt(workerPay)}원</div>
+        </div>
+        <div class="rv-result-item">
+          <div class="rv-result-label">에코 수수료</div>
+          <div class="rv-result-value" id="rvResEco" style="color:var(--orange)">${fmt(ecoAmount)}원</div>
+        </div>
+        <div class="rv-result-item rv-result-highlight">
+          <div class="rv-result-label">OCP 순수익</div>
+          <div class="rv-result-value" id="rvResOcp" style="color:var(--green);font-weight:700;font-size:18px">${fmt(ocpAmount)}원</div>
+        </div>
       </div>
     </div>
 
@@ -315,29 +353,20 @@ function previewRevenue() {
   const ecoVal = parseFloat($('rvEcoValue')?.value) || 0;
   const ecoAmt = calcFee(contract, ecoType, ecoVal);
 
-  // 직원 지급 총액은 배정 데이터에서 가져옴 (고정값)
-  const workerPayText = $('rvWorkerPay')?.textContent || '0';
-  const workerPay = parseInt(workerPayText.replace(/[^0-9-]/g, '')) || 0;
-
-  const net = contract - ocpAmt - ecoAmt - workerPay;
-
   // 미리보기 업데이트
   const ocpPre = $('ocpPreview');
-  if (ocpPre) ocpPre.textContent = ocpAmt > 0 ? '→ ' + fmt(ocpAmt) + '원' : '';
+  if (ocpPre) ocpPre.textContent = ocpAmt > 0 ? '→ ' + fmt(ocpAmt) + '원 (순수익)' : '';
 
   const ecoPre = $('ecoPreview');
   if (ecoPre) ecoPre.textContent = ecoAmt > 0 ? '→ ' + fmt(ecoAmt) + '원' : '';
 
-  // 수식 업데이트
-  const fOcp = $('rvFormulaOcp');
-  const fEco = $('rvFormulaEco');
-  const fNet = $('rvFormulaNet');
-  if (fOcp) fOcp.textContent = fmt(ocpAmt);
-  if (fEco) fEco.textContent = fmt(ecoAmt);
-  if (fNet) {
-    fNet.textContent = fmt(net);
-    fNet.className = net >= 0 ? 'positive' : 'negative';
-  }
+  // 결과 카드 업데이트
+  const resContract = $('rvResContract');
+  const resEco = $('rvResEco');
+  const resOcp = $('rvResOcp');
+  if (resContract) resContract.textContent = fmt(contract) + '원';
+  if (resEco) resEco.textContent = fmt(ecoAmt) + '원';
+  if (resOcp) resOcp.textContent = fmt(ocpAmt) + '원';
 }
 
 async function saveRevenue(companyId) {
