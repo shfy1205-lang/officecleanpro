@@ -1380,6 +1380,38 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
 
 
 /* ════════════════════════════════════════════════════
+   담당자급여 자동 계산
+   ════════════════════════════════════════════════════ */
+
+/* 요약 카드 3열 */
+.sp-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.sp-unit {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text2);
+  margin-left: 2px;
+}
+
+/* PC/모바일 분기 */
+.sp-table-pc { display: block; }
+.sp-cards-mobile { display: none; }
+
+/* 테이블 행 */
+.sp-row {
+  transition: background 0.15s;
+  cursor: pointer;
+}
+.sp-row:hover td {
+  background: rgba(59,130,246,0.06);
+}
+
+
+/* ════════════════════════════════════════════════════
    반응형
    ════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
@@ -1388,6 +1420,9 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   .today-cards-mobile { display: block; }
   .ba-table-pc { display: none; }
   .ba-cards-mobile { display: block; }
+  .sp-summary-grid { grid-template-columns: repeat(3, 1fr); }
+  .sp-table-pc { display: none; }
+  .sp-cards-mobile { display: block; }
 }
 
 @media (max-width: 480px) {
@@ -1419,6 +1454,9 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   .ba-search-wrap { width: 100%; }
   .ba-table-pc { display: none; }
   .ba-cards-mobile { display: block; }
+  .sp-summary-grid { grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .sp-table-pc { display: none; }
+  .sp-cards-mobile { display: block; }
 }
 
 @media (max-width: 360px) {

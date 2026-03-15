@@ -3,26 +3,87 @@
  */
 
 // ════════════════════════════════════════════════════
-// 담당자급여 탭
+// 담당자급여 탭 - 자동 계산
 // ════════════════════════════════════════════════════
+
+/**
+ * 급여 자동 계산:
+ *  1) company_financials에서 contract_amount - ocp_amount - eco_amount = workerPool
+ *  2) company_workers의 share(배분율 %)로 각 작업자 급여 산출
+ *     workerPool × (share / 100) = 자동 계산 급여
+ *  3) share가 없으면 기존 pay_amount 사용 (fallback)
+ */
+function calcStaffPayData(month) {
+  const monthAssigns = adminData.assignments.filter(a => a.month === month);
+  const monthFins    = adminData.financials.filter(f => f.month === month);
+
+  // 업체별 financial 맵
+  const finMap = {};
+  monthFins.forEach(f => { finMap[f.company_id] = f; });
+
+  // 직원별 급여 집계
+  const workerMap = {};
+
+  monthAssigns.forEach(a => {
+    const wid = a.worker_id;
+    if (!workerMap[wid]) {
+      workerMap[wid] = {
+        workerId: wid,
+        name: getWorkerName(wid),
+        totalPay: 0,
+        companies: [],
+      };
+    }
+
+    const fin = finMap[a.company_id];
+    const companyName = getCompanyName(a.company_id);
+    let calcPay = 0;
+    let method = 'manual';
+
+    if (fin) {
+      const contract = fin.contract_amount || 0;
+      const ocp      = fin.ocp_amount || 0;
+      const eco      = fin.eco_amount || 0;
+      const workerPool = contract - ocp - eco;
+
+      if (a.share && a.share > 0) {
+        calcPay = Math.round(workerPool * a.share / 100);
+        method = 'auto';
+      } else {
+        calcPay = a.pay_amount || 0;
+        method = 'manual';
+      }
+    } else {
+      calcPay = a.pay_amount || 0;
+      method = 'manual';
+    }
+
+    workerMap[wid].totalPay += calcPay;
+    workerMap[wid].companies.push({
+      companyId: a.company_id,
+      companyName: companyName,
+      contract: fin ? (fin.contract_amount || 0) : 0,
+      ocp: fin ? (fin.ocp_amount || 0) : 0,
+      eco: fin ? (fin.eco_amount || 0) : 0,
+      share: a.share || 0,
+      calcPay: calcPay,
+      manualPay: a.pay_amount || 0,
+      method: method,
+    });
+  });
+
+  const rows = Object.values(workerMap).sort((a, b) => b.totalPay - a.totalPay);
+  const grandTotal = rows.reduce((s, r) => s + r.totalPay, 0);
+  const avgPay = rows.length > 0 ? Math.round(grandTotal / rows.length) : 0;
+
+  return { rows, grandTotal, avgPay };
+}
 
 function renderStaffPay() {
   const mc = $('mainContent');
-
-  const monthAssigns = adminData.assignments.filter(a => a.month === selectedMonth);
-
-  const payMap = {};
-  monthAssigns.forEach(a => {
-    if (!payMap[a.worker_id]) payMap[a.worker_id] = { total: 0, companies: 0 };
-    payMap[a.worker_id].total += (a.pay_amount || 0);
-    payMap[a.worker_id].companies += 1;
-  });
-
-  const rows = Object.entries(payMap)
-    .map(([wid, info]) => ({ wid, name: getWorkerName(wid), ...info }))
-    .sort((a, b) => b.total - a.total);
-
-  const grandTotal = rows.reduce((s, r) => s + r.total, 0);
+  const month = selectedMonth;
+  const { rows, grandTotal, avgPay } = calcStaffPayData(month);
+  const monthLabel = month.split('-')[1];
 
   mc.innerHTML = `
     <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
@@ -31,30 +92,154 @@ function renderStaffPay() {
     </div>
     ${monthSelectorHTML(selectedMonth, 'changePayMonth')}
 
-    <div class="pay-summary-card">
-      <div class="pay-total-label">${selectedMonth.split('-')[1]}월 인건비 합계</div>
-      <div class="pay-total-amount">${fmt(grandTotal)}원</div>
-      <div class="pay-total-sub">총 ${rows.length}명</div>
+    <!-- 요약 카드 3개 -->
+    <div class="sp-summary-grid">
+      <div class="stat-card">
+        <div class="stat-label">${monthLabel}월 총 인건비</div>
+        <div class="stat-value green">${fmt(grandTotal)}<span class="sp-unit">원</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">직원 수</div>
+        <div class="stat-value blue">${rows.length}<span class="sp-unit">명</span></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">평균 급여</div>
+        <div class="stat-value yellow">${fmt(avgPay)}<span class="sp-unit">원</span></div>
+      </div>
     </div>
 
-    ${rows.length > 0 ? rows.map(r => {
-      const pct = grandTotal > 0 ? (r.total / grandTotal * 100).toFixed(1) : 0;
-      return `
-        <div class="card pay-card">
-          <div class="card-header">
-            <div>
-              <div class="card-title">${r.name}</div>
-              <div class="card-subtitle">${r.companies}개 업체</div>
-            </div>
-            <div class="card-amount">${fmt(r.total)}원</div>
-          </div>
-          <div class="pay-bar-wrap">
-            <div class="pay-bar" style="width:${pct}%"></div>
-          </div>
+    ${rows.length > 0 ? `
+      <!-- PC 테이블 -->
+      <div class="sp-table-pc">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>직원 이름</th>
+                <th>담당 업체 수</th>
+                <th>총 급여</th>
+                <th>비중</th>
+                <th>상세</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map(r => {
+                const pct = grandTotal > 0 ? (r.totalPay / grandTotal * 100).toFixed(1) : '0.0';
+                return `<tr class="sp-row">
+                  <td style="font-weight:600">${r.name}</td>
+                  <td>${r.companies.length}개</td>
+                  <td class="admin-pay-cell">${fmt(r.totalPay)}원</td>
+                  <td>${pct}%</td>
+                  <td>
+                    <button class="btn-sm btn-blue" style="font-size:11px;padding:4px 10px"
+                            onclick="openStaffPayDetail('${r.workerId}')">상세</button>
+                  </td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+            <tfoot>
+              <tr style="font-weight:700;background:var(--bg3)">
+                <td>합계</td>
+                <td>${rows.reduce((s,r) => s + r.companies.length, 0)}개</td>
+                <td class="admin-pay-cell">${fmt(grandTotal)}원</td>
+                <td>100%</td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
-      `;
-    }).join('') : '<p class="text-muted">이 달의 급여 데이터가 없습니다.</p>'}
+      </div>
+
+      <!-- 모바일 카드 -->
+      <div class="sp-cards-mobile">
+        ${rows.map(r => {
+          const pct = grandTotal > 0 ? (r.totalPay / grandTotal * 100).toFixed(1) : '0.0';
+          return `
+            <div class="card pay-card" onclick="openStaffPayDetail('${r.workerId}')" style="cursor:pointer">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">${r.name}</div>
+                  <div class="card-subtitle">${r.companies.length}개 업체 · ${pct}%</div>
+                </div>
+                <div class="card-amount">${fmt(r.totalPay)}원</div>
+              </div>
+              <div class="pay-bar-wrap">
+                <div class="pay-bar" style="width:${pct}%"></div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    ` : '<div class="empty-state"><div class="empty-icon">💰</div><p>이 달의 급여 데이터가 없습니다.</p></div>'}
   `;
+}
+
+/** 직원별 상세 모달: 업체별 급여 내역 */
+function openStaffPayDetail(workerId) {
+  const month = selectedMonth;
+  const { rows } = calcStaffPayData(month);
+  const worker = rows.find(r => r.workerId === workerId);
+  if (!worker) return;
+
+  const monthLabel = month.split('-')[1];
+
+  const html = `
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <h3>${worker.name} - ${monthLabel}월 급여 상세</h3>
+
+    <div class="pay-summary-card" style="margin-bottom:16px">
+      <div class="pay-total-label">총 급여</div>
+      <div class="pay-total-amount">${fmt(worker.totalPay)}원</div>
+      <div class="pay-total-sub">${worker.companies.length}개 업체</div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>업체명</th>
+            <th>계약금액</th>
+            <th>수수료</th>
+            <th>배분율</th>
+            <th>급여</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${worker.companies.map(c => {
+            const fees = c.ocp + c.eco;
+            const pool = c.contract - fees;
+            return `<tr>
+              <td style="font-weight:600">${c.companyName}</td>
+              <td>${fmt(c.contract)}원</td>
+              <td style="color:var(--red)">${fmt(fees)}원</td>
+              <td>${c.method === 'auto'
+                ? `<span class="badge badge-done">${c.share}%</span>`
+                : '<span class="badge badge-area">수동</span>'
+              }</td>
+              <td class="admin-pay-cell">${fmt(c.calcPay)}원</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+        <tfoot>
+          <tr style="font-weight:700;background:var(--bg3)">
+            <td>합계</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td class="admin-pay-cell">${fmt(worker.totalPay)}원</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <div style="margin-top:12px;font-size:11px;color:var(--text2);line-height:1.6">
+      <strong>계산 방식:</strong> 계약금액 - 오피스수수료 - 에코수수료 = 작업자풀 → 작업자풀 × 배분율(%) = 급여<br>
+      배분율 미설정 시 수동 입력 금액(pay_amount)을 사용합니다.
+    </div>
+  `;
+
+  $('modalBody').innerHTML = html;
+  $('detailModal').classList.add('show');
 }
 
 async function changePayMonth(month) {
