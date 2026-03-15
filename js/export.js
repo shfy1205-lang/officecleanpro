@@ -246,6 +246,7 @@ function exportWorkers() {
 function exportStaffPay() {
   const month = selectedMonth;
   const monthAssigns = adminData.assignments.filter(a => a.month === month);
+  const finMap = buildFinMap(adminData.financials, month);
 
   const headers = [
     '직원명', '업체명', '구역명', '지급액(원)', '월'
@@ -257,7 +258,7 @@ function exportStaffPay() {
       getWorkerName(a.worker_id),
       comp?.name || '-',
       comp?.area_name || '',
-      a.pay_amount || 0,
+      calcAssignmentFinalPay(a, finMap),
       month,
     ];
   });
@@ -560,11 +561,12 @@ async function exportAll() {
     }),
   });
 
-  // 3. 직원 급여
+  // 3. 직원 급여 (공통 함수 사용으로 관리자 급여 화면과 동일 결과 보장)
   const monthAssigns = adminData.assignments.filter(a => a.month === month);
+  const allFinMap = buildFinMap(adminData.financials, month);
   const payRows = monthAssigns.map(a => {
     const comp = adminData.companies.find(c => c.id === a.company_id);
-    return [getWorkerName(a.worker_id), comp?.name || '-', comp?.area_name || '', a.pay_amount || 0, month];
+    return [getWorkerName(a.worker_id), comp?.name || '-', comp?.area_name || '', calcAssignmentFinalPay(a, allFinMap), month];
   });
   const totalPay = payRows.reduce((s, r) => s + (r[3] || 0), 0);
   payRows.push(['합계', '', '', totalPay, month]);

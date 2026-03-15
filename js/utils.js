@@ -88,3 +88,58 @@ function parseNoticeTarget(title) {
 function closeModal() {
   $('detailModal').classList.remove('show');
 }
+
+/**
+ * 3.3% 공제 계산 (공통)
+ * 모든 화면에서 동일한 공제 계산을 사용하도록 통일
+ */
+function calcDeduction(totalPay) {
+  const deduction = Math.round(totalPay * 0.033);
+  const netPay = totalPay - deduction;
+  return { deduction, netPay };
+}
+
+/**
+ * 단일 배정(assignment)의 최종 지급액 계산 (공통)
+ * 관리자/직원/수익/엑셀 모든 화면에서 동일한 결과를 보장
+ *
+ * 계산 로직:
+ *  1) company_financials 데이터가 있고, share(배분율)이 설정된 경우:
+ *     workerPool = contract_amount - ocp_amount - eco_amount
+ *     calcPay = workerPool × share / 100
+ *  2) 그 외: calcPay = pay_amount
+ *  3) 최종값: pay_amount가 있으면 pay_amount 사용(수동 override), 없으면 calcPay 사용
+ *
+ * @param {Object} a - company_workers row (assignment)
+ * @param {Object} finMap - { company_id: company_financials row } (없으면 null)
+ * @returns {number} 최종 지급액
+ */
+function calcAssignmentFinalPay(a, finMap) {
+  const fin = finMap ? finMap[a.company_id] : null;
+  let calcPay = 0;
+
+  if (fin && a.share && a.share > 0) {
+    const contract = fin.contract_amount || 0;
+    const ocp = fin.ocp_amount || 0;
+    const eco = fin.eco_amount || 0;
+    const workerPool = contract - ocp - eco;
+    calcPay = Math.round(workerPool * a.share / 100);
+  } else {
+    calcPay = a.pay_amount || 0;
+  }
+
+  return a.pay_amount || calcPay;
+}
+
+/**
+ * 월별 financial 맵 생성 (공통)
+ * @param {Array} financials - company_financials 배열
+ * @param {string} month - 'YYYY-MM' 형식
+ * @returns {Object} { company_id: financial_row }
+ */
+function buildFinMap(financials, month) {
+  const map = {};
+  if (!financials) return map;
+  financials.filter(f => f.month === month).forEach(f => { map[f.company_id] = f; });
+  return map;
+}

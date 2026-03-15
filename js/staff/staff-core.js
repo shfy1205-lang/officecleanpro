@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ─── 데이터 로드 (RLS가 자동으로 본인 데이터만 반환) ───
 
 async function loadStaffData() {
-  const [assignments, companies, schedules, notes, photos, tasks, requests, payConfirmations] = await Promise.all([
+  const [assignments, companies, schedules, notes, photos, tasks, requests, payConfirmations, financials] = await Promise.all([
     sb.from('company_workers').select('*'),
     sb.from('companies').select('*'),
     sb.from('company_schedule').select('*'),
@@ -37,6 +37,7 @@ async function loadStaffData() {
     sb.from('tasks').select('*'),
     sb.from('requests').select('*'),
     sb.from('pay_confirmations').select('*'),
+    sb.from('company_financials').select('*'),
   ]);
 
   staffData.assignments      = assignments.data || [];
@@ -47,6 +48,7 @@ async function loadStaffData() {
   staffData.tasks            = tasks.data || [];
   staffData.requests         = requests.data || [];
   staffData.payConfirmations = payConfirmations?.data || [];
+  staffData.financials       = financials?.data || [];
 }
 
 // ─── 탭 전환 ───

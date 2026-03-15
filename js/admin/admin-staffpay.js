@@ -14,14 +14,13 @@
  *     workerPool × (share / 100) = 자동 계산 급여
  *  3) share가 없으면 기존 pay_amount 사용 (fallback)
  *  4) 관리자가 수정한 pay_amount가 있으면 최종 반영값으로 사용
+ *
+ * ★ calcAssignmentFinalPay() (utils.js) 공통 함수 사용
+ * ★ calcDeduction() (utils.js) 공통 함수 사용
  */
 function calcStaffPayData(month) {
   const monthAssigns = adminData.assignments.filter(a => a.month === month);
-  const monthFins    = adminData.financials.filter(f => f.month === month);
-
-  // 업체별 financial 맵
-  const finMap = {};
-  monthFins.forEach(f => { finMap[f.company_id] = f; });
+  const finMap = buildFinMap(adminData.financials, month);
 
   // 직원별 급여 집계
   const workerMap = {};
@@ -60,8 +59,8 @@ function calcStaffPayData(month) {
       method = 'manual';
     }
 
-    // pay_amount가 직접 수정된 경우 최종 반영값으로 사용
-    const finalPay = a.pay_amount || calcPay;
+    // 공통 함수로 최종 지급액 계산 (pay_amount override 또는 auto 계산값)
+    const finalPay = calcAssignmentFinalPay(a, finMap);
 
     workerMap[wid].totalPay += finalPay;
     workerMap[wid].companies.push({
@@ -86,14 +85,8 @@ function calcStaffPayData(month) {
   return { rows, grandTotal, avgPay };
 }
 
-/**
- * 3.3% 공제 계산
- */
-function calcDeduction(totalPay) {
-  const deduction = Math.round(totalPay * 0.033);
-  const netPay = totalPay - deduction;
-  return { deduction, netPay };
-}
+// ★ calcDeduction()은 utils.js에 공통 함수로 정의됨
+// 모든 화면에서 동일한 3.3% 공제 계산을 사용
 
 /**
  * 해당 직원의 해당 월 확정 여부 조회
@@ -695,6 +688,7 @@ function downloadAllPayslips() {
 
 function renderAreaSummary() {
   const mc = $('mainContent');
+  const finMap = buildFinMap(adminData.financials, selectedMonth);
 
   const areaMap = {};
   adminData.companies.forEach(c => {
@@ -705,7 +699,7 @@ function renderAreaSummary() {
     const assigns = adminData.assignments.filter(
       a => a.company_id === c.id && a.month === selectedMonth
     );
-    assigns.forEach(a => { areaMap[area].totalPay += (a.pay_amount || 0); });
+    assigns.forEach(a => { areaMap[area].totalPay += calcAssignmentFinalPay(a, finMap); });
   });
 
   const rows = Object.entries(areaMap)
@@ -754,9 +748,10 @@ function renderAnalysis() {
     c => c.status === 'active' && !assignedCompanyIds.has(c.id)
   );
 
+  const finMap = buildFinMap(adminData.financials, selectedMonth);
   const companyPayMap = {};
   monthAssigns.forEach(a => {
-    companyPayMap[a.company_id] = (companyPayMap[a.company_id] || 0) + (a.pay_amount || 0);
+    companyPayMap[a.company_id] = (companyPayMap[a.company_id] || 0) + calcAssignmentFinalPay(a, finMap);
   });
   const highPay = Object.entries(companyPayMap)
     .filter(([, pay]) => pay > 500000)

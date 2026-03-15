@@ -25,7 +25,8 @@ function getWorkerPayTotal(companyId, month) {
   const assigns = adminData.assignments.filter(
     a => a.company_id === companyId && a.month === month
   );
-  return assigns.reduce((s, a) => s + (a.pay_amount || 0), 0);
+  const finMap = buildFinMap(adminData.financials, month);
+  return assigns.reduce((s, a) => s + calcAssignmentFinalPay(a, finMap), 0);
 }
 
 /* ─── 계약 형태 판별 ─── */

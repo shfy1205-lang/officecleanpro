@@ -4,6 +4,9 @@
  * 업체별 지급금액 목록
  * 급여 확정 상태 표시
  * 급여명세서 다운로드 (엑셀/PDF)
+ *
+ * ★ 공통 함수 사용: calcDeduction(), calcAssignmentFinalPay(), buildFinMap()
+ *   → utils.js에서 관리자/직원 동일 계산 보장
  */
 
 function isMyPayConfirmed(month) {
@@ -13,14 +16,27 @@ function isMyPayConfirmed(month) {
   return pc && pc.confirmed;
 }
 
+/**
+ * 배정 목록에서 최종 지급액 배열 계산
+ * share 기반 자동계산이 있으면 반영, 없으면 pay_amount fallback
+ */
+function calcMyPayList(month) {
+  const assigns = getMonthAssignments(month);
+  const finMap = buildFinMap(staffData.financials || [], month);
+
+  return assigns.map(a => ({
+    ...a,
+    finalPay: calcAssignmentFinalPay(a, finMap),
+  }));
+}
+
 function renderMyPay() {
   const mc = $('mainContent');
-  const assigns = getMonthAssignments(selectedMonth);
+  const payList = calcMyPayList(selectedMonth);
 
-  const totalPay = assigns.reduce((sum, a) => sum + (a.pay_amount || 0), 0);
-  const companyCount = assigns.length;
-  const deduction = Math.round(totalPay * 0.033);
-  const netPay = totalPay - deduction;
+  const totalPay = payList.reduce((sum, a) => sum + a.finalPay, 0);
+  const companyCount = payList.length;
+  const { deduction, netPay } = calcDeduction(totalPay);
   const monthLabel = selectedMonth.split('-')[1];
   const confirmed = isMyPayConfirmed(selectedMonth);
 
@@ -69,7 +85,7 @@ function renderMyPay() {
     </div>
   `;
 
-  if (assigns.length === 0) {
+  if (payList.length === 0) {
     html += `<div class="empty-state">
       <div class="empty-icon">💰</div>
       <p>${selectedMonth} 급여 데이터가 없습니다.</p>
@@ -79,7 +95,7 @@ function renderMyPay() {
   }
 
   // 업체별 급여 목록 (금액 내림차순)
-  const sorted = [...assigns].sort((a, b) => (b.pay_amount || 0) - (a.pay_amount || 0));
+  const sorted = [...payList].sort((a, b) => b.finalPay - a.finalPay);
 
   html += `
     <div class="section-title" style="font-size:14px;margin-top:20px">업체별 지급금액</div>
@@ -88,7 +104,7 @@ function renderMyPay() {
   sorted.forEach(a => {
     const comp = getCompanyById(a.company_id);
     if (!comp) return;
-    const pct = totalPay > 0 ? ((a.pay_amount || 0) / totalPay * 100).toFixed(1) : 0;
+    const pct = totalPay > 0 ? (a.finalPay / totalPay * 100).toFixed(1) : 0;
 
     html += `
       <div class="card pay-card">
@@ -97,7 +113,7 @@ function renderMyPay() {
             <div class="card-title">${comp.name}</div>
             <div class="card-subtitle">${comp.area_name || '기타'}</div>
           </div>
-          <div class="card-amount">${fmt(a.pay_amount)}원</div>
+          <div class="card-amount">${fmt(a.finalPay)}원</div>
         </div>
         <div class="pay-bar-wrap">
           <div class="pay-bar" style="width:${pct}%"></div>
@@ -127,10 +143,9 @@ function downloadMyPayslipExcel() {
     return toast('급여가 확정된 후에만 명세서를 다운로드할 수 있습니다', 'error');
   }
 
-  const assigns = getMonthAssignments(month);
-  const totalPay = assigns.reduce((sum, a) => sum + (a.pay_amount || 0), 0);
-  const deduction = Math.round(totalPay * 0.033);
-  const netPay = totalPay - deduction;
+  const payList = calcMyPayList(month);
+  const totalPay = payList.reduce((sum, a) => sum + a.finalPay, 0);
+  const { deduction, netPay } = calcDeduction(totalPay);
 
   if (typeof XLSX === 'undefined') {
     toast('엑셀 라이브러리를 불러오지 못했습니다', 'error');
@@ -142,7 +157,7 @@ function downloadMyPayslipExcel() {
   const summaryRows = [
     ['직원명', currentWorker.name],
     ['대상 월', month],
-    ['담당 업체 수', assigns.length + '개'],
+    ['담당 업체 수', payList.length + '개'],
     ['총급여', totalPay],
     ['3.3% 공제액', deduction],
     ['실지급액', netPay],
@@ -150,11 +165,11 @@ function downloadMyPayslipExcel() {
 
   // 시트2: 업체별 지급내역
   const detailHeaders = ['업체명', '구역', '지급금액(원)'];
-  const detailRows = assigns
-    .sort((a, b) => (b.pay_amount || 0) - (a.pay_amount || 0))
+  const detailRows = [...payList]
+    .sort((a, b) => b.finalPay - a.finalPay)
     .map(a => {
       const comp = getCompanyById(a.company_id);
-      return [comp?.name || '-', comp?.area_name || '', a.pay_amount || 0];
+      return [comp?.name || '-', comp?.area_name || '', a.finalPay];
     });
   detailRows.push(['합계', '', totalPay]);
 
@@ -183,10 +198,9 @@ function downloadMyPayslipPDF() {
     return toast('급여가 확정된 후에만 명세서를 다운로드할 수 있습니다', 'error');
   }
 
-  const assigns = getMonthAssignments(month);
-  const totalPay = assigns.reduce((sum, a) => sum + (a.pay_amount || 0), 0);
-  const deduction = Math.round(totalPay * 0.033);
-  const netPay = totalPay - deduction;
+  const payList = calcMyPayList(month);
+  const totalPay = payList.reduce((sum, a) => sum + a.finalPay, 0);
+  const { deduction, netPay } = calcDeduction(totalPay);
 
   if (typeof jspdf === 'undefined' && typeof window.jspdf === 'undefined') {
     toast('PDF 라이브러리를 불러오지 못했습니다. 엑셀 다운로드를 이용해주세요.', 'error');
@@ -208,7 +222,7 @@ function downloadMyPayslipPDF() {
   doc.setFontSize(11);
   doc.text(`Employee: ${currentWorker.name}`, 20, y); y += 7;
   doc.text(`Period: ${month}`, 20, y); y += 7;
-  doc.text(`Companies: ${assigns.length}`, 20, y); y += 10;
+  doc.text(`Companies: ${payList.length}`, 20, y); y += 10;
 
   // 급여 요약
   doc.setFontSize(12);
@@ -233,7 +247,7 @@ function downloadMyPayslipPDF() {
   doc.line(20, y, pageWidth - 20, y);
   y += 5;
 
-  const sorted = [...assigns].sort((a, b) => (b.pay_amount || 0) - (a.pay_amount || 0));
+  const sorted = [...payList].sort((a, b) => b.finalPay - a.finalPay);
   sorted.forEach(a => {
     if (y > 270) {
       doc.addPage();
@@ -241,7 +255,7 @@ function downloadMyPayslipPDF() {
     }
     const comp = getCompanyById(a.company_id);
     doc.text(comp?.name || '-', 25, y);
-    doc.text(fmt(a.pay_amount || 0), pageWidth - 55, y, { align: 'right' });
+    doc.text(fmt(a.finalPay), pageWidth - 55, y, { align: 'right' });
     y += 6;
   });
 
