@@ -1912,7 +1912,7 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
 .cal-cell-empty { background: var(--bg); cursor: default; }
 .cal-cell-has-tasks { cursor: pointer; }
 .cal-cell-has-tasks:hover { background: rgba(59,130,246,0.06); }
-.cal-cell-today { background: rgba(59,130,246,0.08); }
+.cal-cell-today { background: rgba(59,130,246,0.10); border: 1.5px solid var(--accent); }
 .cal-cell-today .cal-day-num { color: var(--accent); font-weight: 800; }
 
 .cal-day-num { font-size: 12px; font-weight: 600; margin-bottom: 3px; }
