@@ -1567,6 +1567,37 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   margin-bottom: 6px;
 }
 
+/* ════════════════════════════════════════════════════
+   월 전체 일정 생성 (mg- prefix)
+   ════════════════════════════════════════════════════ */
+
+.mg-section {
+  margin-bottom: 8px;
+}
+.mg-control-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.mg-month-input {
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg2);
+  color: var(--text);
+  font-size: 13px;
+  min-width: 140px;
+}
+.mg-month-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.mg-result-box {
+  margin-top: 14px;
+  border-color: rgba(16,185,129,0.25);
+}
+
 
 /* ════════════════════════════════════════════════════
    반응형
@@ -1625,6 +1656,8 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   .ag-preview-table-pc { display: none; }
   .ag-preview-cards-mobile { display: block; }
   .ag-result-stats { grid-template-columns: repeat(2, 1fr); }
+  .mg-control-bar { flex-direction: column; }
+  .mg-month-input { width: 100%; }
 }
 
 @media (max-width: 360px) {

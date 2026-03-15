@@ -1,6 +1,6 @@
 /**
  * admin-dashboard.js - 대시보드 탭
- * 오늘 청소 현황 + 월간 요약 + 자동 일정 생성
+ * 오늘 청소 현황 + 월간 요약 + 자동 일정 생성 (일별 / 월별)
  */
 
 // ─── 오늘 청소 현황 상태 ───
@@ -10,7 +10,10 @@ let todayStatusFilter = 'all';
 let todayCleaningCache = null;
 
 // ─── 자동 일정 생성 상태 ───
-let autoGenResult = null;   // 마지막 생성 결과
+let autoGenResult = null;        // 일별 생성 결과
+let monthGenResult = null;       // 월별 생성 결과
+let monthGenMonth = '';           // 월별 생성 선택 월
+let monthGenBusy = false;         // 월별 생성 진행 중
 
 // ─── 오늘 청소 데이터 로드 (선택된 날짜 기준) ───
 async function loadTodayCleaning(dateStr) {
@@ -91,19 +94,9 @@ function getFilteredCleaning() {
 }
 
 // ═══════════════════════════════════════════════════════
-//  자동 청소 일정 생성
+//  일별 자동 청소 일정 생성
 // ═══════════════════════════════════════════════════════
 
-/**
- * 오늘(또는 선택된 날짜)의 청소 일정을 자동 생성한다.
- *
- * 로직:
- * 1) company_schedule에서 해당 요일 + is_active=true 필터
- * 2) 각 업체 status='active' 확인
- * 3) company_workers에서 해당 월 담당 직원 확인
- * 4) tasks에서 같은 날짜 기존 데이터 조회 → 중복 방지
- * 5) 신규 tasks INSERT (status='scheduled')
- */
 async function generateTodayTasks() {
   const dateStr = todayDate || today();
   const d = new Date(dateStr + 'T00:00:00');
@@ -111,14 +104,12 @@ async function generateTodayTasks() {
   const month = dateStr.substring(0, 7);
   const dayName = WEEKDAY_NAMES[weekday];
 
-  // 결과 카운터
   let created = 0;
   let duplicated = 0;
   let inactiveSkipped = 0;
   let noWorkerSkipped = 0;
-  const createdList = [];  // 생성된 일정 미리보기 데이터
+  const createdList = [];
 
-  // 1) 해당 요일 스케줄 조회 (adminData에서)
   const matchedSchedules = adminData.schedules.filter(
     s => s.weekday === weekday && s.is_active
   );
@@ -130,10 +121,8 @@ async function generateTodayTasks() {
     return;
   }
 
-  // 고유 업체 ID 추출
   const companyIds = [...new Set(matchedSchedules.map(s => s.company_id))];
 
-  // 2) 해당 날짜의 기존 tasks 조회 (DB에서 직접 - 최신 데이터)
   const { data: existingTasks, error: taskErr } = await sb.from('tasks')
     .select('company_id, worker_id')
     .eq('task_date', dateStr);
@@ -143,24 +132,20 @@ async function generateTodayTasks() {
     return;
   }
 
-  // 중복 체크용 Set: "companyId|workerId"
   const existingSet = new Set(
     (existingTasks || []).map(t => `${t.company_id}|${t.worker_id}`)
   );
 
-  // 3) 업체별 처리
   const toInsert = [];
 
   for (const companyId of companyIds) {
     const company = adminData.companies.find(c => c.id === companyId);
 
-    // 비활성 업체 제외
     if (!company || company.status !== 'active') {
       inactiveSkipped++;
       continue;
     }
 
-    // 담당 직원 조회
     const assigns = adminData.assignments.filter(
       a => a.company_id === companyId && a.month === month
     );
@@ -170,7 +155,6 @@ async function generateTodayTasks() {
       continue;
     }
 
-    // 각 직원별로 task 생성
     for (const assign of assigns) {
       const key = `${companyId}|${assign.worker_id}`;
 
@@ -196,7 +180,6 @@ async function generateTodayTasks() {
     }
   }
 
-  // 4) 일괄 INSERT
   if (toInsert.length > 0) {
     const { error: insertErr } = await sb.from('tasks').insert(toInsert);
     if (insertErr) {
@@ -206,10 +189,8 @@ async function generateTodayTasks() {
     created = toInsert.length;
   }
 
-  // 5) 결과 저장 & 다시 렌더
   autoGenResult = { created, duplicated, inactiveSkipped, noWorkerSkipped, list: createdList, dateStr, dayName };
 
-  // 대시보드 데이터 새로고침
   await loadTodayCleaning(dateStr);
   renderDashboardHTML();
 
@@ -220,7 +201,7 @@ async function generateTodayTasks() {
   }
 }
 
-// ─── 생성 결과 HTML ───
+// ─── 일별 생성 결과 HTML ───
 function buildAutoGenResultHTML() {
   if (!autoGenResult) return '';
 
@@ -254,7 +235,6 @@ function buildAutoGenResultHTML() {
         </div>
       </div>`;
 
-  // 생성된 일정 미리보기 테이블
   if (r.list.length > 0) {
     html += `
       <div class="ag-preview">
@@ -295,14 +275,308 @@ function closeAutoGenResult() {
   renderDashboardHTML();
 }
 
-// ─── 대시보드 렌더링 (진입점) ───
+
+// ═══════════════════════════════════════════════════════
+//  월 전체 청소 일정 생성
+// ═══════════════════════════════════════════════════════
+
+/**
+ * 선택한 월의 모든 날짜에 대해 스케줄 기반 tasks를 일괄 생성한다.
+ *
+ * 로직:
+ * 1) 해당 월의 1일~말일 날짜 배열 생성
+ * 2) company_schedule의 is_active=true 스케줄 조회
+ * 3) 각 날짜의 요일과 스케줄 weekday 매칭
+ * 4) companies.status='active' + company_workers 담당직원 확인
+ * 5) tasks에서 해당 월 전체 기존 데이터 조회 → 중복 체크 Set
+ * 6) 중복 아닌 건만 일괄 INSERT (200건 배치)
+ */
+async function generateMonthlyTasks() {
+  if (monthGenBusy) return;
+
+  const monthInput = $('monthGenInput');
+  if (!monthInput) return;
+  const month = monthInput.value;  // "2026-04"
+  if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+    toast('올바른 월을 선택하세요', 'error');
+    return;
+  }
+
+  monthGenBusy = true;
+  monthGenMonth = month;
+  monthGenResult = null;
+
+  // 버튼 로딩 상태
+  const btn = $('monthGenBtn');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="ag-gen-icon">⏳</span> 생성 중...';
+  }
+
+  try {
+    await _doGenerateMonthlyTasks(month);
+  } catch (e) {
+    console.error('generateMonthlyTasks error:', e);
+    toast('월 일정 생성 중 오류 발생', 'error');
+  } finally {
+    monthGenBusy = false;
+    renderDashboardHTML();
+  }
+}
+
+async function _doGenerateMonthlyTasks(month) {
+  // 1) 해당 월의 모든 날짜 생성
+  const [year, mon] = month.split('-').map(Number);
+  const daysInMonth = new Date(year, mon, 0).getDate();  // 말일
+  const allDates = [];
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dd = String(day).padStart(2, '0');
+    const mm = String(mon).padStart(2, '0');
+    allDates.push(`${year}-${mm}-${dd}`);
+  }
+
+  // 2) 활성 스케줄 가져오기
+  const activeSchedules = adminData.schedules.filter(s => s.is_active);
+  if (activeSchedules.length === 0) {
+    monthGenResult = { month, created: 0, duplicated: 0, inactiveSkipped: 0, noWorkerSkipped: 0, totalDates: daysInMonth, list: [] };
+    toast('활성 스케줄이 없습니다', 'info');
+    return;
+  }
+
+  // 요일별 스케줄 맵: weekday → [{ company_id }]
+  const schedByWeekday = {};
+  for (const s of activeSchedules) {
+    if (!schedByWeekday[s.weekday]) schedByWeekday[s.weekday] = [];
+    schedByWeekday[s.weekday].push(s);
+  }
+
+  // 3) 해당 월의 담당 직원 데이터 확보
+  await ensureMonthData(month);
+  const monthAssigns = adminData.assignments.filter(a => a.month === month);
+
+  // 업체별 직원 맵
+  const assignMap = {};
+  for (const a of monthAssigns) {
+    if (!assignMap[a.company_id]) assignMap[a.company_id] = [];
+    assignMap[a.company_id].push(a);
+  }
+
+  // 4) 해당 월 기존 tasks 조회 (DB 직접)
+  const firstDay = `${month}-01`;
+  const lastDay = `${month}-${String(daysInMonth).padStart(2, '0')}`;
+  const { data: existingTasks, error: taskErr } = await sb.from('tasks')
+    .select('company_id, worker_id, task_date')
+    .gte('task_date', firstDay)
+    .lte('task_date', lastDay);
+
+  if (taskErr) {
+    toast('기존 일정 조회 실패: ' + taskErr.message, 'error');
+    return;
+  }
+
+  // 중복 체크 Set: "companyId|workerId|date"
+  const existingSet = new Set(
+    (existingTasks || []).map(t => `${t.company_id}|${t.worker_id}|${t.task_date}`)
+  );
+
+  // 5) 날짜별 순회하며 INSERT 대상 수집
+  let created = 0;
+  let duplicated = 0;
+  let inactiveSkipped = 0;
+  let noWorkerSkipped = 0;
+  const toInsert = [];
+  const createdList = [];
+  const inactiveChecked = new Set();   // 중복 카운트 방지
+  const noWorkerChecked = new Set();
+
+  for (const dateStr of allDates) {
+    const d = new Date(dateStr + 'T00:00:00');
+    const weekday = d.getDay();
+
+    const daySchedules = schedByWeekday[weekday];
+    if (!daySchedules) continue;
+
+    const companyIds = [...new Set(daySchedules.map(s => s.company_id))];
+
+    for (const companyId of companyIds) {
+      const company = adminData.companies.find(c => c.id === companyId);
+
+      // 비활성 업체 제외
+      if (!company || company.status !== 'active') {
+        if (!inactiveChecked.has(companyId)) {
+          inactiveSkipped++;
+          inactiveChecked.add(companyId);
+        }
+        continue;
+      }
+
+      // 담당 직원
+      const assigns = assignMap[companyId];
+      if (!assigns || assigns.length === 0) {
+        if (!noWorkerChecked.has(companyId)) {
+          noWorkerSkipped++;
+          noWorkerChecked.add(companyId);
+        }
+        continue;
+      }
+
+      for (const assign of assigns) {
+        const key = `${companyId}|${assign.worker_id}|${dateStr}`;
+
+        if (existingSet.has(key)) {
+          duplicated++;
+          continue;
+        }
+
+        toInsert.push({
+          company_id: companyId,
+          worker_id: assign.worker_id,
+          task_date: dateStr,
+          status: 'scheduled',
+          memo: null,
+        });
+
+        // 미리보기 리스트 (최대 50건만 수집 — UI 성능)
+        if (createdList.length < 50) {
+          createdList.push({
+            companyName: company.name,
+            workerName: getWorkerName(assign.worker_id),
+            date: dateStr,
+            status: 'scheduled',
+          });
+        }
+      }
+    }
+  }
+
+  // 6) 배치 INSERT (200건씩)
+  const BATCH_SIZE = 200;
+  for (let i = 0; i < toInsert.length; i += BATCH_SIZE) {
+    const batch = toInsert.slice(i, i + BATCH_SIZE);
+    const { error: insertErr } = await sb.from('tasks').insert(batch);
+    if (insertErr) {
+      toast(`일정 생성 실패 (${i}~${i + batch.length}): ` + insertErr.message, 'error');
+      // 이미 생성된 분까지는 카운트
+      created += i;
+      monthGenResult = { month, created, duplicated, inactiveSkipped, noWorkerSkipped, totalDates: daysInMonth, list: createdList, totalCreated: toInsert.length, error: true };
+      return;
+    }
+  }
+  created = toInsert.length;
+
+  // 7) 결과 저장
+  monthGenResult = {
+    month,
+    created,
+    duplicated,
+    inactiveSkipped,
+    noWorkerSkipped,
+    totalDates: daysInMonth,
+    list: createdList,
+    totalCreated: created,
+    error: false,
+  };
+
+  if (created > 0) {
+    toast(`${month} 월 일정 ${created}건 생성 완료!`);
+  } else {
+    toast('새로 생성할 일정이 없습니다', 'info');
+  }
+
+  // 오늘 데이터 새로고침 (오늘이 생성 월에 속하는 경우)
+  if (todayDate && todayDate.startsWith(month)) {
+    await loadTodayCleaning(todayDate);
+  }
+}
+
+// ─── 월 생성 결과 HTML ───
+function buildMonthGenResultHTML() {
+  if (!monthGenResult) return '';
+
+  const r = monthGenResult;
+  const hasResult = r.created > 0 || r.duplicated > 0 || r.inactiveSkipped > 0 || r.noWorkerSkipped > 0;
+  if (!hasResult) return '';
+
+  let html = `
+    <div class="ag-result-box mg-result-box">
+      <div class="ag-result-header">
+        <span class="ag-result-title">월 일정 생성 결과</span>
+        <span class="text-muted" style="font-size:11px">${r.month} (${r.totalDates}일)</span>
+        <button class="btn-sm btn-gray" onclick="closeMonthGenResult()" style="margin-left:auto;font-size:10px;padding:3px 8px">닫기</button>
+      </div>
+      <div class="ag-result-stats">
+        <div class="ag-stat">
+          <span class="ag-stat-num green">${r.created}</span>
+          <span class="ag-stat-label">생성</span>
+        </div>
+        <div class="ag-stat">
+          <span class="ag-stat-num yellow">${r.duplicated}</span>
+          <span class="ag-stat-label">중복 제외</span>
+        </div>
+        <div class="ag-stat">
+          <span class="ag-stat-num" style="color:var(--text2)">${r.inactiveSkipped}</span>
+          <span class="ag-stat-label">비활성 업체</span>
+        </div>
+        <div class="ag-stat">
+          <span class="ag-stat-num red">${r.noWorkerSkipped}</span>
+          <span class="ag-stat-label">담당자 없음</span>
+        </div>
+      </div>`;
+
+  if (r.list.length > 0) {
+    const showMore = r.totalCreated > r.list.length;
+    html += `
+      <div class="ag-preview">
+        <div class="ag-preview-title">생성된 일정 미리보기 (${showMore ? r.list.length + '/' + r.totalCreated + '건' : r.list.length + '건'})</div>
+        <div class="ag-preview-table-pc" style="max-height:320px;overflow-y:auto">
+          <table>
+            <thead><tr><th>업체명</th><th>담당직원</th><th>날짜</th><th>상태</th></tr></thead>
+            <tbody>${r.list.map(item => `
+              <tr>
+                <td style="font-weight:600">${item.companyName}</td>
+                <td>${item.workerName}</td>
+                <td>${item.date}</td>
+                <td><span class="badge badge-today">예정</span></td>
+              </tr>
+            `).join('')}</tbody>
+          </table>
+        </div>
+        <div class="ag-preview-cards-mobile" style="max-height:320px;overflow-y:auto">
+          ${r.list.map(item => `
+            <div class="ag-preview-card">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="font-weight:600">${item.companyName}</span>
+                <span class="badge badge-today">예정</span>
+              </div>
+              <div class="text-muted" style="font-size:12px;margin-top:4px">${item.workerName} · ${item.date}</div>
+            </div>
+          `).join('')}
+        </div>
+        ${showMore ? `<p class="text-muted" style="margin-top:6px;font-size:11px;text-align:center">외 ${r.totalCreated - r.list.length}건 더 있음</p>` : ''}
+      </div>`;
+  }
+
+  html += '</div>';
+  return html;
+}
+
+function closeMonthGenResult() {
+  monthGenResult = null;
+  renderDashboardHTML();
+}
+
+
+// ═══════════════════════════════════════════════════════
+//  대시보드 렌더링
+// ═══════════════════════════════════════════════════════
+
 async function renderDashboard() {
   if (!todayDate) todayDate = today();
+  if (!monthGenMonth) monthGenMonth = currentMonth();
   await loadTodayCleaning(todayDate);
   renderDashboardHTML();
 }
 
-// ─── 대시보드 HTML 렌더링 (캐시 기반, 동기) ───
 function renderDashboardHTML() {
   const mc = $('mainContent');
   const filtered = getFilteredCleaning();
@@ -399,6 +673,21 @@ function renderDashboardHTML() {
           <p>${todayStatusFilter !== 'all' ? '해당 조건의 업체가 없습니다.' : '이 날짜에 예정된 청소가 없습니다.'}</p>
         </div>
       `}
+    </div>
+
+    <hr style="border:none;border-top:1px solid var(--border);margin:28px 0">
+
+    <!-- ═══ 월 전체 일정 생성 ═══ -->
+    <div class="mg-section">
+      <div class="section-title" style="font-size:15px;margin-bottom:12px">월 전체 청소 일정 생성</div>
+      <div class="mg-control-bar">
+        <input type="month" id="monthGenInput" class="mg-month-input" value="${monthGenMonth}">
+        <button id="monthGenBtn" class="btn-sm btn-green ag-gen-btn" onclick="generateMonthlyTasks()" ${monthGenBusy ? 'disabled' : ''}>
+          <span class="ag-gen-icon">📅</span> 월 일정 생성
+        </button>
+      </div>
+      <p class="text-muted" style="font-size:11px;margin-top:6px">선택한 월의 모든 스케줄 요일에 대해 청소 일정을 일괄 생성합니다. 기존 일정은 중복 생성되지 않습니다.</p>
+      ${buildMonthGenResultHTML()}
     </div>
 
     <hr style="border:none;border-top:1px solid var(--border);margin:28px 0">
@@ -537,7 +826,7 @@ async function changeTodayDate(dateStr) {
   todayDate = dateStr;
   todayWorkerFilter = '';
   todayStatusFilter = 'all';
-  autoGenResult = null;  // 날짜 변경 시 결과 초기화
+  autoGenResult = null;
   await loadTodayCleaning(todayDate);
   renderDashboardHTML();
 }
