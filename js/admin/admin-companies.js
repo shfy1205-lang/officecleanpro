@@ -426,41 +426,76 @@ async function openCompanyDetail(companyId) {
       <div class="detail-section-title">💰 정산 정보 (${detailMonth})</div>
       ${(() => {
         const fin = adminData.financials.find(f => f.company_id === companyId && f.month === detailMonth);
-        const isSub = !!c.subcontract_from;
+        const meta = typeof parseFeeMetadata === 'function' ? parseFeeMetadata(fin?.memo) : {};
+        const contractAmt = fin?.contract_amount || 0;
+        const ocpAmt = fin?.ocp_amount || 0;
+        const ecoAmt = fin?.eco_amount || 0;
+        const ocpRate = meta.ocp_rate || 0;
+        const ecoRate = meta.eco_rate || 0;
+        const workerPay = fin?.worker_pay_total || 0;
+        const autoWorker = contractAmt - ocpAmt - ecoAmt;
         return `
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            <div class="field" style="margin-bottom:0">
-              <label>계약금액 (월)</label>
-              <input type="number" id="fin_contract_${companyId}" value="${fin?.contract_amount || 0}" placeholder="0">
-            </div>
-            <div class="field" style="margin-bottom:0">
-              <label>직원 지급 합계</label>
-              <input type="number" id="fin_worker_${companyId}" value="${fin?.worker_pay_total || 0}" placeholder="0">
-            </div>
-            ${isSub ? `
-            <div class="field" style="margin-bottom:0">
-              <label style="color:var(--purple, #a78bfa)">에코 수수료</label>
-              <input type="number" id="fin_eco_${companyId}" value="${fin?.eco_amount || 0}" placeholder="0">
-            </div>
-            <div class="field" style="margin-bottom:0">
-              <label style="color:var(--primary)">OCP 수수료</label>
-              <input type="number" id="fin_ocp_${companyId}" value="${fin?.ocp_amount || 0}" placeholder="0">
-            </div>
-            <div style="grid-column:1/-1;padding:8px 10px;background:rgba(167,139,250,0.08);border-radius:6px;font-size:12px;color:var(--text-secondary)">
-              에코에서 받는 금액 = 계약금액 − 에코수수료 = <strong style="color:var(--green)">${fmt((fin?.contract_amount || 0) - (fin?.eco_amount || 0))}원</strong>
-            </div>
-            ` : `
-            <div class="field" style="margin-bottom:0">
-              <label style="color:var(--primary)">OCP 수수료</label>
-              <input type="number" id="fin_ocp_${companyId}" value="${fin?.ocp_amount || 0}" placeholder="0">
-            </div>
-            <div></div>
-            `}
+          <!-- 계약금액 -->
+          <div class="field" style="margin-bottom:10px">
+            <label style="font-weight:700">계약금액 (월)</label>
+            <input type="number" id="fin_contract_${companyId}" value="${contractAmt}" placeholder="0"
+                   oninput="recalcFinancials('${companyId}')">
           </div>
+
+          <!-- OCP 수수료 -->
+          <div class="fin-fee-row">
+            <div class="fin-fee-label" style="color:var(--primary)">오피스클린프로 수수료</div>
+            <div class="fin-fee-inputs">
+              <div class="fin-pct-wrap">
+                <input type="number" id="fin_ocp_rate_${companyId}" value="${ocpRate}" placeholder="0"
+                       step="0.1" min="0" max="100"
+                       oninput="recalcFee('${companyId}','ocp')">
+                <span class="fin-pct-unit">%</span>
+              </div>
+              <div class="fin-amt-wrap">
+                <input type="number" id="fin_ocp_${companyId}" value="${ocpAmt}" placeholder="0"
+                       oninput="onFeeAmtManual('${companyId}','ocp')">
+                <span class="fin-amt-unit">원</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 에코 수수료 -->
+          <div class="fin-fee-row">
+            <div class="fin-fee-label" style="color:var(--orange)">에코 수수료</div>
+            <div class="fin-fee-inputs">
+              <div class="fin-pct-wrap">
+                <input type="number" id="fin_eco_rate_${companyId}" value="${ecoRate}" placeholder="0"
+                       step="0.1" min="0" max="100"
+                       oninput="recalcFee('${companyId}','eco')">
+                <span class="fin-pct-unit">%</span>
+              </div>
+              <div class="fin-amt-wrap">
+                <input type="number" id="fin_eco_${companyId}" value="${ecoAmt}" placeholder="0"
+                       oninput="onFeeAmtManual('${companyId}','eco')">
+                <span class="fin-amt-unit">원</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 자동 계산 결과 -->
+          <div class="fin-auto-result" id="fin_result_${companyId}">
+            <div class="fin-result-row">
+              <span>직원 지급액 (자동: 계약 − OCP − 에코)</span>
+              <strong id="fin_worker_auto_${companyId}" style="color:var(--green)">${fmt(autoWorker)}원</strong>
+            </div>
+            <div class="fin-result-row" style="font-size:11px;color:var(--text2)">
+              <span>에코에서 받는 금액 (계약 − 에코수수료)</span>
+              <span id="fin_eco_recv_${companyId}">${fmt(contractAmt - ecoAmt)}원</span>
+            </div>
+          </div>
+
+          <!-- 직원 지급 합계 (수정 가능) -->
           <div class="field" style="margin-top:8px;margin-bottom:0">
-            <label>정산 메모</label>
-            <input id="fin_memo_${companyId}" value="${escapeHtml(fin?.memo || '')}" placeholder="메모">
+            <label>직원 지급 합계 <span class="text-muted" style="font-size:11px">(자동 계산됨, 직접 수정 가능)</span></label>
+            <input type="number" id="fin_worker_${companyId}" value="${workerPay || autoWorker}" placeholder="0">
           </div>
+
           <button class="btn-sm btn-blue" style="width:100%;margin-top:10px"
                   onclick="saveFinancials('${companyId}', '${fin?.id || ''}')">정산 정보 저장</button>
         `;
@@ -828,26 +863,85 @@ async function updatePayAmount(assignId, value) {
 
 
 // ════════════════════════════════════════════════════
+// 정산 정보: 수수료 자동 계산
+// ════════════════════════════════════════════════════
+
+/** %에서 금액 자동 계산 (계약금액 × rate%) */
+function recalcFee(companyId, type) {
+  const contract = parseInt($('fin_contract_' + companyId)?.value) || 0;
+  const rate = parseFloat($(`fin_${type}_rate_${companyId}`)?.value) || 0;
+  const amt = Math.round(contract * rate / 100);
+  const amtInput = $(`fin_${type}_${companyId}`);
+  if (amtInput) amtInput.value = amt;
+  updateFinResult(companyId);
+}
+
+/** 금액 직접 입력 시 — %를 역산 */
+function onFeeAmtManual(companyId, type) {
+  const contract = parseInt($('fin_contract_' + companyId)?.value) || 0;
+  const amt = parseInt($(`fin_${type}_${companyId}`)?.value) || 0;
+  const rateInput = $(`fin_${type}_rate_${companyId}`);
+  if (rateInput && contract > 0) {
+    rateInput.value = Math.round((amt / contract) * 1000) / 10; // 소수점 1자리
+  } else if (rateInput && contract === 0) {
+    rateInput.value = 0;
+  }
+  updateFinResult(companyId);
+}
+
+/** 계약금액 변경 시 OCP + 에코 둘 다 재계산 */
+function recalcFinancials(companyId) {
+  recalcFee(companyId, 'ocp');
+  recalcFee(companyId, 'eco');
+}
+
+/** 자동 결과 + 직원 지급액 업데이트 */
+function updateFinResult(companyId) {
+  const contract = parseInt($('fin_contract_' + companyId)?.value) || 0;
+  const ocp = parseInt($('fin_ocp_' + companyId)?.value) || 0;
+  const eco = parseInt($('fin_eco_' + companyId)?.value) || 0;
+  const autoWorker = contract - ocp - eco;
+
+  const workerAutoEl = $('fin_worker_auto_' + companyId);
+  if (workerAutoEl) workerAutoEl.textContent = fmt(autoWorker) + '원';
+
+  const ecoRecvEl = $('fin_eco_recv_' + companyId);
+  if (ecoRecvEl) ecoRecvEl.textContent = fmt(contract - eco) + '원';
+
+  // 직원 지급 합계 자동 세팅
+  const workerInput = $('fin_worker_' + companyId);
+  if (workerInput) workerInput.value = autoWorker;
+}
+
+
+// ════════════════════════════════════════════════════
 // 정산 정보 저장 (financials)
 // ════════════════════════════════════════════════════
 
 async function saveFinancials(companyId, finId) {
-  const c = adminData.companies.find(x => x.id === companyId);
-  const isSub = c && !!c.subcontract_from;
   const month = detailMonth || selectedMonth;
 
   const contractAmount = parseInt($('fin_contract_' + companyId)?.value) || 0;
   const workerPayTotal = parseInt($('fin_worker_' + companyId)?.value) || 0;
   const ocpAmount = parseInt($('fin_ocp_' + companyId)?.value) || 0;
-  const ecoAmount = isSub ? (parseInt($('fin_eco_' + companyId)?.value) || 0) : 0;
-  const memo = $('fin_memo_' + companyId)?.value?.trim() || '';
+  const ecoAmount = parseInt($('fin_eco_' + companyId)?.value) || 0;
+  const ocpRate = parseFloat($('fin_ocp_rate_' + companyId)?.value) || 0;
+  const ecoRate = parseFloat($('fin_eco_rate_' + companyId)?.value) || 0;
+
+  // 수수료 메타데이터 (JSON) — memo 필드에 저장
+  const feeMeta = {};
+  if (ocpRate > 0) { feeMeta.ocp_type = 'percent'; feeMeta.ocp_rate = ocpRate; }
+  else if (ocpAmount > 0) { feeMeta.ocp_type = 'fixed'; }
+  if (ecoRate > 0) { feeMeta.eco_type = 'percent'; feeMeta.eco_rate = ecoRate; }
+  else if (ecoAmount > 0) { feeMeta.eco_type = 'fixed'; }
+  const memoStr = Object.keys(feeMeta).length > 0 ? JSON.stringify(feeMeta) : null;
 
   const payload = {
     contract_amount: contractAmount,
     worker_pay_total: workerPayTotal,
     ocp_amount: ocpAmount,
     eco_amount: ecoAmount,
-    memo,
+    memo: memoStr,
   };
 
   let error;
@@ -872,8 +966,8 @@ async function saveFinancials(companyId, finId) {
   const companyName = getCompanyName(companyId);
   await logChange('company_financials', finId || companyId, finId ? 'update' : 'insert',
     [{ field: 'contract_amount', oldVal: '-', newVal: contractAmount },
-     { field: 'eco_amount', oldVal: '-', newVal: ecoAmount },
-     { field: 'ocp_amount', oldVal: '-', newVal: ocpAmount }],
+     { field: 'eco_amount', oldVal: '-', newVal: ecoAmount + (ecoRate > 0 ? ' (' + ecoRate + '%)' : '') },
+     { field: 'ocp_amount', oldVal: '-', newVal: ocpAmount + (ocpRate > 0 ? ' (' + ocpRate + '%)' : '') }],
     `${companyName} (${month}) 정산 정보 ${finId ? '수정' : '등록'}`
   );
 

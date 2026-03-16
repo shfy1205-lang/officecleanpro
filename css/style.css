@@ -2297,3 +2297,40 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
 .bo-mobile-total span:first-child {
   font-weight: 700; color: var(--text); font-size: 13px;
 }
+
+/* ═══════════════════════════════════════════════════
+   정산 정보: 수수료 입력 행
+   ═══════════════════════════════════════════════════ */
+
+.fin-fee-row {
+  background: var(--bg3); border-radius: 8px;
+  padding: 10px 12px; margin-bottom: 8px;
+}
+.fin-fee-label {
+  font-size: 12px; font-weight: 700; margin-bottom: 6px;
+}
+.fin-fee-inputs {
+  display: flex; gap: 8px; align-items: center;
+}
+.fin-pct-wrap, .fin-amt-wrap {
+  display: flex; align-items: center; gap: 4px; flex: 1;
+}
+.fin-pct-wrap input, .fin-amt-wrap input {
+  width: 100%; padding: 6px 8px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--bg2);
+  color: var(--text); font-size: 14px; font-weight: 600;
+}
+.fin-pct-unit, .fin-amt-unit {
+  font-size: 12px; color: var(--text2); white-space: nowrap; min-width: 16px;
+}
+.fin-pct-wrap { max-width: 100px; }
+
+.fin-auto-result {
+  background: rgba(34,197,94,0.06); border: 1px solid rgba(34,197,94,0.15);
+  border-radius: 8px; padding: 10px 12px; margin-top: 8px; margin-bottom: 4px;
+}
+.fin-result-row {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 13px; padding: 3px 0;
+}
+.fin-result-row span { color: var(--text2); }
