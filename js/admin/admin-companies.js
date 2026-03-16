@@ -59,7 +59,7 @@ function renderAllClients(listOnly) {
         <div class="card company-card" onclick="openCompanyDetail('${c.id}')">
           <div class="card-header">
             <div>
-              <div class="card-title">${c.name}</div>
+              <div class="card-title">${c.name} ${c.area_code ? '<span style="font-size:11px;color:var(--primary);font-weight:500;margin-left:6px">[' + c.area_code + ']</span>' : ''}</div>
               <div class="card-subtitle">${c.location || ''} ${c.area_name ? '· ' + c.area_name : ''}</div>
             </div>
             ${statusBadge}
