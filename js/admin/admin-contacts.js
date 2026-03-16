@@ -1,6 +1,7 @@
 /**
  * admin-contacts.js - 업체 연락처 + 월별 정산 체크 탭
  * 담당자 전화번호, 사업자등록번호, 세금계산서/입금 간편 체크
+ * 도급업체(subcontract_from)는 세금계산서/입금 체크에서 제외
  */
 
 let contactSearch = '';
@@ -67,22 +68,27 @@ function renderContacts(listOnly) {
 
 // ════════════════════════════════════════════════════
 // 뷰 1: 세금계산서 / 입금 체크 (기본)
+// 도급업체(subcontract_from)는 목록에서 제외
 // ════════════════════════════════════════════════════
 
 function renderBillingCheckList(filtered) {
+  // 도급업체 제외 (세금계산서/입금은 원청에서 처리)
+  const directCompanies = filtered.filter(c => !c.subcontract_from);
+  const subCompanies = filtered.filter(c => !!c.subcontract_from);
+
   // 해당 월 billing 데이터 매핑
   const billingMap = {};
   adminData.billings.forEach(b => {
     if (b.month === contactMonth) billingMap[b.company_id] = b;
   });
 
-  // 통계 (billed_at/paid_at 또는 status 기반)
-  const total = filtered.length;
-  const invoiced = filtered.filter(c => {
+  // 통계 (직영 업체만)
+  const total = directCompanies.length;
+  const invoiced = directCompanies.filter(c => {
     const b = billingMap[c.id];
     return b && (b.billed_at || b.status === 'billed' || b.status === 'paid');
   }).length;
-  const paid = filtered.filter(c => {
+  const paid = directCompanies.filter(c => {
     const b = billingMap[c.id];
     return b && (b.paid_at || b.status === 'paid');
   }).length;
@@ -93,7 +99,7 @@ function renderBillingCheckList(filtered) {
     <div class="contact-stats">
       <div class="contact-stat-item">
         <span class="contact-stat-num">${total}</span>
-        <span class="contact-stat-label">전체</span>
+        <span class="contact-stat-label">직영</span>
       </div>
       <div class="contact-stat-item">
         <span class="contact-stat-num" style="color:var(--yellow)">${invoiced}</span>
@@ -107,6 +113,11 @@ function renderBillingCheckList(filtered) {
         <span class="contact-stat-num" style="color:var(--red)">${total - paid}</span>
         <span class="contact-stat-label">미입금</span>
       </div>
+      ${subCompanies.length > 0 ? `
+      <div class="contact-stat-item">
+        <span class="contact-stat-num" style="color:var(--text-muted)">${subCompanies.length}</span>
+        <span class="contact-stat-label">도급 제외</span>
+      </div>` : ''}
     </div>
 
     <!-- PC 테이블 -->
@@ -125,11 +136,10 @@ function renderBillingCheckList(filtered) {
           </tr>
         </thead>
         <tbody>
-          ${filtered.map(c => {
+          ${directCompanies.map(c => {
             const b = billingMap[c.id];
             const hasInvoice = b ? (!!b.billed_at || b.status === 'billed' || b.status === 'paid') : false;
             const hasPaid = b ? (!!b.paid_at || b.status === 'paid') : false;
-            const unpaid = b ? (b.billed_amount || 0) - (b.paid_amount || 0) : 0;
             const statusBadge = !b ? '<span class="badge badge-area">미등록</span>'
               : hasPaid ? '<span class="badge badge-done">완료</span>'
               : hasInvoice ? '<span class="badge badge-today">발행됨</span>'
@@ -166,10 +176,10 @@ function renderBillingCheckList(filtered) {
 
     <!-- 모바일 카드 -->
     <div class="contact-mobile-cards">
-      ${filtered.map(c => {
+      ${directCompanies.map(c => {
         const b = billingMap[c.id];
-        const hasInvoice = !!b?.billed_at;
-        const hasPaid = !!b?.paid_at;
+        const hasInvoice = b ? (!!b.billed_at || b.status === 'billed' || b.status === 'paid') : false;
+        const hasPaid = b ? (!!b.paid_at || b.status === 'paid') : false;
         const statusBadge = !b ? '<span class="badge badge-area">미등록</span>'
           : hasPaid ? '<span class="badge badge-done">완료</span>'
           : hasInvoice ? '<span class="badge badge-today">발행됨</span>'
@@ -208,7 +218,7 @@ function renderBillingCheckList(filtered) {
 
 
 // ════════════════════════════════════════════════════
-// 뷰 2: 연락처 정보
+// 뷰 2: 연락처 정보 (도급업체 포함 — 전체)
 // ════════════════════════════════════════════════════
 
 function renderContactInfoList(filtered) {
@@ -247,8 +257,11 @@ function renderContactInfoList(filtered) {
         </thead>
         <tbody>
           ${filtered.map(c => `
-            <tr>
-              <td class="text-ellipsis" title="${escapeHtml(c.name)}">${escapeHtml(c.name)}</td>
+            <tr${c.subcontract_from ? ' style="opacity:0.6"' : ''}>
+              <td class="text-ellipsis" title="${escapeHtml(c.name)}">
+                ${escapeHtml(c.name)}
+                ${c.subcontract_from ? '<span class="badge badge-area" style="font-size:9px;margin-left:4px">도급</span>' : ''}
+              </td>
               <td>${escapeHtml(c.area_name || '-')}</td>
               <td>
                 <input class="contact-inline-input" id="ct_name_${c.id}"
@@ -275,10 +288,10 @@ function renderContactInfoList(filtered) {
     <!-- 모바일 카드 -->
     <div class="contact-mobile-cards">
       ${filtered.map(c => `
-        <div class="card contact-card">
+        <div class="card contact-card"${c.subcontract_from ? ' style="opacity:0.6"' : ''}>
           <div class="contact-card-header">
             <strong>${escapeHtml(c.name)}</strong>
-            <span class="badge badge-area">${escapeHtml(c.area_name || '-')}</span>
+            <span class="badge badge-area">${escapeHtml(c.area_name || '-')}${c.subcontract_from ? ' · 도급' : ''}</span>
           </div>
           <div class="contact-card-fields">
             <div class="contact-field-row">
@@ -449,8 +462,9 @@ function exportContacts() {
       if (b.month === contactMonth) billingMap[b.company_id] = b;
     });
 
+    // 도급업체 제외
     const rows = adminData.companies
-      .filter(c => c.status === 'active')
+      .filter(c => c.status === 'active' && !c.subcontract_from)
       .map(c => {
         const b = billingMap[c.id];
         return {
@@ -475,6 +489,7 @@ function exportContacts() {
       .map(c => ({
         '업체명': c.name,
         '구역': c.area_name || '',
+        '구분': c.subcontract_from ? '도급(' + c.subcontract_from + ')' : '직영',
         '담당자명': c.contact_name || '',
         '전화번호': c.contact_phone || '',
         '사업자등록번호': c.business_number || '',
