@@ -13,6 +13,9 @@ function getFreqLabel(freq) {
   return FREQ_LABELS[freq] || '매주';
 }
 
+// 상세 모달 전용 월 변수 (selectedMonth와 독립)
+let detailMonth = '';
+
 // ════════════════════════════════════════════════════
 // 업체 목록 조회
 // ════════════════════════════════════════════════════
@@ -148,6 +151,16 @@ function openCompanyForm(companyId) {
         <input id="fPhone" value="${c.contact_phone || ''}" placeholder="010-0000-0000">
       </div>
     </div>
+    <div class="admin-row-2">
+      <div class="field">
+        <label>계약 시작일</label>
+        <input type="date" id="fContractStart" value="${c.contract_start_date || ''}">
+      </div>
+      <div class="field">
+        <label>계약 종료일</label>
+        <input type="date" id="fContractEnd" value="${c.contract_end_date || ''}">
+      </div>
+    </div>
     <div class="field">
       <label>상태</label>
       <select id="fStatus">
@@ -175,13 +188,15 @@ async function saveCompany(companyId) {
 
   const payload = {
     name,
-    location:      $('fLocation').value.trim(),
-    area_code:     $('fAreaCode').value.trim(),
-    area_name:     $('fAreaName').value.trim(),
-    contact_name:  $('fContact').value.trim(),
-    contact_phone: $('fPhone').value.trim(),
-    status:        $('fStatus').value,
-    memo:          $('fMemo').value.trim(),
+    location:            $('fLocation').value.trim(),
+    area_code:           $('fAreaCode').value.trim(),
+    area_name:           $('fAreaName').value.trim(),
+    contact_name:        $('fContact').value.trim(),
+    contact_phone:       $('fPhone').value.trim(),
+    contract_start_date: $('fContractStart').value || null,
+    contract_end_date:   $('fContractEnd').value || null,
+    status:              $('fStatus').value,
+    memo:                $('fMemo').value.trim(),
   };
 
   let error;
@@ -257,12 +272,37 @@ async function saveAdminNoteInfo(companyId, noteId) {
   await loadAdminData();
 }
 
+/** 상세 모달 전용 월 선택 HTML (6개월 범위: -2 ~ +3) */
+function detailMonthSelectorHTML(current, companyId) {
+  const now = new Date();
+  const months = [];
+  for (let i = -2; i <= 3; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const label = `${d.getMonth() + 1}월`;
+    months.push({ val, label });
+  }
+  return `<div class="month-selector" style="margin-bottom:10px">${months.map(m =>
+    `<button class="month-btn${m.val === current ? ' active' : ''}"
+       onclick="changeDetailMonth('${companyId}', '${m.val}')">${m.label}</button>`
+  ).join('')}</div>`;
+}
+
+async function changeDetailMonth(companyId, month) {
+  detailMonth = month;
+  await ensureMonthData(month);
+  await openCompanyDetail(companyId);
+}
+
 async function openCompanyDetail(companyId) {
   const c = adminData.companies.find(x => x.id === companyId);
   if (!c) return;
 
+  // 상세 모달 월이 아직 설정되지 않았으면 selectedMonth 사용
+  if (!detailMonth) detailMonth = selectedMonth;
+
   const scheds = getCompanySchedules(companyId);
-  const assigns = getCompanyAssignments(companyId, selectedMonth);
+  const assigns = getCompanyAssignments(companyId, detailMonth);
   const allWorkers = getActiveWorkers();
   const note = getCompanyNote(companyId);
 
@@ -270,10 +310,16 @@ async function openCompanyDetail(companyId) {
   const currentFreq = scheds.length > 0 ? (scheds[0].frequency || 'weekly') : 'weekly';
   const currentAnchor = scheds.length > 0 ? (scheds[0].anchor_date || '') : '';
 
+  // 계약일 표시
+  const contractInfo = [];
+  if (c.contract_start_date) contractInfo.push(`시작: ${c.contract_start_date}`);
+  if (c.contract_end_date) contractInfo.push(`종료: ${c.contract_end_date}`);
+
   const html = `
     <button class="modal-close" onclick="closeModal()">&times;</button>
     <h3>${c.name}</h3>
     <div class="detail-location">${c.location || ''} ${c.area_name ? '· ' + c.area_name : ''}</div>
+    ${contractInfo.length > 0 ? `<div style="font-size:12px;color:var(--text-muted);margin-top:4px">📋 계약기간: ${contractInfo.join(' / ')}</div>` : ''}
 
     <div class="detail-section">
       <button class="btn-sm btn-blue" onclick="openCompanyForm('${companyId}')">기본정보 수정</button>
@@ -342,8 +388,9 @@ async function openCompanyDetail(companyId) {
 
     <div class="detail-section">
       <div class="detail-section-title">
-        👤 ${selectedMonth.split('-')[1]}월 직원 배정
+        👤 직원 배정
       </div>
+      ${detailMonthSelectorHTML(detailMonth, companyId)}
 
       <div id="assignList_${companyId}">
         ${assigns.length > 0 ? assigns.map(a => `
@@ -376,9 +423,9 @@ async function openCompanyDetail(companyId) {
     </div>
 
     <div class="detail-section">
-      <div class="detail-section-title">💰 정산 정보 (${selectedMonth})</div>
+      <div class="detail-section-title">💰 정산 정보 (${detailMonth})</div>
       ${(() => {
-        const fin = adminData.financials.find(f => f.company_id === companyId && f.month === selectedMonth);
+        const fin = adminData.financials.find(f => f.company_id === companyId && f.month === detailMonth);
         const isSub = !!c.subcontract_from;
         return `
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
@@ -715,7 +762,7 @@ async function addAssignment(companyId) {
   const { data, error } = await sb.from('company_workers').insert({
     company_id: companyId,
     worker_id:  workerId,
-    month:      selectedMonth,
+    month:      detailMonth || selectedMonth,
     pay_amount: payAmount,
   }).select().single();
 
@@ -743,7 +790,7 @@ async function removeAssignment(assignId, companyId) {
   // 변경 이력 로그
   await logChange('company_workers', assignId, 'delete',
     [{ field: 'worker_id', oldVal: workerName, newVal: null }],
-    `${companyName} (${selectedMonth}) - ${workerName} 배정 삭제`
+    `${companyName} (${detailMonth || selectedMonth}) - ${workerName} 배정 삭제`
   );
 
   adminData.assignments = adminData.assignments.filter(a => a.id !== assignId);
@@ -770,7 +817,7 @@ async function updatePayAmount(assignId, value) {
     const workerName = getWorkerName(local.worker_id);
     await logChange('company_workers', assignId, 'update',
       [{ field: 'pay_amount', oldVal: oldPay, newVal: payAmount }],
-      `${workerName} - ${companyName} (${selectedMonth}) 지급액 수정`
+      `${workerName} - ${companyName} (${detailMonth || selectedMonth}) 지급액 수정`
     );
   }
 
@@ -787,6 +834,7 @@ async function updatePayAmount(assignId, value) {
 async function saveFinancials(companyId, finId) {
   const c = adminData.companies.find(x => x.id === companyId);
   const isSub = c && !!c.subcontract_from;
+  const month = detailMonth || selectedMonth;
 
   const contractAmount = parseInt($('fin_contract_' + companyId)?.value) || 0;
   const workerPayTotal = parseInt($('fin_worker_' + companyId)?.value) || 0;
@@ -807,7 +855,7 @@ async function saveFinancials(companyId, finId) {
     ({ error } = await sb.from('company_financials').update(payload).eq('id', finId));
   } else {
     payload.company_id = companyId;
-    payload.month = selectedMonth || currentMonth();
+    payload.month = month;
     const { data, error: insertErr } = await sb.from('company_financials').insert(payload).select().single();
     error = insertErr;
     if (data) adminData.financials.push(data);
@@ -826,7 +874,7 @@ async function saveFinancials(companyId, finId) {
     [{ field: 'contract_amount', oldVal: '-', newVal: contractAmount },
      { field: 'eco_amount', oldVal: '-', newVal: ecoAmount },
      { field: 'ocp_amount', oldVal: '-', newVal: ocpAmount }],
-    `${companyName} (${selectedMonth}) 정산 정보 ${finId ? '수정' : '등록'}`
+    `${companyName} (${month}) 정산 정보 ${finId ? '수정' : '등록'}`
   );
 
   toast('정산 정보 저장 완료');
