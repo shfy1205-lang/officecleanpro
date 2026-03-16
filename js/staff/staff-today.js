@@ -40,7 +40,6 @@ function renderTodayTasks() {
       note,
       todayTask,
       isCompleted: !!todayTask,
-      schedTime: todaySched,
       requestCount: unresolvedReqs.length,
     });
   });
@@ -88,12 +87,8 @@ function renderTodayTasks() {
 // ─── 카드 빌드 ───
 
 function buildTodayTaskCard(item) {
-  const { company, note, isCompleted, schedTime, requestCount, todayTask } = item;
+  const { company, note, isCompleted, requestCount, todayTask } = item;
   const cid = company.id;
-
-  const timeStr = schedTime?.start_time
-    ? schedTime.start_time.slice(0, 5) + (schedTime.end_time ? ' ~ ' + schedTime.end_time.slice(0, 5) : '')
-    : '';
 
   const parking = note?.parking_info || '정보 없음';
   const recycling = note?.recycling_location || '정보 없음';
@@ -116,11 +111,6 @@ function buildTodayTaskCard(item) {
       </div>
     </div>
   `;
-
-  // 시간
-  if (timeStr) {
-    html += `<div class="sttoday-card-time">⏰ ${timeStr}</div>`;
-  }
 
   // 정보 그리드
   html += `
@@ -148,12 +138,10 @@ function buildTodayTaskCard(item) {
 
   // 완료 상태 or 액션 영역
   if (isCompleted) {
-    const doneTime = todayTask?.updated_at || todayTask?.created_at;
     html += `
       <div class="sttoday-done-bar">
         <span><span class="check-icon">✓</span> 완료됨</span>
         ${todayTask?.memo ? `<span class="sttoday-memo-text">${todayTask.memo}</span>` : ''}
-        <span class="sttoday-done-time">${doneTime ? formatDate(doneTime) : ''}</span>
       </div>
     `;
   } else {
@@ -173,7 +161,7 @@ function buildTodayTaskCard(item) {
 }
 
 
-// ─── 오늘 할 일 완료 처리 ───
+// ─── 오늘 할 일 완료 처리 (upsert: 기존 scheduled task → completed 업데이트) ───
 
 async function completeTodayTask(companyId) {
   const memoEl = $('stMemo_' + companyId);
@@ -182,14 +170,69 @@ async function completeTodayTask(companyId) {
   const btn = document.querySelector(`#stCard_${companyId} .sttoday-complete-btn`);
   if (btn) { btn.disabled = true; btn.textContent = '처리 중...'; }
 
-  const { data, error } = await sb.from('tasks').insert({
-    company_id: companyId,
-    worker_id:  currentWorker.id,
-    task_date:  today(),
-    status:     'completed',
-    task_source: 'manual',
-    memo:       memo || null,
-  }).select().single();
+  const todayStr = today();
+
+  // 기존 task 확인 (자동 생성된 scheduled task가 있을 수 있음)
+  const existing = staffData.tasks.find(
+    t => t.company_id === companyId && t.task_date === todayStr
+  );
+
+  let data, error;
+
+  if (existing && existing.status === 'scheduled') {
+    // 기존 예정 task → completed로 UPDATE
+    const res = await sb.from('tasks')
+      .update({
+        status: 'completed',
+        worker_id: currentWorker.id,
+        memo: memo || null,
+      })
+      .eq('id', existing.id)
+      .select()
+      .single();
+    data = res.data;
+    error = res.error;
+    if (!error) {
+      // 로컬 데이터 갱신
+      Object.assign(existing, {
+        status: 'completed',
+        worker_id: currentWorker.id,
+        memo: memo || null,
+        updated_at: new Date().toISOString(),
+      });
+    }
+  } else if (existing && existing.status === 'completed') {
+    if (btn) { btn.disabled = false; btn.textContent = '완료 체크 ✓'; }
+    toast('이미 완료 처리되었습니다', 'error');
+    return;
+  } else {
+    // task가 없으면 새로 INSERT
+    const res = await sb.from('tasks').insert({
+      company_id: companyId,
+      worker_id:  currentWorker.id,
+      task_date:  todayStr,
+      status:     'completed',
+      task_source: 'manual',
+      memo:       memo || null,
+    }).select().single();
+    data = res.data;
+    error = res.error;
+    if (!error) {
+      if (data) {
+        staffData.tasks.push(data);
+      } else {
+        staffData.tasks.push({
+          company_id: companyId,
+          worker_id: currentWorker.id,
+          task_date: todayStr,
+          status: 'completed',
+          memo: memo || null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+      }
+    }
+  }
 
   if (error) {
     if (btn) { btn.disabled = false; btn.textContent = '완료 체크 ✓'; }
@@ -202,21 +245,5 @@ async function completeTodayTask(companyId) {
   }
 
   toast('청소 완료!');
-
-  // 로컬 데이터 갱신
-  if (data) {
-    staffData.tasks.push(data);
-  } else {
-    staffData.tasks.push({
-      company_id: companyId,
-      worker_id: currentWorker.id,
-      task_date: today(),
-      status: 'completed',
-      memo: memo || null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    });
-  }
-
   renderTodayTasks();
 }

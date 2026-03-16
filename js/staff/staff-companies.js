@@ -129,7 +129,6 @@ async function openCompanyDetail(companyId) {
         ? `<div class="schedule-chips">${scheds.map(s =>
             `<span class="schedule-chip">
               <strong>${WEEKDAY_NAMES[s.weekday]}</strong>
-              ${s.start_time ? s.start_time.slice(0,5) : ''}${s.end_time ? '~' + s.end_time.slice(0,5) : ''}
             </span>`
           ).join('')}</div>`
         : '<p class="text-muted">등록된 스케줄 없음</p>'

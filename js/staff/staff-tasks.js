@@ -3,24 +3,60 @@
  */
 
 // ════════════════════════════════════════════════════
-// 청소 완료 체크
+// 청소 완료 체크 (업체 상세 모달에서 사용)
 // ════════════════════════════════════════════════════
 
 async function toggleTask(companyId) {
   const btn = event.target.closest('button');
   if (btn) { btn.disabled = true; btn.textContent = '처리 중...'; }
 
-  const { error } = await sb.from('tasks').insert({
-    company_id: companyId,
-    worker_id:  currentWorker.id,
-    task_date:  today(),
-    status:     'completed',
-    task_source: 'manual',
-  });
+  const todayStr = today();
+
+  // 기존 scheduled task가 있는지 확인
+  const existing = staffData.tasks.find(
+    t => t.company_id === companyId && t.task_date === todayStr
+  );
+
+  let error;
+
+  if (existing && existing.status === 'scheduled') {
+    // 기존 예정 task → completed로 UPDATE
+    const res = await sb.from('tasks')
+      .update({ status: 'completed', worker_id: currentWorker.id })
+      .eq('id', existing.id);
+    error = res.error;
+    if (!error) {
+      existing.status = 'completed';
+      existing.worker_id = currentWorker.id;
+    }
+  } else if (existing && existing.status === 'completed') {
+    if (btn) { btn.disabled = false; btn.textContent = '청소 완료 체크'; }
+    toast('이미 완료 처리되었습니다', 'error');
+    return;
+  } else {
+    // task가 없으면 새로 INSERT
+    const res = await sb.from('tasks').insert({
+      company_id: companyId,
+      worker_id:  currentWorker.id,
+      task_date:  todayStr,
+      status:     'completed',
+      task_source: 'manual',
+    });
+    error = res.error;
+    if (!error) {
+      staffData.tasks.push({
+        company_id: companyId,
+        worker_id: currentWorker.id,
+        task_date: todayStr,
+        status: 'completed',
+        created_at: new Date().toISOString(),
+      });
+    }
+  }
 
   if (error) {
     if (btn) { btn.disabled = false; btn.textContent = '청소 완료 체크'; }
-    if (error.message.includes('duplicate') || error.code === '23505') {
+    if (error.code === '23505') {
       toast('이미 완료 처리되었습니다', 'error');
     } else {
       toast(error.message, 'error');
@@ -29,15 +65,6 @@ async function toggleTask(companyId) {
   }
 
   toast('청소 완료!');
-
-  // 로컬 데이터 갱신
-  staffData.tasks.push({
-    company_id: companyId,
-    worker_id: currentWorker.id,
-    task_date: today(),
-    status: 'completed',
-    created_at: new Date().toISOString(),
-  });
 
   // 모달 & 리스트 갱신
   await openCompanyDetail(companyId);
