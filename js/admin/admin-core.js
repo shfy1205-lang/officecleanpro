@@ -46,7 +46,7 @@ async function loadAdminData() {
     sb.from('notices').select('*').order('created_at', { ascending: false }),
     sb.from('leads').select('*').order('created_at', { ascending: false }),
     sb.from('billing_records').select('*').order('month', { ascending: false }),
-    sb.from('company_notes').select('*'),
+    sb.from('company_notes').select('id, company_id, special_notes, parking_info, recycling_location'),
     sb.from('pay_confirmations').select('*'),
   ]);
 

@@ -167,12 +167,11 @@ async function openCompanyDetail(companyId) {
       </div>
     </div>
 
-    ${note?.office_password ? `
+    ${note?.id ? `
     <div class="detail-section">
       <div class="detail-section-title">🔑 사무실 비밀번호</div>
-      <div class="password-box" onclick="this.classList.toggle('revealed')">
-        <span class="pw-hidden">탭하여 확인</span>
-        <span class="pw-text">${note.office_password}</span>
+      <div id="pwBox_${companyId}" data-revealed="false">
+        <button class="btn-pw-view" onclick="viewOfficePassword('${companyId}', '${note.id}')">🔑 비밀번호 보기</button>
       </div>
     </div>
     ` : ''}

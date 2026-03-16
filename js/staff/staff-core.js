@@ -32,7 +32,7 @@ async function loadStaffData() {
     sb.from('company_workers').select('*'),
     sb.from('companies').select('*'),
     sb.from('company_schedule').select('*'),
-    sb.from('company_notes').select('*'),
+    sb.from('company_notes').select('id, company_id, special_notes, parking_info, recycling_location'),
     sb.from('company_note_photos').select('*'),
     sb.from('tasks').select('*'),
     sb.from('requests').select('*'),

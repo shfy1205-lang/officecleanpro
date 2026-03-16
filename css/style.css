@@ -494,18 +494,21 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
 }
 
 /* ─── 비밀번호 박스 (탭하여 공개) ─── */
-.password-box {
-  background: var(--bg); border: 1px solid var(--border);
-  border-radius: 8px; padding: 12px 14px;
-  font-size: 14px; cursor: pointer;
-  text-align: center;
-  transition: background 0.2s;
+/* 비밀번호 보기 버튼 */
+.btn-pw-view {
+  background: var(--bg); border: 1px dashed var(--border);
+  border-radius: 8px; padding: 10px 14px; width: 100%;
+  font-size: 13px; color: var(--text2); cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
 }
-.password-box .pw-text { display: none; font-weight: 600; letter-spacing: 1px; }
-.password-box .pw-hidden { color: var(--text2); font-size: 12px; }
-.password-box.revealed .pw-text { display: inline; }
-.password-box.revealed .pw-hidden { display: none; }
-.password-box.revealed { background: rgba(59,130,246,0.1); border-color: var(--accent); }
+.btn-pw-view:hover { background: rgba(59,130,246,0.05); border-color: var(--accent); }
+.pw-revealed {
+  background: rgba(59,130,246,0.08); border: 1px solid var(--accent);
+  border-radius: 8px; padding: 12px 14px; cursor: pointer;
+  text-align: center; transition: background 0.2s;
+}
+.pw-text-visible { font-weight: 600; letter-spacing: 1px; font-size: 14px; }
+.pw-tap-hint { display: block; font-size: 11px; color: var(--text2); margin-top: 4px; }
 
 /* ─── 요청사항 아이템 ─── */
 .request-item {

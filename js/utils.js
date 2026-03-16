@@ -230,3 +230,72 @@ async function logChange(entityType, entityId, actionType, changes, note) {
     console.error('logChange error:', e);
   }
 }
+
+// ════════════════════════════════════════════════════
+// 사무실 비밀번호 열람 (보안 강화: 별도 조회 + 로그)
+// ════════════════════════════════════════════════════
+
+/**
+ * 사무실 비밀번호를 DB에서 별도 조회하고 열람 로그를 남긴 후 표시
+ * 초기 로드 시 office_password를 가져오지 않고, 열람 시에만 가져옴
+ *
+ * @param {string} companyId - 업체 ID
+ * @param {string} noteId - company_notes 레코드 ID
+ */
+async function viewOfficePassword(companyId, noteId) {
+  const container = document.getElementById('pwBox_' + companyId);
+  if (!container) return;
+
+  // 이미 표시 중이면 토글 (숨기기)
+  if (container.dataset.revealed === 'true') {
+    container.innerHTML = `<button class="btn-pw-view" onclick="viewOfficePassword('${companyId}', '${noteId}')">🔑 비밀번호 보기</button>`;
+    container.dataset.revealed = 'false';
+    return;
+  }
+
+  container.innerHTML = '<span class="text-muted">조회 중...</span>';
+
+  try {
+    // DB에서 office_password만 별도 조회
+    const { data, error } = await sb.from('company_notes')
+      .select('office_password')
+      .eq('id', noteId)
+      .single();
+
+    if (error || !data || !data.office_password) {
+      container.innerHTML = '<span class="text-muted">비밀번호 없음</span>';
+      return;
+    }
+
+    // 열람 로그 기록
+    const workerName = typeof currentWorker !== 'undefined' ? currentWorker.name : 'unknown';
+    const companyName = typeof getCompanyName === 'function' ? getCompanyName(companyId)
+                      : (typeof getCompanyById === 'function' ? getCompanyById(companyId)?.name : companyId);
+
+    await logChange('company_notes', noteId, 'view_password', [
+      { field: 'office_password', oldVal: null, newVal: '열람' }
+    ], `${workerName} → ${companyName}`);
+
+    // 비밀번호 표시 (HTML 이스케이프 적용)
+    const escaped = escapeHtml(data.office_password);
+    container.innerHTML = `
+      <div class="pw-revealed" onclick="viewOfficePassword('${companyId}', '${noteId}')">
+        <span class="pw-text-visible">${escaped}</span>
+        <span class="pw-tap-hint">탭하여 숨기기</span>
+      </div>
+    `;
+    container.dataset.revealed = 'true';
+  } catch (e) {
+    console.error('viewOfficePassword error:', e);
+    container.innerHTML = '<span class="text-muted">조회 실패</span>';
+  }
+}
+
+/**
+ * HTML 이스케이프 (XSS 방지)
+ */
+function escapeHtml(text) {
+  if (!text) return '';
+  const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+  return String(text).replace(/[&<>"']/g, m => map[m]);
+}
