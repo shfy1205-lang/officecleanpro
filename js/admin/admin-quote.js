@@ -3,7 +3,6 @@
  * 양식 기반으로 견적서를 작성하고 엑셀/이미지/PDF로 내보내기
  */
 
-// 작업내용 항목 (체크 선택)
 const QUOTE_WORK_ITEMS = [
   '실내 내부바닥 기본청소 진행 후 약품청소_친환경세제(바닥코딩보호) 도포',
   '종량제,재활용 쓰레기 분리수거',
@@ -19,7 +18,6 @@ const QUOTE_WORK_ITEMS = [
   '창틀 먼지 제거',
 ];
 
-// 공급자 정보 (고정)
 const SUPPLIER_INFO = {
   bizNum: '812-05-03268',
   companyName: '오피스클린프로',
@@ -129,8 +127,8 @@ function getQuoteFormData() {
     checkedItems.push(QUOTE_WORK_ITEMS[parseInt(cb.dataset.index)]);
   });
   for (let i = 1; i <= 3; i++) {
-    const etcText = ($('qWorkEtc' + i)?.value || '').trim();
-    if (etcText) checkedItems.push(etcText);
+    const etcVal = ($('qWorkEtc' + i)?.value || '').trim();
+    if (etcVal) checkedItems.push(etcVal);
   }
 
   return {
@@ -295,13 +293,6 @@ function updateQuotePreview() {
 2. 작업내용
 ${workContent ? workContent.split('\n').map(l => escapeHtml(l)).join('\n') : '(선택된 작업내용 없음)'}
       </div>
-
-      <!-- 하단 참고사항 -->
-      <div style="margin-top:12px;font-size:11px;color:#333;line-height:1.8">
-        1. 견적금액은 부가가치세 별도입니다.<br>
-        2. 견적유효기간: ${escapeHtml(d.validDays)}일<br>
-        ${d.etcNote ? `3. 기타사항: ${escapeHtml(d.etcNote)}` : '3. 기타사항:'}
-      </div>
     </div>
   `;
 }
@@ -322,107 +313,89 @@ function getStampSVG() {
 }
 
 // ════════════════════════════════════════════════════
-// 엑셀 내보내기 (원본 양식 기반)
+// 엑셀 내보내기 (원본 양식 템플릿 기반, ExcelJS)
 // ════════════════════════════════════════════════════
 
-function exportQuoteExcel() {
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) return resolve();
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
+async function exportQuoteExcel() {
   const d = getQuoteFormData();
   if (!d.clientName) return toast('업체명을 입력해주세요', 'error');
   if (!d.amount) return toast('금액을 입력해주세요', 'error');
 
-  const workContent = buildWorkContentText(d);
+  toast('엑셀 생성 중...', 'info');
 
-  const wb = XLSX.utils.book_new();
-  const wsData = [];
+  try {
+    if (typeof ExcelJS === 'undefined') {
+      await loadScript('https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js');
+    }
 
-  // Row 1: NO / 세액 계산 (hidden helper)
-  wsData.push(['NO', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '세액 계산:', '절상']);
-  // Row 2: empty
-  wsData.push([]);
-  // Row 3: title
-  wsData.push([' 견   적   서 ']);
-  // Row 4: empty
-  wsData.push([]);
-  // Row 5: date / supplier header
-  wsData.push([d.date, '', '', '', '', '공\n급\n자', '', '등록번호', '', SUPPLIER_INFO.bizNum]);
-  // Row 6: client / supplier
-  wsData.push(['', '', '', '', '', '', '', '상호', '', SUPPLIER_INFO.companyName, '', '', '성명', '', SUPPLIER_INFO.ceo, '(인)']);
-  // Row 7: client name
-  wsData.push([d.clientName, '', '', '님 귀하']);
-  // Row 8: biz type
-  wsData.push(['', '', '', '', '', '', '', '업태', '', SUPPLIER_INFO.bizType, '', '', '종목', '', SUPPLIER_INFO.bizItem]);
-  // Row 9: greeting / contact
-  wsData.push(['아래와 같이 견적합니다.', '', '', '', '', '', '', '연락처', '', SUPPLIER_INFO.phone, '', '', '담당자', '', SUPPLIER_INFO.manager]);
-  // Row 10: empty
-  wsData.push([]);
-  // Row 11: total amount
-  wsData.push(['합 계 금 액', '', '일금', '', d.total, '', '', '', '', '', '', d.total]);
-  // Row 12: empty
-  wsData.push([]);
-  // Row 13: header
-  wsData.push(['품  명', '', '규  격', '', '횟수', '', '', '', '공 급 가 액', '', '', '세  액', '', '비  고']);
-  // Row 14: item
-  wsData.push(['정기청소', '', d.spec, '', d.frequency, '', '', '', d.amount, '', '', d.tax]);
-  // Row 15: empty (originally A15 merged)
-  wsData.push([]);
-  // Row 16: work details
-  wsData.push([workContent]);
+    const resp = await fetch('assets/quote-template.xlsx');
+    if (!resp.ok) throw new Error('템플릿 로드 실패');
+    const buf = await resp.arrayBuffer();
 
-  // Rows 17-30: empty
-  for (let i = 0; i < 14; i++) wsData.push([]);
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buf);
+    const ws = wb.getWorksheet(1);
 
-  // Row 31: total row
-  wsData.push(['합    계', '', '', '', '', '', '', '', d.amount, '', '', d.tax]);
-  // Row 32: empty
-  wsData.push([]);
-  // Row 33-35: notes
-  wsData.push(['1. 견적금액은 부가가치세 별도입니다.']);
-  wsData.push([`2. 견적유효기간: ${d.validDays}일`]);
-  wsData.push([`3. 기타사항: ${d.etcNote}`]);
+    const workContent = buildWorkContentText(d);
 
-  const ws = XLSX.utils.aoa_to_sheet(wsData);
+    // A5: 날짜
+    ws.getCell('A5').value = d.date;
+    // A7: 업체명
+    ws.getCell('A7').value = d.clientName;
 
-  // Merge cells (matching original template)
-  ws['!merges'] = [
-    { s: { r: 2, c: 0 }, e: { r: 2, c: 15 } },   // A3:P3 title
-    { s: { r: 4, c: 0 }, e: { r: 4, c: 2 } },     // A5:C5 date
-    { s: { r: 4, c: 5 }, e: { r: 8, c: 5 } },     // F5:F9 공급자
-    { s: { r: 4, c: 9 }, e: { r: 4, c: 15 } },    // J5:P5 biz num
-    { s: { r: 6, c: 0 }, e: { r: 6, c: 2 } },     // A7:C7 client name
-    { s: { r: 10, c: 0 }, e: { r: 10, c: 1 } },   // A11:B11
-    { s: { r: 10, c: 2 }, e: { r: 10, c: 3 } },   // C11:D11
-    { s: { r: 10, c: 4 }, e: { r: 10, c: 9 } },   // E11:J11
-    { s: { r: 10, c: 11 }, e: { r: 10, c: 15 } }, // L11:P11
-    { s: { r: 12, c: 0 }, e: { r: 12, c: 1 } },   // A13:B13
-    { s: { r: 12, c: 2 }, e: { r: 12, c: 3 } },   // C13:D13
-    { s: { r: 12, c: 4 }, e: { r: 12, c: 7 } },   // E13:H13
-    { s: { r: 12, c: 8 }, e: { r: 12, c: 10 } },  // I13:K13
-    { s: { r: 12, c: 11 }, e: { r: 12, c: 12 } }, // L13:M13
-    { s: { r: 12, c: 13 }, e: { r: 12, c: 15 } }, // N13:P13
-    { s: { r: 13, c: 0 }, e: { r: 13, c: 1 } },   // A14:B14
-    { s: { r: 13, c: 2 }, e: { r: 13, c: 3 } },   // C14:D14
-    { s: { r: 13, c: 4 }, e: { r: 13, c: 7 } },   // E14:H14
-    { s: { r: 13, c: 8 }, e: { r: 13, c: 10 } },  // I14:K14
-    { s: { r: 13, c: 11 }, e: { r: 13, c: 12 } }, // L14:M14
-    { s: { r: 13, c: 13 }, e: { r: 13, c: 15 } }, // N14:P14
-    { s: { r: 14, c: 0 }, e: { r: 14, c: 15 } },  // A15:P15
-    { s: { r: 15, c: 0 }, e: { r: 29, c: 15 } },  // A16:P30 work details
-    { s: { r: 30, c: 0 }, e: { r: 30, c: 7 } },   // A31:H31
-    { s: { r: 30, c: 8 }, e: { r: 30, c: 10 } },  // I31:K31
-    { s: { r: 30, c: 11 }, e: { r: 30, c: 12 } }, // L31:M31
-    { s: { r: 30, c: 13 }, e: { r: 30, c: 15 } }, // N31:P31
-  ];
+    // I14: 공급가액
+    ws.getCell('I14').value = d.amount;
+    // L14: 세액 (formula preserved or set)
+    ws.getCell('L14').value = { formula: 'I14*0.1' };
 
-  // Column widths
-  ws['!cols'] = [
-    { wch: 8 }, { wch: 4 }, { wch: 6 }, { wch: 6 }, { wch: 8 },
-    { wch: 4 }, { wch: 3 }, { wch: 6 }, { wch: 10 }, { wch: 8 },
-    { wch: 4 }, { wch: 8 }, { wch: 5 }, { wch: 6 }, { wch: 8 }, { wch: 4 },
-  ];
+    // C14: 규격
+    ws.getCell('C14').value = d.spec;
+    // E14: 횟수
+    ws.getCell('E14').value = d.frequency;
 
-  XLSX.utils.book_append_sheet(wb, ws, '견적서');
-  XLSX.writeFile(wb, `견적서_${d.clientName || '미입력'}_${d.date}.xlsx`);
-  toast('엑셀 견적서 다운로드 완료');
+    // E11: 합계 (formula)
+    ws.getCell('E11').value = { formula: 'L11' };
+    // L11: 합계 (formula)
+    ws.getCell('L11').value = { formula: 'I31+L31' };
+    // I31: 공급가액 합계
+    ws.getCell('I31').value = { formula: 'SUM(I14:K30)' };
+    // L31: 세액 합계
+    ws.getCell('L31').value = { formula: 'SUM(L14:M30)' };
+
+    // A16: 작업 상세내용
+    ws.getCell('A16').value = workContent;
+    ws.getCell('A16').alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
+
+    // A33-A35: 하단 참고사항 제거
+    ws.getCell('A33').value = '';
+    ws.getCell('A34').value = '';
+    ws.getCell('A35').value = '';
+
+    const outBuf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([outBuf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `견적서_${d.clientName}_${d.date}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    toast('엑셀 견적서 다운로드 완료');
+  } catch (err) {
+    console.error('Excel export error:', err);
+    toast('엑셀 생성 실패: ' + err.message, 'error');
+  }
 }
 
 
@@ -442,14 +415,7 @@ async function exportQuoteImage() {
 
   try {
     if (typeof html2canvas === 'undefined') {
-      // 동적 로드
-      await new Promise((resolve, reject) => {
-        const s = document.createElement('script');
-        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-        s.onload = resolve;
-        s.onerror = reject;
-        document.head.appendChild(s);
-      });
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
     }
 
     const canvas = await html2canvas(el, {
@@ -487,13 +453,12 @@ async function exportQuotePDF() {
 
   try {
     if (typeof html2canvas === 'undefined') {
-      await new Promise((resolve, reject) => {
-        const s = document.createElement('script');
-        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-        s.onload = resolve;
-        s.onerror = reject;
-        document.head.appendChild(s);
-      });
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+    }
+
+    // jsPDF 로드 확인
+    if (!window.jspdf && !window.jsPDF) {
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js');
     }
 
     const canvas = await html2canvas(el, {
@@ -503,14 +468,16 @@ async function exportQuotePDF() {
     });
 
     const imgData = canvas.toDataURL('image/png');
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF('p', 'mm', 'a4');
 
+    // jsPDF UMD: window.jspdf.jsPDF
+    const jsPDFClass = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+    if (!jsPDFClass) throw new Error('jsPDF 라이브러리를 불러올 수 없습니다');
+
+    const pdf = new jsPDFClass('p', 'mm', 'a4');
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
-    const imgWidth = pdfWidth - 20; // 10mm margins
+    const imgWidth = pdfWidth - 20;
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
     const yOffset = imgHeight > pdfHeight - 20 ? 10 : (pdfHeight - imgHeight) / 2;
 
     pdf.addImage(imgData, 'PNG', 10, yOffset, imgWidth, Math.min(imgHeight, pdfHeight - 20));
@@ -529,9 +496,9 @@ async function exportQuotePDF() {
 // ════════════════════════════════════════════════════
 
 function buildWorkContentText(d) {
-  let text = '상세사항\n\n';
+  let text = '상세사항\n\n\n';
   text += '청소 범위\n';
-  text += `1. 작업일정\n- ${d.frequency} 사무실 내부청소\n\n`;
+  text += `1. 작업일정 \n- ${d.frequency} 사무실 내부청소\n \n`;
   text += '2. 작업내용\n';
   d.workItems.forEach(item => {
     text += `- ${item}\n`;
