@@ -375,6 +375,51 @@ async function openCompanyDetail(companyId) {
       </div>
     </div>
 
+    <div class="detail-section">
+      <div class="detail-section-title">💰 정산 정보 (${selectedMonth})</div>
+      ${(() => {
+        const fin = adminData.financials.find(f => f.company_id === companyId && f.month === selectedMonth);
+        const isSub = !!c.subcontract_from;
+        return `
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div class="field" style="margin-bottom:0">
+              <label>계약금액 (월)</label>
+              <input type="number" id="fin_contract_${companyId}" value="${fin?.contract_amount || 0}" placeholder="0">
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label>직원 지급 합계</label>
+              <input type="number" id="fin_worker_${companyId}" value="${fin?.worker_pay_total || 0}" placeholder="0">
+            </div>
+            ${isSub ? `
+            <div class="field" style="margin-bottom:0">
+              <label style="color:var(--purple, #a78bfa)">에코 수수료</label>
+              <input type="number" id="fin_eco_${companyId}" value="${fin?.eco_amount || 0}" placeholder="0">
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label style="color:var(--primary)">OCP 수수료</label>
+              <input type="number" id="fin_ocp_${companyId}" value="${fin?.ocp_amount || 0}" placeholder="0">
+            </div>
+            <div style="grid-column:1/-1;padding:8px 10px;background:rgba(167,139,250,0.08);border-radius:6px;font-size:12px;color:var(--text-secondary)">
+              에코에서 받는 금액 = 계약금액 − 에코수수료 = <strong style="color:var(--green)">${fmt((fin?.contract_amount || 0) - (fin?.eco_amount || 0))}원</strong>
+            </div>
+            ` : `
+            <div class="field" style="margin-bottom:0">
+              <label style="color:var(--primary)">OCP 수수료</label>
+              <input type="number" id="fin_ocp_${companyId}" value="${fin?.ocp_amount || 0}" placeholder="0">
+            </div>
+            <div></div>
+            `}
+          </div>
+          <div class="field" style="margin-top:8px;margin-bottom:0">
+            <label>정산 메모</label>
+            <input id="fin_memo_${companyId}" value="${escapeHtml(fin?.memo || '')}" placeholder="메모">
+          </div>
+          <button class="btn-sm btn-blue" style="width:100%;margin-top:10px"
+                  onclick="saveFinancials('${companyId}', '${fin?.id || ''}')">정산 정보 저장</button>
+        `;
+      })()}
+    </div>
+
     ${c.contact_name || c.contact_phone ? `
     <div class="detail-section">
       <div class="detail-section-title">📞 담당자</div>
@@ -732,4 +777,58 @@ async function updatePayAmount(assignId, value) {
   if (local) local.pay_amount = payAmount;
 
   toast('지급액 수정됨');
+}
+
+
+// ════════════════════════════════════════════════════
+// 정산 정보 저장 (financials)
+// ════════════════════════════════════════════════════
+
+async function saveFinancials(companyId, finId) {
+  const c = adminData.companies.find(x => x.id === companyId);
+  const isSub = c && !!c.subcontract_from;
+
+  const contractAmount = parseInt($('fin_contract_' + companyId)?.value) || 0;
+  const workerPayTotal = parseInt($('fin_worker_' + companyId)?.value) || 0;
+  const ocpAmount = parseInt($('fin_ocp_' + companyId)?.value) || 0;
+  const ecoAmount = isSub ? (parseInt($('fin_eco_' + companyId)?.value) || 0) : 0;
+  const memo = $('fin_memo_' + companyId)?.value?.trim() || '';
+
+  const payload = {
+    contract_amount: contractAmount,
+    worker_pay_total: workerPayTotal,
+    ocp_amount: ocpAmount,
+    eco_amount: ecoAmount,
+    memo,
+  };
+
+  let error;
+  if (finId) {
+    ({ error } = await sb.from('company_financials').update(payload).eq('id', finId));
+  } else {
+    payload.company_id = companyId;
+    payload.month = selectedMonth || currentMonth();
+    const { data, error: insertErr } = await sb.from('company_financials').insert(payload).select().single();
+    error = insertErr;
+    if (data) adminData.financials.push(data);
+  }
+
+  if (error) return toast(error.message, 'error');
+
+  // 로컬 캐시 업데이트
+  if (finId) {
+    const local = adminData.financials.find(f => f.id === finId);
+    if (local) Object.assign(local, payload);
+  }
+
+  const companyName = getCompanyName(companyId);
+  await logChange('company_financials', finId || companyId, finId ? 'update' : 'insert',
+    [{ field: 'contract_amount', oldVal: '-', newVal: contractAmount },
+     { field: 'eco_amount', oldVal: '-', newVal: ecoAmount },
+     { field: 'ocp_amount', oldVal: '-', newVal: ocpAmount }],
+    `${companyName} (${selectedMonth}) 정산 정보 ${finId ? '수정' : '등록'}`
+  );
+
+  toast('정산 정보 저장 완료');
+  await openCompanyDetail(companyId);
 }
