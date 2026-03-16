@@ -36,6 +36,16 @@ function renderAllClients(listOnly) {
     filtered = filtered.filter(c => c.area_name === clientAreaFilter);
   }
 
+  // 구역코드 순 정렬 (한글 지역명 → 숫자 순)
+  filtered = [...filtered].sort((a, b) => {
+    const codeA = (a.area_code || '').replace(/[0-9]/g, '');
+    const codeB = (b.area_code || '').replace(/[0-9]/g, '');
+    if (codeA !== codeB) return codeA.localeCompare(codeB, 'ko');
+    const numA = parseInt((a.area_code || '0').replace(/[^0-9]/g, '')) || 0;
+    const numB = parseInt((b.area_code || '0').replace(/[^0-9]/g, '')) || 0;
+    return numA - numB;
+  });
+
   // 목록 HTML 생성
   const listHTML = `
     <p class="text-muted" style="margin-bottom:12px">총 ${filtered.length}개 업체</p>
