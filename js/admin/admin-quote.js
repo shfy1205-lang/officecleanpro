@@ -226,7 +226,7 @@ function updateQuotePreview() {
               <td style="border:1px solid #333;padding:4px 8px;background:#f8f8f8">상호</td>
               <td style="border:1px solid #333;padding:4px 8px">${SUPPLIER_INFO.companyName}</td>
               <td style="border:1px solid #333;padding:4px 8px;background:#f8f8f8;width:40px">성명</td>
-              <td style="border:1px solid #333;padding:4px 8px">${SUPPLIER_INFO.ceo} (인)</td>
+              <td style="border:1px solid #333;padding:4px 8px;position:relative">${SUPPLIER_INFO.ceo} <span style="display:inline-block;position:relative;top:-2px;margin-left:2px">${getStampSVG()}</span></td>
             </tr>
             <tr style="border:1px solid #333">
               <td style="border:1px solid #333;padding:4px 8px;background:#f8f8f8">업태</td>
@@ -306,6 +306,20 @@ ${workContent ? workContent.split('\n').map(l => escapeHtml(l)).join('\n') : '(�
   `;
 }
 
+
+// ════════════════════════════════════════════════════
+// 도장 SVG 생성
+// ════════════════════════════════════════════════════
+
+function getStampSVG() {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 100 100" style="vertical-align:middle">
+    <circle cx="50" cy="50" r="46" fill="none" stroke="#cc2200" stroke-width="5"/>
+    <circle cx="50" cy="50" r="38" fill="none" stroke="#cc2200" stroke-width="2"/>
+    <text x="50" y="38" text-anchor="middle" font-size="16" font-weight="700" fill="#cc2200" font-family="맑은 고딕,Noto Sans KR,sans-serif">오피스</text>
+    <text x="50" y="56" text-anchor="middle" font-size="16" font-weight="700" fill="#cc2200" font-family="맑은 고딕,Noto Sans KR,sans-serif">클린</text>
+    <text x="50" y="74" text-anchor="middle" font-size="16" font-weight="700" fill="#cc2200" font-family="맑은 고딕,Noto Sans KR,sans-serif">프로</text>
+  </svg>`;
+}
 
 // ════════════════════════════════════════════════════
 // 엑셀 내보내기 (원본 양식 기반)
