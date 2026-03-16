@@ -68,11 +68,10 @@ function renderContacts(listOnly) {
 
 // ════════════════════════════════════════════════════
 // 뷰 1: 세금계산서 / 입금 체크 (기본)
-// 도급업체(subcontract_from)는 목록에서 제외
+// 도급업체(subcontract_from)도 표시하되 체크 비활성화 + 에코 받는 금액 표시
 // ════════════════════════════════════════════════════
 
 function renderBillingCheckList(filtered) {
-  // 도급업체 제외 (세금계산서/입금은 원청에서 처리)
   const directCompanies = filtered.filter(c => !c.subcontract_from);
   const subCompanies = filtered.filter(c => !!c.subcontract_from);
 
@@ -80,6 +79,12 @@ function renderBillingCheckList(filtered) {
   const billingMap = {};
   adminData.billings.forEach(b => {
     if (b.month === contactMonth) billingMap[b.company_id] = b;
+  });
+
+  // 해당 월 financials 매핑 (에코 금액 계산용)
+  const finMap = {};
+  adminData.financials.forEach(f => {
+    if (f.month === contactMonth) finMap[f.company_id] = f;
   });
 
   // 통계 (직영 업체만)
@@ -94,6 +99,18 @@ function renderBillingCheckList(filtered) {
     const b = billingMap[c.id];
     return b && (b.paid_at || b.status === 'paid');
   }).length;
+
+  // 에코 도급 합계: 계약금액 합 - 에코수수료 합 = 에코에서 받는 금액
+  let ecoContractTotal = 0;
+  let ecoFeeTotal = 0;
+  subCompanies.forEach(c => {
+    const f = finMap[c.id];
+    if (f) {
+      ecoContractTotal += (f.contract_amount || 0);
+      ecoFeeTotal += (f.eco_amount || 0);
+    }
+  });
+  const ecoReceive = ecoContractTotal - ecoFeeTotal;
 
   return `
     ${monthSelectorHTML(contactMonth, 'changeContactMonth')}
@@ -123,24 +140,35 @@ function renderBillingCheckList(filtered) {
       </div>
       ${subCompanies.length > 0 ? `
       <div class="contact-stat-item">
-        <span class="contact-stat-num" style="color:var(--text-muted)">${subCompanies.length}</span>
-        <span class="contact-stat-label">도급 제외</span>
+        <span class="contact-stat-num" style="color:var(--purple, #a78bfa)">${subCompanies.length}</span>
+        <span class="contact-stat-label">도급</span>
       </div>` : ''}
     </div>
+
+    ${subCompanies.length > 0 ? `
+    <div style="margin-bottom:14px;padding:12px 14px;background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.25);border-radius:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:13px;color:var(--purple, #a78bfa);font-weight:600">🏢 에코오피스클린 도급</span>
+        <span style="font-size:13px;color:var(--text-secondary)">
+          계약 ${fmt(ecoContractTotal)}원 − 수수료 ${fmt(ecoFeeTotal)}원 =
+          <strong style="color:var(--green)">${fmt(ecoReceive)}원</strong>
+        </span>
+      </div>
+    </div>` : ''}
 
     <!-- PC 테이블 -->
     <div class="table-wrap contact-pc-table">
       <table>
         <thead>
           <tr>
-            <th style="width:20%">업체명</th>
+            <th style="width:18%">업체명</th>
+            <th style="width:8%">구분</th>
             <th style="width:10%">구역</th>
             <th style="width:12%">담당자</th>
-            <th style="width:13%">전화번호</th>
-            <th style="width:12%">청구액</th>
-            <th style="width:11%">계산서</th>
-            <th style="width:11%">입금</th>
-            <th style="width:11%">상태</th>
+            <th style="width:12%">금액</th>
+            <th style="width:10%">계산서</th>
+            <th style="width:10%">입금</th>
+            <th style="width:10%">상태</th>
           </tr>
         </thead>
         <tbody>
@@ -156,9 +184,9 @@ function renderBillingCheckList(filtered) {
             return `
               <tr>
                 <td class="text-ellipsis" title="${escapeHtml(c.name)}">${escapeHtml(c.name)}</td>
+                <td><span class="badge badge-done" style="font-size:9px">직영</span></td>
                 <td>${escapeHtml(c.area_name || '-')}</td>
                 <td>${escapeHtml(c.contact_name || '-')}</td>
-                <td>${escapeHtml(c.contact_phone || '-')}</td>
                 <td>${b ? fmt(b.billed_amount) + '원' : '-'}</td>
                 <td>
                   <label class="billing-check">
@@ -178,6 +206,28 @@ function renderBillingCheckList(filtered) {
               </tr>
             `;
           }).join('')}
+          ${subCompanies.length > 0 ? `
+          <tr><td colspan="8" style="background:rgba(167,139,250,0.06);padding:6px 12px;font-size:11px;color:var(--purple, #a78bfa);font-weight:600">
+            도급 업체 (에코오피스클린) — 계산서/입금 해당 없음
+          </td></tr>
+          ${subCompanies.map(c => {
+            const f = finMap[c.id];
+            const amount = f ? (f.contract_amount || 0) : 0;
+            const fee = f ? (f.eco_amount || 0) : 0;
+            const receive = amount - fee;
+            return `
+              <tr style="opacity:0.7">
+                <td class="text-ellipsis" title="${escapeHtml(c.name)}">${escapeHtml(c.name)}</td>
+                <td><span class="badge" style="font-size:9px;background:rgba(167,139,250,0.15);color:var(--purple, #a78bfa)">도급</span></td>
+                <td>${escapeHtml(c.area_name || '-')}</td>
+                <td>${escapeHtml(c.contact_name || '-')}</td>
+                <td title="계약 ${fmt(amount)}원 − 수수료 ${fmt(fee)}원">${f ? fmt(receive) + '원' : '-'}</td>
+                <td style="text-align:center;color:var(--text-muted);font-size:11px">—</td>
+                <td style="text-align:center;color:var(--text-muted);font-size:11px">—</td>
+                <td><span class="badge" style="font-size:9px;background:rgba(167,139,250,0.15);color:var(--purple, #a78bfa)">도급</span></td>
+              </tr>
+            `;
+          }).join('')}` : ''}
         </tbody>
       </table>
     </div>
@@ -220,6 +270,31 @@ function renderBillingCheckList(filtered) {
           </div>
         `;
       }).join('')}
+
+      ${subCompanies.length > 0 ? `
+      <div style="margin-top:12px;padding:8px 12px;font-size:12px;color:var(--purple, #a78bfa);font-weight:600">
+        도급 업체 (에코오피스클린)
+      </div>
+      ${subCompanies.map(c => {
+        const f = finMap[c.id];
+        const amount = f ? (f.contract_amount || 0) : 0;
+        const fee = f ? (f.eco_amount || 0) : 0;
+        const receive = amount - fee;
+        return `
+          <div class="card contact-card" style="opacity:0.7;border-left:3px solid var(--purple, #a78bfa)">
+            <div class="contact-card-header">
+              <div>
+                <strong>${escapeHtml(c.name)}</strong>
+                <span style="font-size:10px;margin-left:4px;color:var(--purple, #a78bfa)">도급</span>
+              </div>
+              <span class="badge" style="font-size:9px;background:rgba(167,139,250,0.15);color:var(--purple, #a78bfa)">도급</span>
+            </div>
+            <div class="billing-card-amount" style="color:var(--purple, #a78bfa)">${f ? fmt(receive) + '원' : '-'}</div>
+            <div style="font-size:11px;color:var(--text-muted)">계약 ${fmt(amount)}원 − 수수료 ${fmt(fee)}원</div>
+            <div style="margin-top:6px;font-size:11px;color:var(--text-muted)">계산서/입금 해당 없음</div>
+          </div>
+        `;
+      }).join('')}` : ''}
     </div>
   `;
 }
@@ -508,23 +583,48 @@ function exportContacts() {
     adminData.billings.forEach(b => {
       if (b.month === contactMonth) billingMap[b.company_id] = b;
     });
+    const finMap = {};
+    adminData.financials.forEach(f => {
+      if (f.month === contactMonth) finMap[f.company_id] = f;
+    });
 
-    // 도급업체 제외
-    const rows = adminData.companies
-      .filter(c => c.status === 'active' && !c.subcontract_from)
-      .map(c => {
-        const b = billingMap[c.id];
+    // 직영 + 도급 모두 포함
+    const active = adminData.companies.filter(c => c.status === 'active');
+    const rows = active.map(c => {
+      const isSub = !!c.subcontract_from;
+      const b = billingMap[c.id];
+      const f = finMap[c.id];
+      if (isSub) {
+        const amount = f ? (f.contract_amount || 0) : 0;
+        const fee = f ? (f.eco_amount || 0) : 0;
         return {
           '업체명': c.name,
+          '구분': '도급',
           '구역': c.area_name || '',
           '담당자': c.contact_name || '',
           '전화번호': c.contact_phone || '',
-          '청구액': b ? b.billed_amount : '',
-          '계산서발행': b?.billed_at ? '발행(' + b.billed_at + ')' : '미발행',
-          '입금': b?.paid_at ? '완료(' + b.paid_at + ')' : '미입금',
-          '입금액': b ? b.paid_amount : '',
+          '계약금액': amount,
+          '에코수수료': fee,
+          '받는금액': amount - fee,
+          '계산서발행': '해당없음',
+          '입금': '해당없음',
+          '입금액': '',
         };
-      });
+      }
+      return {
+        '업체명': c.name,
+        '구분': '직영',
+        '구역': c.area_name || '',
+        '담당자': c.contact_name || '',
+        '전화번호': c.contact_phone || '',
+        '계약금액': f ? f.contract_amount : '',
+        '에코수수료': '',
+        '받는금액': b ? b.billed_amount : '',
+        '계산서발행': b?.billed_at ? '발행(' + b.billed_at + ')' : '미발행',
+        '입금': b?.paid_at ? '완료(' + b.paid_at + ')' : '미입금',
+        '입금액': b ? b.paid_amount : '',
+      };
+    });
 
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
