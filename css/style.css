@@ -2103,3 +2103,60 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   .tab { padding: 10px 12px; font-size: 12px; }
   .photo-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ─── 연락처 관리 탭 ─── */
+.contact-stats {
+  display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;
+}
+.contact-stat-item {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px 18px;
+  display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 90px;
+}
+.contact-stat-num { font-size: 22px; font-weight: 700; color: var(--accent); }
+.contact-stat-label { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+.contact-inline-input {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 6px; padding: 6px 8px; width: 100%;
+  font-size: 12px; color: var(--text);
+  transition: border-color 0.2s;
+}
+.contact-inline-input:focus {
+  outline: none; border-color: var(--accent);
+}
+
+/* PC 테이블 */
+.contact-pc-table { display: block; }
+.contact-pc-table table { width: 100%; }
+.contact-pc-table th {
+  background: var(--bg3); font-size: 12px; font-weight: 600;
+  color: var(--text2); padding: 10px 8px; text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.contact-pc-table td {
+  padding: 8px; border-bottom: 1px solid var(--border);
+  font-size: 13px; vertical-align: middle;
+}
+.contact-pc-table tr:hover td { background: rgba(59,130,246,0.03); }
+.text-ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; }
+
+/* 모바일 카드 */
+.contact-mobile-cards { display: none; }
+.contact-card { margin-bottom: 10px; }
+.contact-card-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 10px;
+}
+.contact-card-fields { display: flex; flex-direction: column; gap: 8px; }
+.contact-field-row {
+  display: flex; align-items: center; gap: 8px;
+}
+.contact-field-row label {
+  font-size: 11px; color: var(--text2); min-width: 60px; flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .contact-pc-table { display: none; }
+  .contact-mobile-cards { display: block; }
+}

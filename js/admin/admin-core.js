@@ -154,6 +154,7 @@ function switchTab(tabName, el) {
     calendar:     renderCalendar,
     scheduleLog:  renderScheduleLog,
     changeLog:    renderChangeLog,
+    contacts:     renderContacts,
   };
 
   if (renderers[tabName]) renderers[tabName]();
