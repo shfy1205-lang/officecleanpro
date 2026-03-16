@@ -12,7 +12,7 @@ let noticeSearch = '';
 let leadFilter = 'all';
 let leadSearch = '';
 let billingMonth = '';
-let billingView = 'all'; // all | unpaid
+let billingView = 'overview'; // overview | all | unpaid
 let revenueMonth = '';
 
 // ─── 초기화 ───

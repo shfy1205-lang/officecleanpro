@@ -2192,3 +2192,108 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   .contact-pc-table { display: none; }
   .contact-mobile-cards { display: block; }
 }
+
+/* ═══════════════════════════════════════════════════
+   정산 현황 (Billing Overview)
+   ═══════════════════════════════════════════════════ */
+
+.billing-overview-section {
+  margin-bottom: 16px;
+}
+.bo-section-header {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 15px; font-weight: 700; color: var(--text);
+  margin-bottom: 12px; padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.bo-section-icon { font-size: 18px; }
+
+/* 4열 stats 그리드 */
+.stats-grid-4 {
+  grid-template-columns: repeat(4, 1fr) !important;
+}
+@media (max-width: 768px) {
+  .stats-grid-4 { grid-template-columns: repeat(2, 1fr) !important; }
+}
+
+/* 도급/직영 요약 카드 */
+.bo-summary-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px;
+}
+.bo-summary-card.bo-sub {
+  border-left: 3px solid var(--orange);
+}
+.bo-summary-card.bo-direct {
+  border-left: 3px solid var(--accent);
+}
+.bo-summary-title {
+  font-size: 15px; font-weight: 700; margin-bottom: 4px;
+}
+.bo-summary-count {
+  font-size: 12px; color: var(--text2); margin-bottom: 12px;
+}
+.bo-summary-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 0; font-size: 13px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.bo-summary-row:last-child { border-bottom: none; }
+.bo-summary-row span { color: var(--text2); }
+.bo-summary-row strong { color: var(--text); }
+
+@media (max-width: 600px) {
+  .bo-summary-card + .bo-summary-card { margin-top: 0; }
+  div:has(> .bo-summary-card) {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* 도급/직영 배지 */
+.bo-badge-sub {
+  background: rgba(249,115,22,0.15) !important;
+  color: var(--orange) !important;
+  font-weight: 600;
+}
+.bo-badge-direct {
+  background: rgba(96,165,250,0.15) !important;
+  color: var(--accent2) !important;
+  font-weight: 600;
+}
+
+/* PC 테이블 / 모바일 카드 토글 */
+.bo-table-pc { display: block; }
+.bo-cards-mobile { display: none; }
+
+@media (max-width: 768px) {
+  .bo-table-pc { display: none; }
+  .bo-cards-mobile { display: block; }
+}
+
+/* 모바일 카드 */
+.bo-card {
+  margin-bottom: 8px; padding: 12px;
+}
+.bo-card-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 8px;
+}
+.bo-card-body {
+  display: flex; flex-direction: column; gap: 4px;
+}
+.bo-card-row {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 13px; padding: 2px 0;
+}
+.bo-card-row span:first-child { color: var(--text2); }
+
+/* 모바일 합계 */
+.bo-mobile-total {
+  background: var(--bg3); border-radius: var(--radius);
+  padding: 10px 12px; margin-top: 8px;
+  font-size: 12px; color: var(--text2);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.bo-mobile-total span:first-child {
+  font-weight: 700; color: var(--text); font-size: 13px;
+}
