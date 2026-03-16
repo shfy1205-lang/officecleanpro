@@ -76,10 +76,16 @@ function renderBillingCheckList(filtered) {
     if (b.month === contactMonth) billingMap[b.company_id] = b;
   });
 
-  // 통계
+  // 통계 (billed_at/paid_at 또는 status 기반)
   const total = filtered.length;
-  const invoiced = filtered.filter(c => billingMap[c.id]?.billed_at).length;
-  const paid = filtered.filter(c => billingMap[c.id]?.paid_at).length;
+  const invoiced = filtered.filter(c => {
+    const b = billingMap[c.id];
+    return b && (b.billed_at || b.status === 'billed' || b.status === 'paid');
+  }).length;
+  const paid = filtered.filter(c => {
+    const b = billingMap[c.id];
+    return b && (b.paid_at || b.status === 'paid');
+  }).length;
 
   return `
     ${monthSelectorHTML(contactMonth, 'changeContactMonth')}
@@ -121,8 +127,8 @@ function renderBillingCheckList(filtered) {
         <tbody>
           ${filtered.map(c => {
             const b = billingMap[c.id];
-            const hasInvoice = !!b?.billed_at;
-            const hasPaid = !!b?.paid_at;
+            const hasInvoice = b ? (!!b.billed_at || b.status === 'billed' || b.status === 'paid') : false;
+            const hasPaid = b ? (!!b.paid_at || b.status === 'paid') : false;
             const unpaid = b ? (b.billed_amount || 0) - (b.paid_amount || 0) : 0;
             const statusBadge = !b ? '<span class="badge badge-area">미등록</span>'
               : hasPaid ? '<span class="badge badge-done">완료</span>'
