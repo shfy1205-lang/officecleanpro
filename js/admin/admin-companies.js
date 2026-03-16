@@ -558,28 +558,27 @@ async function syncTasksOnScheduleChange(companyId, weekday, activate, freq, anc
 
         if (dates.length === 0) continue;
 
-        // 기존 tasks 확인
+        // 기존 tasks 확인 (업체+날짜 기준)
         const { data: existing } = await sb.from('tasks')
-          .select('task_date, worker_id')
+          .select('task_date')
           .eq('company_id', companyId)
           .in('task_date', dates);
 
-        const existingSet = new Set((existing || []).map(t => `${t.task_date}|${t.worker_id}`));
+        const existingDateSet = new Set((existing || []).map(t => t.task_date));
 
+        // 메인 담당자 (첫 번째 배정자)로 업체당 1개만 생성
+        const mainAssign = assigns[0];
         const toInsert = [];
         for (const dateStr of dates) {
-          for (const a of assigns) {
-            const key = `${dateStr}|${a.worker_id}`;
-            if (!existingSet.has(key)) {
-              toInsert.push({
-                company_id: companyId,
-                worker_id: a.worker_id,
-                task_date: dateStr,
-                status: 'scheduled',
-                task_source: 'auto',
-                memo: null,
-              });
-            }
+          if (!existingDateSet.has(dateStr)) {
+            toInsert.push({
+              company_id: companyId,
+              worker_id: mainAssign.worker_id,
+              task_date: dateStr,
+              status: 'scheduled',
+              task_source: 'auto',
+              memo: null,
+            });
           }
         }
 

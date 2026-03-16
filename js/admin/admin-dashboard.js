@@ -189,8 +189,9 @@ async function generateTodayTasks() {
 
   const companyIds = [...new Set(matchedSchedules.map(s => s.company_id))];
 
+  // 업체당 1개 task (중복 체크는 company_id 기준)
   const { data: existingTasks, error: taskErr } = await sb.from('tasks')
-    .select('company_id, worker_id')
+    .select('company_id')
     .eq('task_date', dateStr);
 
   if (taskErr) {
@@ -198,8 +199,8 @@ async function generateTodayTasks() {
     return;
   }
 
-  const existingSet = new Set(
-    (existingTasks || []).map(t => `${t.company_id}|${t.worker_id}`)
+  const existingCompanySet = new Set(
+    (existingTasks || []).map(t => t.company_id)
   );
 
   const toInsert = [];
@@ -208,31 +209,32 @@ async function generateTodayTasks() {
     const company = adminData.companies.find(c => c.id === companyId);
     if (!company || company.status !== 'active') { inactiveSkipped++; continue; }
 
+    // 업체에 이미 해당 날짜 task가 있으면 스킵
+    if (existingCompanySet.has(companyId)) { duplicated++; continue; }
+
     const assigns = adminData.assignments.filter(
       a => a.company_id === companyId && a.month === month
     );
     if (assigns.length === 0) { noWorkerSkipped++; continue; }
 
-    for (const assign of assigns) {
-      const key = `${companyId}|${assign.worker_id}`;
-      if (existingSet.has(key)) { duplicated++; continue; }
+    // 메인 담당자 (첫 번째 배정자)로 task 1개만 생성
+    const mainAssign = assigns[0];
 
-      toInsert.push({
-        company_id: companyId,
-        worker_id: assign.worker_id,
-        task_date: dateStr,
-        status: 'scheduled',
-        task_source: 'auto',
-        memo: null,
-      });
+    toInsert.push({
+      company_id: companyId,
+      worker_id: mainAssign.worker_id,
+      task_date: dateStr,
+      status: 'scheduled',
+      task_source: 'auto',
+      memo: null,
+    });
 
-      createdList.push({
-        companyName: company.name,
-        workerName: getWorkerName(assign.worker_id),
-        date: dateStr,
-        status: 'scheduled',
-      });
-    }
+    createdList.push({
+      companyName: company.name,
+      workerName: getWorkerName(mainAssign.worker_id),
+      date: dateStr,
+      status: 'scheduled',
+    });
   }
 
   if (toInsert.length > 0) {
@@ -397,8 +399,9 @@ async function _doGenerateMonthlyTasks(month) {
 
   const firstDay = `${month}-01`;
   const lastDay = `${month}-${String(daysInMonth).padStart(2, '0')}`;
+  // 업체+날짜 기준으로 중복 체크
   const { data: existingTasks, error: taskErr } = await sb.from('tasks')
-    .select('company_id, worker_id, task_date')
+    .select('company_id, task_date')
     .gte('task_date', firstDay)
     .lte('task_date', lastDay);
 
@@ -408,7 +411,7 @@ async function _doGenerateMonthlyTasks(month) {
   }
 
   const existingSet = new Set(
-    (existingTasks || []).map(t => `${t.company_id}|${t.worker_id}|${t.task_date}`)
+    (existingTasks || []).map(t => `${t.company_id}|${t.task_date}`)
   );
 
   let created = 0;
@@ -438,33 +441,35 @@ async function _doGenerateMonthlyTasks(month) {
         continue;
       }
 
+      // 업체+날짜에 이미 task가 있으면 스킵
+      const key = `${companyId}|${dateStr}`;
+      if (existingSet.has(key)) { duplicated++; continue; }
+
       const assigns = assignMap[companyId];
       if (!assigns || assigns.length === 0) {
         if (!noWorkerChecked.has(companyId)) { noWorkerSkipped++; noWorkerChecked.add(companyId); }
         continue;
       }
 
-      for (const assign of assigns) {
-        const key = `${companyId}|${assign.worker_id}|${dateStr}`;
-        if (existingSet.has(key)) { duplicated++; continue; }
+      // 메인 담당자 (첫 번째 배정자)로 task 1개만 생성
+      const mainAssign = assigns[0];
 
-        toInsert.push({
-          company_id: companyId,
-          worker_id: assign.worker_id,
-          task_date: dateStr,
+      toInsert.push({
+        company_id: companyId,
+        worker_id: mainAssign.worker_id,
+        task_date: dateStr,
+        status: 'scheduled',
+        task_source: 'auto',
+        memo: null,
+      });
+
+      if (createdList.length < 50) {
+        createdList.push({
+          companyName: company.name,
+          workerName: getWorkerName(mainAssign.worker_id),
+          date: dateStr,
           status: 'scheduled',
-          task_source: 'auto',
-          memo: null,
         });
-
-        if (createdList.length < 50) {
-          createdList.push({
-            companyName: company.name,
-            workerName: getWorkerName(assign.worker_id),
-            date: dateStr,
-            status: 'scheduled',
-          });
-        }
       }
     }
   }
