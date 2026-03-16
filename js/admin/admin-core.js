@@ -155,6 +155,7 @@ function switchTab(tabName, el) {
     scheduleLog:  renderScheduleLog,
     changeLog:    renderChangeLog,
     contacts:     renderContacts,
+    quote:        renderQuote,
   };
 
   if (renderers[tabName]) renderers[tabName]();
