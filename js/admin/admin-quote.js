@@ -94,7 +94,15 @@ function renderQuote() {
         `).join('')}
         <div style="grid-column:1/-1;display:flex;align-items:center;gap:6px;margin-top:4px">
           <span style="font-size:12px;white-space:nowrap">13. 기타:</span>
-          <input id="qWorkEtc" class="input" placeholder="직접 입력" style="font-size:12px;flex:1">
+          <input id="qWorkEtc1" class="input" placeholder="직접 입력" style="font-size:12px;flex:1">
+        </div>
+        <div style="grid-column:1/-1;display:flex;align-items:center;gap:6px">
+          <span style="font-size:12px;white-space:nowrap">14. 기타:</span>
+          <input id="qWorkEtc2" class="input" placeholder="직접 입력" style="font-size:12px;flex:1">
+        </div>
+        <div style="grid-column:1/-1;display:flex;align-items:center;gap:6px">
+          <span style="font-size:12px;white-space:nowrap">15. 기타:</span>
+          <input id="qWorkEtc3" class="input" placeholder="직접 입력" style="font-size:12px;flex:1">
         </div>
       </div>
     </div>
@@ -120,8 +128,10 @@ function getQuoteFormData() {
   document.querySelectorAll('.qWorkCheck:checked').forEach(cb => {
     checkedItems.push(QUOTE_WORK_ITEMS[parseInt(cb.dataset.index)]);
   });
-  const etcText = ($('qWorkEtc')?.value || '').trim();
-  if (etcText) checkedItems.push(etcText);
+  for (let i = 1; i <= 3; i++) {
+    const etcText = ($('qWorkEtc' + i)?.value || '').trim();
+    if (etcText) checkedItems.push(etcText);
+  }
 
   return {
     clientName: $('qClientName')?.value || '',
