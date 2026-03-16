@@ -121,7 +121,7 @@ function openBillingForm(billingId) {
 
     <div class="field">
       <label>업체 *</label>
-      <select id="bCompany" ${isEdit ? 'disabled' : ''}>
+      <select id="bCompany" ${isEdit ? 'disabled' : ''} onchange="onBillingCompanyChange()">
         <option value="">업체 선택</option>
         ${activeCompanies.map(c =>
           `<option value="${c.id}"${c.id === b.company_id ? ' selected' : ''}>${c.name}</option>`
@@ -130,10 +130,10 @@ function openBillingForm(billingId) {
     </div>
     <div class="field">
       <label>정산 월 *</label>
-      <input id="bMonth" type="month" value="${b.month || billingMonth}" ${isEdit ? 'disabled' : ''}>
+      <input id="bMonth" type="month" value="${b.month || billingMonth}" ${isEdit ? 'disabled' : ''} onchange="onBillingCompanyChange()">
     </div>
     <div class="field">
-      <label>청구 금액 (원) *</label>
+      <label>청구 금액 (원) * <span id="bAmountHint" class="text-muted" style="font-size:11px"></span></label>
       <input id="bBilledAmount" type="number" value="${b.billed_amount || 0}" placeholder="청구 금액">
     </div>
     <div class="admin-row-2">
@@ -177,6 +177,25 @@ function openBillingForm(billingId) {
 
   $('modalBody').innerHTML = html;
   $('detailModal').classList.add('show');
+}
+
+function onBillingCompanyChange() {
+  const companyId = $('bCompany')?.value;
+  const month = $('bMonth')?.value;
+  const hint = $('bAmountHint');
+  if (!companyId || !month || !hint) return;
+
+  const fin = adminData.financials.find(f => f.company_id === companyId && f.month === month);
+  if (fin && fin.contract_amount) {
+    hint.textContent = `(계약금액: ${fmt(fin.contract_amount)}원)`;
+    // 금액이 0이면 자동 입력
+    const amountInput = $('bBilledAmount');
+    if (amountInput && (!amountInput.value || amountInput.value === '0')) {
+      amountInput.value = fin.contract_amount;
+    }
+  } else {
+    hint.textContent = '';
+  }
 }
 
 async function saveBilling(billingId) {

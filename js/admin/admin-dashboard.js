@@ -501,8 +501,14 @@ async function _doGenerateMonthlyTasks(month) {
     totalDates: daysInMonth, list: createdList, totalCreated: created, error: false,
   };
 
-  if (created > 0) {
-    toast(`${month} 월 일정 ${created}건 생성 완료!`);
+  // ── billing_records 자동 생성 (financials 기반) ──
+  const billingCreated = await _generateMonthlyBillings(month);
+
+  if (created > 0 || billingCreated > 0) {
+    const parts = [];
+    if (created > 0) parts.push(`일정 ${created}건`);
+    if (billingCreated > 0) parts.push(`정산 ${billingCreated}건`);
+    toast(`${month} 월 ${parts.join(', ')} 생성 완료!`);
   } else {
     toast('새로 생성할 일정이 없습니다', 'info');
   }
@@ -510,6 +516,43 @@ async function _doGenerateMonthlyTasks(month) {
   if (todayDate && todayDate.startsWith(month)) {
     await loadTodayCleaning(todayDate);
   }
+}
+
+async function _generateMonthlyBillings(month) {
+  const monthFin = adminData.financials.filter(f => f.month === month);
+  if (monthFin.length === 0) return 0;
+
+  const existingBillIds = new Set(
+    adminData.billings.filter(b => b.month === month).map(b => b.company_id)
+  );
+
+  const toInsert = [];
+  for (const f of monthFin) {
+    if (existingBillIds.has(f.company_id)) continue;
+    const c = adminData.companies.find(x => x.id === f.company_id);
+    if (!c || c.status !== 'active') continue;
+    // 도급업체는 제외
+    if (c.subcontract_from) continue;
+
+    toInsert.push({
+      company_id: f.company_id,
+      month,
+      billed_amount: f.contract_amount || 0,
+      paid_amount: 0,
+      status: 'pending',
+    });
+  }
+
+  if (toInsert.length === 0) return 0;
+
+  const { data, error } = await sb.from('billing_records').insert(toInsert).select();
+  if (error) {
+    console.error('billing auto-generate error:', error);
+    return 0;
+  }
+
+  if (data) adminData.billings.push(...data);
+  return data?.length || 0;
 }
 
 function buildMonthGenResultHTML() {

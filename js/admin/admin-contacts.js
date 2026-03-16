@@ -84,6 +84,8 @@ function renderBillingCheckList(filtered) {
 
   // 통계 (직영 업체만)
   const total = directCompanies.length;
+  const registered = directCompanies.filter(c => !!billingMap[c.id]).length;
+  const unregistered = total - registered;
   const invoiced = directCompanies.filter(c => {
     const b = billingMap[c.id];
     return b && (b.billed_at || b.status === 'billed' || b.status === 'paid');
@@ -95,6 +97,12 @@ function renderBillingCheckList(filtered) {
 
   return `
     ${monthSelectorHTML(contactMonth, 'changeContactMonth')}
+
+    ${unregistered > 0 ? `
+    <div style="margin-bottom:12px;padding:10px 14px;background:rgba(255,193,7,0.1);border:1px solid rgba(255,193,7,0.3);border-radius:8px;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:13px;color:var(--yellow)">⚠ 미등록 ${unregistered}개 업체 — 업체정보(financials) 기반으로 자동 생성할 수 있습니다</span>
+      <button class="btn-sm btn-green" style="font-size:11px;padding:5px 12px;white-space:nowrap" onclick="autoCreateBillings()">정산 자동생성</button>
+    </div>` : ''}
 
     <div class="contact-stats">
       <div class="contact-stat-item">
@@ -325,6 +333,45 @@ function renderContactInfoList(filtered) {
 
 function changeContactMonth(month) {
   contactMonth = month;
+  renderContacts();
+}
+
+
+// ════════════════════════════════════════════════════
+// 미등록 업체 정산 자동생성 (financials 기반)
+// ════════════════════════════════════════════════════
+
+async function autoCreateBillings() {
+  const monthFin = adminData.financials.filter(f => f.month === contactMonth);
+  const existingIds = new Set(
+    adminData.billings.filter(b => b.month === contactMonth).map(b => b.company_id)
+  );
+
+  const toInsert = [];
+  for (const f of monthFin) {
+    if (existingIds.has(f.company_id)) continue;
+    const c = adminData.companies.find(x => x.id === f.company_id);
+    if (!c || c.status !== 'active' || c.subcontract_from) continue;
+
+    toInsert.push({
+      company_id: f.company_id,
+      month: contactMonth,
+      billed_amount: f.contract_amount || 0,
+      paid_amount: 0,
+      status: 'pending',
+    });
+  }
+
+  if (toInsert.length === 0) {
+    toast('자동 생성할 정산 데이터가 없습니다', 'info');
+    return;
+  }
+
+  const { data, error } = await sb.from('billing_records').insert(toInsert).select();
+  if (error) return toast(error.message, 'error');
+
+  if (data) adminData.billings.push(...data);
+  toast(`${data.length}건 정산 자동생성 완료`);
   renderContacts();
 }
 
