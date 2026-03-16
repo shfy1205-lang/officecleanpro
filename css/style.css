@@ -2156,6 +2156,38 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   font-size: 11px; color: var(--text2); min-width: 60px; flex-shrink: 0;
 }
 
+/* 정산 체크 (체크박스 + 날짜) */
+.billing-check {
+  display: flex; align-items: center; gap: 6px; cursor: pointer;
+}
+.billing-check input[type="checkbox"] {
+  width: 18px; height: 18px; accent-color: var(--green); cursor: pointer;
+  flex-shrink: 0;
+}
+.billing-check-label { font-size: 10px; color: var(--text2); }
+
+/* 모바일 정산 카드 */
+.billing-card-amount {
+  font-size: 15px; font-weight: 600; color: var(--accent);
+  margin-bottom: 8px;
+}
+.billing-card-checks {
+  display: flex; gap: 12px;
+}
+.billing-check-card {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; color: var(--text); cursor: pointer;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 12px; flex: 1;
+  transition: border-color 0.2s;
+}
+.billing-check-card:has(input:checked) {
+  border-color: var(--green); background: rgba(34,197,94,0.06);
+}
+.billing-check-card input[type="checkbox"] {
+  width: 16px; height: 16px; accent-color: var(--green); cursor: pointer;
+}
+
 @media (max-width: 768px) {
   .contact-pc-table { display: none; }
   .contact-mobile-cards { display: block; }
