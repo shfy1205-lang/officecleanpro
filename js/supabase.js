@@ -95,6 +95,8 @@ async function logout() {
   }
   currentUser = null;
   currentWorker = null;
+  localStorage.removeItem('ocp_remember');
+  sessionStorage.removeItem('ocp_session_active');
   location.href = 'index.html';
 }
 
@@ -113,12 +115,24 @@ async function requireAuth(requiredRole) {
     }
   }
 
+  // 1-1) "로그인 상태 유지" 안 한 경우: 브라우저 새로 열면 로그아웃
+  const remember = localStorage.getItem('ocp_remember');
+  const sessionActive = sessionStorage.getItem('ocp_session_active');
+  if (remember !== 'true' && !sessionActive) {
+    try { await sb.auth.signOut(); } catch (e) { /* ignore */ }
+    location.href = 'index.html';
+    return false;
+  }
+
   // 2) 세션 + worker 프로필 로드
   const session = await loadSession();
   if (!session) {
     location.href = 'index.html';
     return false;
   }
+
+  // 세션 활성 표시
+  sessionStorage.setItem('ocp_session_active', 'true');
 
   // 3) 역할 체크
   if (requiredRole && currentWorker.role !== requiredRole) {

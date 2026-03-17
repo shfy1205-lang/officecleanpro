@@ -22,9 +22,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   const hasConfig = initFromStorage();
 
   if (hasConfig) {
+    // 1-1) "로그인 상태 유지" 체크 안 했으면 브라우저 닫았다 열면 자동 로그아웃
+    const remember = localStorage.getItem('ocp_remember');
+    const sessionActive = sessionStorage.getItem('ocp_session_active');
+
+    if (remember !== 'true' && !sessionActive) {
+      // 브라우저가 새로 열렸고, remember가 꺼져 있음 → 세션 만료 처리
+      try { await sb.auth.signOut(); } catch (e) { /* ignore */ }
+    }
+
     // 2) 이미 로그인 세션이 있으면 바로 리다이렉트
     const session = await loadSession();
     if (session) {
+      // 세션 활성 표시 (탭/브라우저 닫히면 사라짐)
+      sessionStorage.setItem('ocp_session_active', 'true');
       redirectByRole();
       return;
     }
@@ -33,6 +44,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 3) 로그인 화면 표시
   loading.classList.add('hidden');
   loginScreen.style.display = 'flex';
+
+  // 3-1) 이전 remember 설정 복원
+  const rememberBox = $('rememberMe');
+  if (rememberBox) {
+    rememberBox.checked = localStorage.getItem('ocp_remember') === 'true';
+  }
 
   // 4) 설정이 없으면 설정 패널 자동 오픈
   if (!hasConfig) {
@@ -109,6 +126,16 @@ async function doLogin() {
     // ── Step 4: 전역 변수 설정 ──
     currentUser = authData.user;
     currentWorker = worker;
+
+    // ── Step 4-1: 로그인 상태 유지 설정 저장 ──
+    const rememberChecked = $('rememberMe')?.checked;
+    if (rememberChecked) {
+      localStorage.setItem('ocp_remember', 'true');
+    } else {
+      localStorage.removeItem('ocp_remember');
+    }
+    // 현재 세션 활성 표시 (브라우저 닫히면 sessionStorage는 자동 삭제됨)
+    sessionStorage.setItem('ocp_session_active', 'true');
 
     // ── Step 5: 역할별 리다이렉트 ──
     toast(`${worker.name}님 환영합니다!`);
