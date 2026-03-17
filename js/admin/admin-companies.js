@@ -385,14 +385,23 @@ async function openCompanyDetail(companyId) {
     <div class="detail-section">
       <div class="detail-section-title">📱 업체 QR 페이지</div>
       ${c.qr_token ? `
-        <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px">
-          <div style="font-size:11px;color:var(--text2);margin-bottom:4px">QR 링크:</div>
-          <div id="qrUrl_${companyId}" style="font-size:12px;color:var(--accent2);word-break:break-all">${getQrUrl(companyId, c.qr_token)}</div>
+        <div style="display:flex;gap:16px;align-items:flex-start;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px">
+          <div style="flex-shrink:0;background:#fff;padding:8px;border-radius:8px">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(getQrUrl(companyId, c.qr_token))}"
+                 alt="QR Code" style="display:block;width:160px;height:160px" />
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:11px;color:var(--text2);margin-bottom:4px">QR 링크:</div>
+            <div id="qrUrl_${companyId}" style="font-size:12px;color:var(--accent2);word-break:break-all;margin-bottom:8px">${getQrUrl(companyId, c.qr_token)}</div>
+            <div style="font-size:11px;color:var(--text2)">이 QR 코드를 스캔하면 업체 전용 페이지로 이동합니다.<br>QR 이미지를 우클릭하여 저장하거나 인쇄하세요.</div>
+          </div>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="btn-sm btn-blue" onclick="copyQrUrl('${companyId}', '${c.qr_token}')">📋 링크 복사</button>
           <button class="btn-sm" style="background:var(--bg3);color:var(--text2);border:1px solid var(--border)"
                   onclick="regenerateQrToken('${companyId}')">🔄 토큰 재생성</button>
+          <button class="btn-sm" style="background:var(--bg3);color:var(--text2);border:1px solid var(--border)"
+                  onclick="downloadQrCode('${companyId}', '${c.qr_token}')">📥 QR 이미지 저장</button>
         </div>
       ` : `
         <p class="text-muted" style="margin-bottom:8px">QR 토큰이 아직 생성되지 않았습니다.</p>
@@ -678,4 +687,19 @@ function copyQrUrl(companyId, token) {
     document.body.removeChild(textarea);
     toast('QR 링크가 복사되었습니다');
   });
+}
+
+function downloadQrCode(companyId, token) {
+  const url = getQrUrl(companyId, token);
+  const company = adminData.companies.find(c => c.id === companyId);
+  const name = company ? company.name.replace(/[^가-힣a-zA-Z0-9]/g, '_') : 'company';
+  const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(url)}`;
+  const a = document.createElement('a');
+  a.href = qrImgUrl;
+  a.download = `QR_${name}.png`;
+  a.target = '_blank';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  toast('QR 이미지 다운로드 시작');
 }
