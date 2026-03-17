@@ -1044,6 +1044,33 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
    직원 오늘 할 일
    ════════════════════════════════════════════════════ */
 
+.sttoday-date-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 8px 0;
+}
+.sttoday-nav-btn {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  color: var(--text1);
+  font-size: 18px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sttoday-nav-btn:active { background: var(--primary); color: #fff; }
+.sttoday-date-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
 .sttoday-header {
   display: flex;
   justify-content: space-between;

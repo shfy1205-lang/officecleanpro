@@ -5,6 +5,7 @@
 
 let staffData = {};
 let selectedMonth = '';
+let staffSelectedDate = ''; // 오늘 할 일 탭 날짜 (빈 문자열이면 today())
 let taskHistoryView = 'calendar'; // 'calendar' | 'list'
 let pendingPhotoCompanyId = null;
 let pendingPhotoNoteId = null;
