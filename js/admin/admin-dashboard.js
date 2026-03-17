@@ -209,6 +209,10 @@ async function generateTodayTasks() {
     const company = adminData.companies.find(c => c.id === companyId);
     if (!company || company.status !== 'active') { inactiveSkipped++; continue; }
 
+    // 계약기간 체크: 시작일 이전 또는 종료일 이후면 스킵
+    if (company.contract_start_date && dateStr < company.contract_start_date) { inactiveSkipped++; continue; }
+    if (company.contract_end_date && dateStr > company.contract_end_date) { inactiveSkipped++; continue; }
+
     // 업체에 이미 해당 날짜 task가 있으면 스킵
     if (existingCompanySet.has(companyId)) { duplicated++; continue; }
 

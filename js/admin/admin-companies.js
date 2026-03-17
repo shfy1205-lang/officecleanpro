@@ -324,12 +324,17 @@ async function openCompanyDetail(companyId) {
   const contractInfo = [];
   if (c.contract_start_date) contractInfo.push(`시작: ${c.contract_start_date}`);
   if (c.contract_end_date) contractInfo.push(`종료: ${c.contract_end_date}`);
+  const todayForContract = today();
+  const isBeforeStart = c.contract_start_date && todayForContract < c.contract_start_date;
+  const isAfterEnd = c.contract_end_date && todayForContract > c.contract_end_date;
 
   const html = `
     <button class="modal-close" onclick="closeModal()">&times;</button>
     <h3>${c.name}</h3>
     <div class="detail-location">${c.location || ''} ${c.area_name ? '· ' + c.area_name : ''}</div>
     ${contractInfo.length > 0 ? `<div style="font-size:12px;color:var(--text-muted);margin-top:4px">📋 계약기간: ${contractInfo.join(' / ')}</div>` : ''}
+    ${isBeforeStart ? `<div style="margin-top:6px;padding:8px 12px;background:rgba(255,165,0,0.15);border:1px solid var(--orange);border-radius:8px;font-size:12px;color:var(--orange)">⚠️ 계약 시작일(${c.contract_start_date})이 아직 도래하지 않았습니다. 일정이 자동 생성되지 않습니다.</div>` : ''}
+    ${isAfterEnd ? `<div style="margin-top:6px;padding:8px 12px;background:rgba(255,70,70,0.15);border:1px solid var(--red);border-radius:8px;font-size:12px;color:var(--red)">⛔ 계약이 종료(${c.contract_end_date})되었습니다. 일정이 자동 생성되지 않습니다.</div>` : ''}
 
     <div class="detail-section">
       <button class="btn-sm btn-blue" onclick="openCompanyForm('${companyId}')">기본정보 수정</button>
@@ -681,11 +686,18 @@ async function syncTasksOnScheduleChange(companyId, weekday, activate, freq, anc
         const assigns = adminData.assignments.filter(a => a.company_id === companyId && a.month === month);
         if (assigns.length === 0) continue;
 
+        // 계약기간 가져오기
+        const company = adminData.companies.find(c => c.id === companyId);
+        const contractStart = company?.contract_start_date || '';
+        const contractEnd = company?.contract_end_date || '';
+
         // 해당 월의 매칭 날짜 수집
         const dates = [];
         for (let day = 1; day <= daysInMonth; day++) {
           const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
           if (dateStr < todayStr) continue; // 과거 제외
+          if (contractStart && dateStr < contractStart) continue; // 계약 시작 전 제외
+          if (contractEnd && dateStr > contractEnd) continue; // 계약 종료 후 제외
           const d = new Date(dateStr + 'T00:00:00');
           if (d.getDay() !== weekday) continue;
           // 격주 체크
