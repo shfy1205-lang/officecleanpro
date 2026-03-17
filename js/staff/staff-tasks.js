@@ -6,15 +6,15 @@
 // 청소 완료 체크 (업체 상세 모달에서 사용)
 // ════════════════════════════════════════════════════
 
-async function toggleTask(companyId) {
-  const btn = event.target.closest('button');
+async function toggleTask(companyId, targetDate) {
+  const btn = event?.target?.closest('button');
   if (btn) { btn.disabled = true; btn.textContent = '처리 중...'; }
 
-  const todayStr = today();
+  const dateStr = targetDate || today();
 
   // 기존 scheduled task가 있는지 확인
   const existing = staffData.tasks.find(
-    t => t.company_id === companyId && t.task_date === todayStr
+    t => t.company_id === companyId && t.task_date === dateStr
   );
 
   let error;
@@ -38,7 +38,7 @@ async function toggleTask(companyId) {
     const res = await sb.from('tasks').insert({
       company_id: companyId,
       worker_id:  currentWorker.id,
-      task_date:  todayStr,
+      task_date:  dateStr,
       status:     'completed',
       task_source: 'manual',
     });
@@ -47,7 +47,7 @@ async function toggleTask(companyId) {
       staffData.tasks.push({
         company_id: companyId,
         worker_id: currentWorker.id,
-        task_date: todayStr,
+        task_date: dateStr,
         status: 'completed',
         created_at: new Date().toISOString(),
       });
@@ -64,7 +64,8 @@ async function toggleTask(companyId) {
     return;
   }
 
-  toast('청소 완료!');
+  const isToday = dateStr === today();
+  toast(isToday ? '청소 완료!' : `${dateStr} 청소 완료 처리!`);
 
   // 모달 & 리스트 갱신
   await openCompanyDetail(companyId);

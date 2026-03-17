@@ -108,19 +108,46 @@ async function openCompanyDetail(companyId) {
     <h3>${company.name}</h3>
     <div class="detail-location">${company.location || ''} ${company.area_name ? '· ' + company.area_name : ''}</div>
 
-    <!-- 청소 완료 버튼 -->
-    ${isScheduledToday ? `
-      <div class="task-check-section">
-        ${todayDone
-          ? `<button class="btn-task-done" disabled>
-               <span class="check-icon">✓</span> 오늘 청소 완료됨
+    <!-- 청소 완료 버튼 (오늘이 청소일이든 아니든 표시) -->
+    <div class="task-check-section">
+      ${todayDone
+        ? `<button class="btn-task-done" disabled>
+             <span class="check-icon">✓</span> 오늘 청소 완료됨
+           </button>`
+        : isScheduledToday
+          ? `<button class="btn-task-check" onclick="toggleTask('${companyId}')">
+               오늘 청소 완료 체크
              </button>`
-          : `<button class="btn-task-check" onclick="toggleTask('${companyId}')">
-               청소 완료 체크
+          : `<button class="btn-task-check" style="background:var(--card-bg);border:1px solid var(--primary);color:var(--primary)" onclick="toggleTask('${companyId}')">
+               오늘 청소 완료 체크 (비정규)
              </button>`
-        }
-      </div>
-    ` : ''}
+      }
+    </div>
+    ${(() => {
+      // 미완료 과거 청소일 목록
+      const todayStr = today();
+      const [cy, cm] = selectedMonth.split('-').map(Number);
+      const lastDate = new Date(cy, cm, 0).getDate();
+      const scheduledDays = new Set(scheds.map(s => s.weekday));
+      const completedDates = new Set(tasks.filter(t => t.status === 'completed').map(t => t.task_date));
+      const missedDates = [];
+      for (let d = 1; d <= lastDate; d++) {
+        const ds = cy + '-' + String(cm).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+        if (ds >= todayStr) continue;
+        const dow = new Date(cy, cm - 1, d).getDay();
+        if (scheduledDays.has(dow) && !completedDates.has(ds)) missedDates.push(ds);
+      }
+      if (missedDates.length === 0) return '';
+      return '<div style="margin-top:8px;padding:8px 12px;background:rgba(255,165,0,0.1);border:1px solid var(--orange);border-radius:8px;font-size:12px">' +
+        '<div style="color:var(--orange);font-weight:600;margin-bottom:6px">⚠️ 미완료 청소일 ' + missedDates.length + '건 (달력에서 클릭하여 완료 처리)</div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:4px">' +
+        missedDates.map(ds => {
+          const dd = new Date(ds + 'T00:00:00');
+          return '<span style="background:var(--orange);color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;cursor:pointer" onclick="confirmCompleteDate(\'' + companyId + '\',\'' + ds + '\')">' +
+            (dd.getMonth()+1) + '/' + dd.getDate() + '(' + WEEKDAY_NAMES[dd.getDay()] + ')' + '</span>';
+        }).join('') +
+        '</div></div>';
+    })()}
 
     <!-- 스케줄 -->
     <div class="detail-section">
@@ -264,13 +291,21 @@ function buildCalendar(companyId, month, scheds, tasks) {
     const isScheduled = scheduledDays.has(dow);
     const isCompleted = completedDates.has(dateStr);
     const isToday = dateStr === todayStr;
+    const isPast = dateStr <= todayStr;
+    // 과거 또는 오늘이고, 청소일인데 미완료 → 클릭 가능
+    const canComplete = isPast && isScheduled && !isCompleted;
 
     let cls = 'cal-day';
     if (isCompleted) cls += ' completed';
     else if (isScheduled) cls += ' scheduled';
     if (isToday) cls += ' today';
+    if (canComplete) cls += ' clickable';
 
-    html += `<div class="${cls}">${d}</div>`;
+    if (canComplete) {
+      html += `<div class="${cls}" onclick="confirmCompleteDate('${companyId}','${dateStr}')" title="클릭하여 완료 처리">${d}</div>`;
+    } else {
+      html += `<div class="${cls}">${d}</div>`;
+    }
   }
 
   html += '</div>';
@@ -281,8 +316,25 @@ function buildCalendar(companyId, month, scheds, tasks) {
       <span><span class="legend-dot scheduled"></span>청소일</span>
       <span><span class="legend-dot completed"></span>완료</span>
       <span><span class="legend-dot today-dot"></span>오늘</span>
+      <span><span class="legend-dot clickable-dot"></span>클릭하여 완료</span>
     </div>
   `;
 
   return html;
+}
+
+/** 과거 날짜 완료 확인 후 처리 */
+async function confirmCompleteDate(companyId, dateStr) {
+  const company = getCompanyById(companyId);
+  const d = new Date(dateStr + 'T00:00:00');
+  const dayName = WEEKDAY_NAMES[d.getDay()];
+  const label = `${d.getMonth()+1}/${d.getDate()} (${dayName})`;
+
+  if (dateStr === today()) {
+    await toggleTask(companyId, dateStr);
+  } else {
+    if (confirm(`${company?.name || ''}\n${label} 청소를 완료 처리하시겠습니까?`)) {
+      await toggleTask(companyId, dateStr);
+    }
+  }
 }

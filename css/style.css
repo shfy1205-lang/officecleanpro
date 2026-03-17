@@ -274,6 +274,10 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
 .cal-day.completed { background: rgba(34,197,94,0.2); color: var(--green); font-weight: 600; }
 .cal-day.today     { border: 1px solid var(--yellow); }
 .cal-day.empty     { opacity: 0.3; }
+.cal-day.clickable { cursor: pointer; border: 1px dashed var(--orange); animation: pulse-border 2s infinite; }
+.cal-day.clickable:hover { background: rgba(255,165,0,0.3); }
+@keyframes pulse-border { 0%,100% { border-color: var(--orange); } 50% { border-color: transparent; } }
+.legend-dot.clickable-dot { background: transparent; border: 1px dashed var(--orange); }
 
 /* 달력 건수 표시 */
 .cal-count {
