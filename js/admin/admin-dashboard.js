@@ -664,13 +664,19 @@ function renderDashboardHTML() {
     `<option value="${w.id}" ${todayWorkerFilter === w.id ? 'selected' : ''}>${w.name}</option>`
   ).join('');
 
-  // ── 월간 통계 ──
-  const activeCompanies = adminData.companies.filter(c => c.status === 'active').length;
-  const activeWorkers = adminData.workers.filter(w => w.status === 'active' && w.role === 'staff').length;
+  // ── 월간 금액 통계 ──
   const monthFin = adminData.financials.filter(f => f.month === selectedMonth);
+  // 에코 도급 업체 제외한 직영+광고비 업체의 계약 총액
   const totalContract = monthFin.reduce((s, f) => s + (f.contract_amount || 0), 0);
-  const monthAssigns = adminData.assignments.filter(a => a.month === selectedMonth);
-  const totalPay = monthAssigns.reduce((s, a) => s + (a.pay_amount || 0), 0);
+  const totalEcoFee = monthFin.reduce((s, f) => s + (f.eco_amount || 0), 0);
+  const totalOcpFee = monthFin.reduce((s, f) => s + (f.ocp_amount || 0), 0);
+  const totalWorkerPay = monthFin.reduce((s, f) => s + (f.worker_pay_total || 0), 0);
+
+  // ── 신규 계약 업체 (이번 달에 계약 시작) ──
+  const newContracts = adminData.companies.filter(c => {
+    if (!c.contract_start_date) return false;
+    return c.contract_start_date.substring(0, 7) === selectedMonth;
+  });
 
   mc.innerHTML = `
     <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
@@ -834,49 +840,78 @@ function renderDashboardHTML() {
     </div>
     ` : ''}
 
-    <!-- ═══ 5) 최근 변경이력 요약 ═══ -->
-    ${_dashRecentLogs.length > 0 ? `
+    <!-- ═══ 5) 월간 금액 요약 ═══ -->
     <div class="dash-summary-box" style="margin-top:24px">
       <div class="dash-box-header">
-        <span class="dash-box-title">최근 변경이력</span>
-        <button class="btn-sm btn-gray" style="margin-left:auto;font-size:11px;padding:4px 10px"
-                onclick="switchTab('changeLog', document.querySelectorAll('.tab')[13])">전체보기</button>
+        <span class="dash-box-title">💰 ${selectedMonth.split('-')[1]}월 금액 현황</span>
+        ${monthSelectorHTML(selectedMonth, 'changeDashMonth')}
+      </div>
+      <div class="stats-grid" style="margin-top:12px">
+        <div class="stat-card">
+          <div class="stat-label">계약금액 합계</div>
+          <div class="stat-value blue" style="font-size:22px">${fmt(totalContract)}원</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">에코 수수료</div>
+          <div class="stat-value orange" style="font-size:22px">${fmt(totalEcoFee)}원</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">OCP 수수료</div>
+          <div class="stat-value" style="font-size:22px;color:var(--primary)">${fmt(totalOcpFee)}원</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">작업자 지급액 (3.3% 공제 전)</div>
+          <div class="stat-value green" style="font-size:22px">${fmt(totalWorkerPay)}원</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ 6) 신규 계약 업체 ═══ -->
+    ${newContracts.length > 0 ? `
+    <div class="dash-summary-box" style="margin-top:24px">
+      <div class="dash-box-header">
+        <span class="dash-box-title">🆕 ${selectedMonth.split('-')[1]}월 신규 계약 업체</span>
+        <span class="badge badge-done" style="font-size:11px">${newContracts.length}개</span>
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>변경일시</th><th>대상</th><th>작업</th><th>필드</th><th>변경자</th><th>메모</th></tr></thead>
+          <thead><tr><th>업체명</th><th>구역</th><th>계약 시작일</th><th>에코 관계</th><th>상태</th></tr></thead>
           <tbody>
-            ${_dashRecentLogs.map(l => {
-              const entityLabels = { company_workers: '지급금액/배정', company_financials: '업체 수수료', company_schedule: '스케줄', billing_records: '정산' };
-              const actionLabels = { update: '수정', delete: '삭제', insert: '추가' };
-              const actionBadges = { update: 'badge-today', delete: 'badge-warn', insert: 'badge-done' };
-              return `<tr>
-                <td style="font-size:12px;white-space:nowrap">${formatDate(l.changed_at)}</td>
-                <td><span class="badge badge-area" style="font-size:10px">${entityLabels[l.entity_type] || l.entity_type}</span></td>
-                <td><span class="badge ${actionBadges[l.action_type] || 'badge-area'}" style="font-size:10px">${actionLabels[l.action_type] || l.action_type}</span></td>
-                <td style="font-size:12px">${l.field_name || '-'}</td>
-                <td>${l.changed_by ? getWorkerName(l.changed_by) : '-'}</td>
-                <td style="font-size:11px;color:var(--text2);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(l.note || '').replace(/"/g, '&quot;')}">${l.note || '-'}</td>
+            ${newContracts.map(c => {
+              const ecoLabel = c.subcontract_from === '에코오피스클린'
+                ? '<span style="font-size:10px;background:var(--orange);color:#fff;padding:2px 6px;border-radius:4px">도급</span>'
+                : c.subcontract_from === '에코광고비'
+                  ? '<span style="font-size:10px;background:#8b5cf6;color:#fff;padding:2px 6px;border-radius:4px">광고비</span>'
+                  : '<span style="font-size:10px;background:var(--green);color:#fff;padding:2px 6px;border-radius:4px">직영</span>';
+              const statusBadge = c.status === 'active'
+                ? '<span class="badge badge-done">활성</span>'
+                : c.status === 'paused'
+                  ? '<span class="badge badge-today">중지</span>'
+                  : '<span class="badge badge-warn">해지</span>';
+              return `<tr style="cursor:pointer" onclick="openCompanyDetail('${c.id}')">
+                <td style="font-weight:600">${c.name}</td>
+                <td>${c.area_name || '-'}</td>
+                <td>${c.contract_start_date}</td>
+                <td>${ecoLabel}</td>
+                <td>${statusBadge}</td>
               </tr>`;
             }).join('')}
           </tbody>
         </table>
       </div>
       <div class="dash-box-cards-mobile">
-        ${_dashRecentLogs.map(l => {
-          const entityLabels = { company_workers: '지급금액/배정', company_financials: '업체 수수료', company_schedule: '스케줄', billing_records: '정산' };
-          const actionLabels = { update: '수정', delete: '삭제', insert: '추가' };
+        ${newContracts.map(c => {
+          const ecoLabel = c.subcontract_from === '에코오피스클린' ? '도급'
+            : c.subcontract_from === '에코광고비' ? '광고비' : '직영';
           return `
-            <div class="card" style="padding:10px 12px">
+            <div class="card" style="padding:10px 12px;cursor:pointer" onclick="openCompanyDetail('${c.id}')">
               <div style="display:flex;justify-content:space-between;align-items:center">
-                <div style="display:flex;gap:4px">
-                  <span class="badge badge-area" style="font-size:10px">${entityLabels[l.entity_type] || l.entity_type}</span>
-                  <span class="badge badge-today" style="font-size:10px">${actionLabels[l.action_type] || l.action_type}</span>
-                </div>
-                <span style="font-size:11px;color:var(--text2)">${formatDate(l.changed_at)}</span>
+                <span style="font-weight:600;font-size:13px">${c.name}</span>
+                <span class="badge badge-done" style="font-size:10px">${ecoLabel}</span>
               </div>
-              ${l.note ? `<div style="font-size:12px;margin-top:4px">${l.note}</div>` : ''}
-              <div style="font-size:11px;color:var(--text3);margin-top:2px">${l.field_name || ''} · ${l.changed_by ? getWorkerName(l.changed_by) : ''}</div>
+              <div style="font-size:12px;color:var(--text2);margin-top:4px">
+                ${c.area_name || ''} · 시작: ${c.contract_start_date}
+              </div>
             </div>
           `;
         }).join('')}
@@ -898,49 +933,6 @@ function renderDashboardHTML() {
       <p class="text-muted" style="font-size:11px;margin-top:6px">선택한 월의 모든 스케줄 요일에 대해 청소 일정을 일괄 생성합니다. 격주 스케줄은 기준일(anchor) 기반으로 격주 판별됩니다.</p>
       ${buildMonthGenResultHTML()}
     </div>
-
-    <hr style="border:none;border-top:1px solid var(--border);margin:28px 0">
-
-    <!-- ═══ 월간 현황 ═══ -->
-    <div class="section-title" style="font-size:15px">월간 현황</div>
-    ${monthSelectorHTML(selectedMonth, 'changeDashMonth')}
-
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-label">활성 업체</div>
-        <div class="stat-value blue">${activeCompanies}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">활성 직원</div>
-        <div class="stat-value green">${activeWorkers}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">${selectedMonth.split('-')[1]}월 계약 총액</div>
-        <div class="stat-value yellow">${fmt(totalContract)}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">${selectedMonth.split('-')[1]}월 인건비 총액</div>
-        <div class="stat-value red">${fmt(totalPay)}</div>
-      </div>
-    </div>
-
-    <div class="section-title" style="font-size:15px">최근 배정 현황</div>
-    ${monthAssigns.length > 0 ? `
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>업체</th><th>담당자</th><th>지급액</th></tr></thead>
-          <tbody>${monthAssigns.slice(0, 20).map(a => {
-            const comp = adminData.companies.find(c => c.id === a.company_id);
-            return `<tr>
-              <td>${comp?.name || '-'}</td>
-              <td>${getWorkerName(a.worker_id)}</td>
-              <td class="admin-pay-cell">${fmt(a.pay_amount)}원</td>
-            </tr>`;
-          }).join('')}</tbody>
-        </table>
-      </div>
-      ${monthAssigns.length > 20 ? `<p class="text-muted" style="margin-top:8px">외 ${monthAssigns.length - 20}건...</p>` : ''}
-    ` : '<p class="text-muted">이 달의 배정 데이터가 없습니다.</p>'}
   `;
 }
 
