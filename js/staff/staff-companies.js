@@ -46,6 +46,11 @@ function renderMyCompanies() {
       const isDoneToday = todayTasks.length > 0;
       const isScheduledToday = scheds.some(s => s.weekday === new Date().getDay());
 
+      // QR 업체 요청 카운트
+      const qrReqCount = staffData.requests.filter(
+        r => r.company_id === company.id && r.request_source === 'client_qr' && !r.is_resolved && !isExpired(r.expires_at)
+      ).length;
+
       html += `
         <div class="card company-card" onclick="openCompanyDetail('${company.id}')">
           <div class="card-header">
@@ -53,11 +58,14 @@ function renderMyCompanies() {
               <div class="card-title">${company.name}</div>
               <div class="card-subtitle">${company.location || ''}</div>
             </div>
-            ${isScheduledToday
-              ? (isDoneToday
-                ? '<span class="badge badge-done">완료</span>'
-                : '<span class="badge badge-today">오늘</span>')
-              : ''}
+            <div style="display:flex;gap:4px;flex-wrap:wrap">
+              ${qrReqCount > 0 ? `<span class="badge" style="background:#f97316;color:#fff;font-size:10px">업체요청 ${qrReqCount}</span>` : ''}
+              ${isScheduledToday
+                ? (isDoneToday
+                  ? '<span class="badge badge-done">완료</span>'
+                  : '<span class="badge badge-today">오늘</span>')
+                : ''}
+            </div>
           </div>
           <div class="company-card-info">
             <span class="info-chip">📅 ${days}</span>
@@ -100,6 +108,12 @@ async function openCompanyDetail(companyId) {
   );
   const isScheduledToday = scheds.some(s => s.weekday === new Date().getDay());
 
+  // 업체(QR) 요청 분리
+  const staffReqs = reqs.filter(r => r.request_source !== 'client_qr');
+  const qrReqs = staffData.requests.filter(
+    r => r.company_id === companyId && r.request_source === 'client_qr' && !r.is_resolved && !isExpired(r.expires_at)
+  ).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
   // 달력 데이터
   const calendarHTML = buildCalendar(companyId, selectedMonth, scheds, tasks);
 
@@ -108,46 +122,19 @@ async function openCompanyDetail(companyId) {
     <h3>${company.name}</h3>
     <div class="detail-location">${company.location || ''} ${company.area_name ? '· ' + company.area_name : ''}</div>
 
-    <!-- 청소 완료 버튼 (오늘이 청소일이든 아니든 표시) -->
-    <div class="task-check-section">
-      ${todayDone
-        ? `<button class="btn-task-done" disabled>
-             <span class="check-icon">✓</span> 오늘 청소 완료됨
-           </button>`
-        : isScheduledToday
-          ? `<button class="btn-task-check" onclick="toggleTask('${companyId}')">
-               오늘 청소 완료 체크
+    <!-- 청소 완료 버튼 -->
+    ${isScheduledToday ? `
+      <div class="task-check-section">
+        ${todayDone
+          ? `<button class="btn-task-done" disabled>
+               <span class="check-icon">✓</span> 오늘 청소 완료됨
              </button>`
-          : `<button class="btn-task-check" style="background:var(--card-bg);border:1px solid var(--primary);color:var(--primary)" onclick="toggleTask('${companyId}')">
-               오늘 청소 완료 체크 (비정규)
+          : `<button class="btn-task-check" onclick="toggleTask('${companyId}')">
+               청소 완료 체크
              </button>`
-      }
-    </div>
-    ${(() => {
-      // 미완료 과거 청소일 목록
-      const todayStr = today();
-      const [cy, cm] = selectedMonth.split('-').map(Number);
-      const lastDate = new Date(cy, cm, 0).getDate();
-      const scheduledDays = new Set(scheds.map(s => s.weekday));
-      const completedDates = new Set(tasks.filter(t => t.status === 'completed').map(t => t.task_date));
-      const missedDates = [];
-      for (let d = 1; d <= lastDate; d++) {
-        const ds = cy + '-' + String(cm).padStart(2,'0') + '-' + String(d).padStart(2,'0');
-        if (ds >= todayStr) continue;
-        const dow = new Date(cy, cm - 1, d).getDay();
-        if (scheduledDays.has(dow) && !completedDates.has(ds)) missedDates.push(ds);
-      }
-      if (missedDates.length === 0) return '';
-      return '<div style="margin-top:8px;padding:8px 12px;background:rgba(255,165,0,0.1);border:1px solid var(--orange);border-radius:8px;font-size:12px">' +
-        '<div style="color:var(--orange);font-weight:600;margin-bottom:6px">⚠️ 미완료 청소일 ' + missedDates.length + '건 (달력에서 클릭하여 완료 처리)</div>' +
-        '<div style="display:flex;flex-wrap:wrap;gap:4px">' +
-        missedDates.map(ds => {
-          const dd = new Date(ds + 'T00:00:00');
-          return '<span style="background:var(--orange);color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;cursor:pointer" onclick="confirmCompleteDate(\'' + companyId + '\',\'' + ds + '\')">' +
-            (dd.getMonth()+1) + '/' + dd.getDate() + '(' + WEEKDAY_NAMES[dd.getDay()] + ')' + '</span>';
-        }).join('') +
-        '</div></div>';
-    })()}
+        }
+      </div>
+    ` : ''}
 
     <!-- 스케줄 -->
     <div class="detail-section">
@@ -156,6 +143,7 @@ async function openCompanyDetail(companyId) {
         ? `<div class="schedule-chips">${scheds.map(s =>
             `<span class="schedule-chip">
               <strong>${WEEKDAY_NAMES[s.weekday]}</strong>
+              ${s.start_time ? s.start_time.slice(0,5) : ''}${s.end_time ? '~' + s.end_time.slice(0,5) : ''}
             </span>`
           ).join('')}</div>`
         : '<p class="text-muted">등록된 스케줄 없음</p>'
@@ -183,6 +171,15 @@ async function openCompanyDetail(companyId) {
     </div>
     <button class="btn btn-blue" style="width:100%;margin-bottom:16px" onclick="saveNoteInfo('${companyId}', '${note?.id || ''}')">주차/분리수거 정보 저장</button>
 
+    <!-- 업체 전달사항 (QR 페이지에 표시됨) -->
+    <div class="detail-section">
+      <div class="detail-section-title">📢 업체 전달사항 <span class="text-muted" style="font-size:11px;font-weight:400">(QR 페이지에 표시)</span></div>
+      <textarea id="edit_staffmsg_${companyId}" class="info-edit-textarea" rows="3"
+                placeholder="업체측에 전달할 사항을 입력하세요.&#10;(QR 페이지에서 업체가 확인할 수 있습니다)"
+                style="width:100%;margin-bottom:8px">${note?.staff_message || ''}</textarea>
+      <button class="btn-sm btn-blue" style="width:100%" onclick="saveStaffMessage('${companyId}', '${note?.id || ''}')">전달사항 저장</button>
+    </div>
+
     <!-- 특이사항 -->
     <div class="detail-section">
       <div class="detail-section-title">📝 특이사항</div>
@@ -194,11 +191,12 @@ async function openCompanyDetail(companyId) {
       </div>
     </div>
 
-    ${note?.id ? `
+    ${note?.office_password ? `
     <div class="detail-section">
       <div class="detail-section-title">🔑 사무실 비밀번호</div>
-      <div id="pwBox_${companyId}" data-revealed="false">
-        <button class="btn-pw-view" onclick="viewOfficePassword('${companyId}', '${note.id}')">🔑 비밀번호 보기</button>
+      <div class="password-box" onclick="this.classList.toggle('revealed')">
+        <span class="pw-hidden">탭하여 확인</span>
+        <span class="pw-text">${note.office_password}</span>
       </div>
     </div>
     ` : ''}
@@ -220,14 +218,32 @@ async function openCompanyDetail(companyId) {
       }
     </div>
 
-    <!-- 요청사항 -->
+    <!-- 업체(QR) 요청사항 -->
+    ${qrReqs.length > 0 ? `
+    <div class="detail-section">
+      <div class="detail-section-title">
+        🏢 업체 요청사항 <span class="badge" style="background:#f97316;color:#fff;font-size:10px;padding:2px 6px">QR</span>
+      </div>
+      ${qrReqs.map(r => {
+        const rDate = new Date(r.created_at).toLocaleDateString('ko-KR');
+        const expDate = new Date(r.expires_at).toLocaleDateString('ko-KR');
+        return `<div class="request-item" style="border-left:3px solid #f97316">
+          <div class="request-content">${r.content}</div>
+          ${r.photo_path ? `<div style="margin-top:6px;font-size:11px;color:var(--accent2)">📷 사진 ${r.photo_path.split(',').length}장 첨부</div>` : ''}
+          <div class="request-meta">${rDate} · 만료: ${expDate}</div>
+        </div>`;
+      }).join('')}
+    </div>
+    ` : ''}
+
+    <!-- 직원 요청사항 -->
     <div class="detail-section">
       <div class="detail-section-title">
         💬 요청사항
         <button class="btn-sm btn-blue" onclick="openRequestModal('${companyId}', '${company.name}')">작성</button>
       </div>
-      ${reqs.length > 0
-        ? reqs.map(r => {
+      ${staffReqs.length > 0
+        ? staffReqs.map(r => {
             const rDate = new Date(r.created_at).toLocaleDateString('ko-KR');
             const expDate = new Date(r.expires_at).toLocaleDateString('ko-KR');
             return `<div class="request-item">
@@ -242,6 +258,25 @@ async function openCompanyDetail(companyId) {
 
   $('modalBody').innerHTML = html;
   $('detailModal').classList.add('show');
+}
+
+// ─── 전달사항 저장 ───
+async function saveStaffMessage(companyId, noteId) {
+  const message = $('edit_staffmsg_' + companyId)?.value?.trim() || '';
+
+  if (noteId) {
+    const { error } = await sb.from('company_notes')
+      .update({ staff_message: message })
+      .eq('id', noteId);
+    if (error) return toast(error.message, 'error');
+  } else {
+    const { error } = await sb.from('company_notes')
+      .insert({ company_id: companyId, staff_message: message });
+    if (error) return toast(error.message, 'error');
+  }
+
+  toast('전달사항 저장 완료');
+  await loadStaffData();
 }
 
 async function saveNoteInfo(companyId, noteId) {
@@ -291,21 +326,13 @@ function buildCalendar(companyId, month, scheds, tasks) {
     const isScheduled = scheduledDays.has(dow);
     const isCompleted = completedDates.has(dateStr);
     const isToday = dateStr === todayStr;
-    const isPast = dateStr <= todayStr;
-    // 과거 또는 오늘이고, 청소일인데 미완료 → 클릭 가능
-    const canComplete = isPast && isScheduled && !isCompleted;
 
     let cls = 'cal-day';
     if (isCompleted) cls += ' completed';
     else if (isScheduled) cls += ' scheduled';
     if (isToday) cls += ' today';
-    if (canComplete) cls += ' clickable';
 
-    if (canComplete) {
-      html += `<div class="${cls}" onclick="confirmCompleteDate('${companyId}','${dateStr}')" title="클릭하여 완료 처리">${d}</div>`;
-    } else {
-      html += `<div class="${cls}">${d}</div>`;
-    }
+    html += `<div class="${cls}">${d}</div>`;
   }
 
   html += '</div>';
@@ -316,25 +343,8 @@ function buildCalendar(companyId, month, scheds, tasks) {
       <span><span class="legend-dot scheduled"></span>청소일</span>
       <span><span class="legend-dot completed"></span>완료</span>
       <span><span class="legend-dot today-dot"></span>오늘</span>
-      <span><span class="legend-dot clickable-dot"></span>클릭하여 완료</span>
     </div>
   `;
 
   return html;
-}
-
-/** 과거 날짜 완료 확인 후 처리 */
-async function confirmCompleteDate(companyId, dateStr) {
-  const company = getCompanyById(companyId);
-  const d = new Date(dateStr + 'T00:00:00');
-  const dayName = WEEKDAY_NAMES[d.getDay()];
-  const label = `${d.getMonth()+1}/${d.getDate()} (${dayName})`;
-
-  if (dateStr === today()) {
-    await toggleTask(companyId, dateStr);
-  } else {
-    if (confirm(`${company?.name || ''}\n${label} 청소를 완료 처리하시겠습니까?`)) {
-      await toggleTask(companyId, dateStr);
-    }
-  }
 }

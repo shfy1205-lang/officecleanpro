@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>오피스클린프로 - 업체 전용</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      background: #f5f7fa;
+      color: #1a1a2e;
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* 로딩 */
+    #loading {
+      position: fixed; inset: 0;
+      background: #f5f7fa;
+      display: flex; align-items: center; justify-content: center;
+      z-index: 9999;
+      flex-direction: column; gap: 16px;
+    }
+    #loading.hidden { display: none; }
+    .spinner-qr {
+      width: 40px; height: 40px;
+      border: 3px solid #e0e0e0;
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { color: #666; font-size: 14px; }
+
+    /* 에러 */
+    #errorScreen {
+      display: none;
+      position: fixed; inset: 0;
+      background: #f5f7fa;
+      align-items: center; justify-content: center;
+      flex-direction: column; gap: 16px;
+      padding: 40px;
+      text-align: center;
+      z-index: 9998;
+    }
+    #errorScreen.show { display: flex; }
+    .error-icon { font-size: 48px; }
+    .error-title { font-size: 18px; font-weight: 700; color: #ef4444; }
+    .error-desc { font-size: 14px; color: #666; }
+
+    /* 토스트 */
+    .qr-toast {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      padding: 12px 24px; border-radius: 10px;
+      color: #fff; font-size: 14px; font-weight: 500;
+      z-index: 10000; animation: qrSlideIn 0.3s;
+      max-width: 90%;
+    }
+    .qr-toast-success { background: #22c55e; }
+    .qr-toast-error { background: #ef4444; }
+    @keyframes qrSlideIn { from { transform: translateX(-50%) translateY(-20px); opacity: 0; } }
+
+    /* 앱 컨테이너 */
+    #app { display: none; max-width: 480px; margin: 0 auto; padding: 0 0 40px; }
+
+    /* 헤더 */
+    .qr-header {
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      color: #fff;
+      padding: 28px 20px 24px;
+      border-radius: 0 0 20px 20px;
+    }
+    .qr-header-label {
+      font-size: 12px; font-weight: 500;
+      opacity: 0.85; margin-bottom: 4px;
+      letter-spacing: 0.5px;
+    }
+    .qr-header-company {
+      font-size: 22px; font-weight: 700;
+      line-height: 1.3;
+    }
+
+    /* 카드 */
+    .qr-card {
+      background: #fff;
+      border-radius: 16px;
+      margin: 16px 16px 0;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .qr-card-title {
+      font-size: 13px; font-weight: 600;
+      color: #666; margin-bottom: 12px;
+      display: flex; align-items: center; gap: 6px;
+    }
+
+    /* 청소 상태 */
+    .clean-status {
+      display: flex; align-items: center; gap: 12px;
+      padding: 16px;
+      border-radius: 12px;
+    }
+    .clean-status.done { background: #ecfdf5; }
+    .clean-status.pending { background: #fef3c7; }
+    .clean-status.none { background: #f3f4f6; }
+    .clean-status-icon { font-size: 32px; }
+    .clean-status-text {
+      font-size: 16px; font-weight: 600;
+    }
+    .clean-status.done .clean-status-text { color: #16a34a; }
+    .clean-status.pending .clean-status-text { color: #d97706; }
+    .clean-status.none .clean-status-text { color: #9ca3af; }
+    .clean-status-sub {
+      font-size: 12px; color: #888; margin-top: 2px;
+    }
+
+    /* 전달사항 */
+    .message-box {
+      background: #f0f4ff;
+      border-left: 3px solid #3b82f6;
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-size: 14px;
+      color: #333;
+      line-height: 1.6;
+    }
+    .message-empty {
+      color: #aaa; font-size: 14px;
+      text-align: center; padding: 12px;
+    }
+
+    /* 폼 */
+    .qr-field { margin-bottom: 16px; }
+    .qr-field label {
+      display: block; font-size: 13px;
+      color: #555; margin-bottom: 6px; font-weight: 500;
+    }
+    .qr-field textarea {
+      width: 100%; padding: 14px;
+      border: 1.5px solid #e0e4ea;
+      border-radius: 10px;
+      font-size: 14px; font-family: inherit;
+      resize: vertical; min-height: 100px;
+      outline: none; transition: border-color 0.2s;
+      color: #333; background: #fafbfc;
+    }
+    .qr-field textarea:focus { border-color: #3b82f6; background: #fff; }
+    .qr-field textarea::placeholder { color: #bbb; }
+
+    /* 사진 첨부 */
+    .photo-attach-area {
+      border: 2px dashed #d0d5dd;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+    }
+    .photo-attach-area:hover,
+    .photo-attach-area.active {
+      border-color: #3b82f6;
+      background: #f0f4ff;
+    }
+    .photo-attach-icon { font-size: 28px; margin-bottom: 6px; }
+    .photo-attach-text { font-size: 13px; color: #888; }
+    .photo-attach-hint { font-size: 11px; color: #bbb; margin-top: 4px; }
+
+    /* 사진 미리보기 */
+    .photo-preview-grid {
+      display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px;
+    }
+    .photo-preview-item {
+      position: relative;
+      width: 72px; height: 72px;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .photo-preview-item img {
+      width: 100%; height: 100%; object-fit: cover;
+    }
+    .photo-preview-remove {
+      position: absolute; top: 2px; right: 2px;
+      width: 20px; height: 20px;
+      background: rgba(0,0,0,0.6);
+      color: #fff; border: none; border-radius: 50%;
+      font-size: 12px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* 버튼 */
+    .qr-submit-btn {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      color: #fff;
+      border: none; border-radius: 12px;
+      font-size: 16px; font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .qr-submit-btn:hover { opacity: 0.9; }
+    .qr-submit-btn:disabled {
+      background: #d0d5dd;
+      cursor: not-allowed;
+    }
+
+    /* 완료 화면 */
+    .submit-success {
+      text-align: center;
+      padding: 32px 20px;
+    }
+    .submit-success-icon { font-size: 48px; margin-bottom: 12px; }
+    .submit-success-title {
+      font-size: 18px; font-weight: 700;
+      color: #16a34a; margin-bottom: 8px;
+    }
+    .submit-success-desc {
+      font-size: 14px; color: #666;
+    }
+    .qr-reset-btn {
+      margin-top: 20px;
+      padding: 12px 24px;
+      background: #f3f4f6;
+      color: #333;
+      border: none; border-radius: 10px;
+      font-size: 14px; font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    /* 푸터 */
+    .qr-footer {
+      text-align: center;
+      padding: 24px 16px;
+      font-size: 11px;
+      color: #bbb;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 로딩 -->
+  <div id="loading">
+    <div class="spinner-qr"></div>
+    <div class="loading-text">페이지 로딩 중...</div>
+  </div>
+
+  <!-- 에러 화면 -->
+  <div id="errorScreen">
+    <div class="error-icon">🔒</div>
+    <div class="error-title">접근할 수 없는 페이지입니다</div>
+    <div class="error-desc">유효하지 않은 QR 코드이거나<br>접근 권한이 없습니다.</div>
+  </div>
+
+  <!-- 메인 앱 -->
+  <div id="app">
+    <!-- 헤더 -->
+    <div class="qr-header">
+      <div class="qr-header-label">오피스클린프로</div>
+      <div class="qr-header-company" id="companyName"></div>
+    </div>
+
+    <!-- 청소 완료 상태 -->
+    <div class="qr-card">
+      <div class="qr-card-title">🧹 청소 상태</div>
+      <div id="cleanStatus"></div>
+    </div>
+
+    <!-- 직원 전달사항 -->
+    <div class="qr-card">
+      <div class="qr-card-title">📋 청소직원 전달사항</div>
+      <div id="staffMessage"></div>
+    </div>
+
+    <!-- 요청사항 입력 -->
+    <div class="qr-card" id="requestFormCard">
+      <div class="qr-card-title">✏️ 요청사항 입력</div>
+
+      <div class="qr-field">
+        <label for="requestContent">요청 내용</label>
+        <textarea id="requestContent" rows="4"
+                  placeholder="청소 관련 요청사항을 입력해주세요.&#10;(예: 화장실 청소 강화, 쓰레기통 교체 등)"></textarea>
+      </div>
+
+      <div class="qr-field">
+        <label>사진 첨부 (선택)</label>
+        <div class="photo-attach-area" id="photoAttachArea" onclick="document.getElementById('qrPhotoInput').click()">
+          <div class="photo-attach-icon">📷</div>
+          <div class="photo-attach-text">탭하여 사진 첨부</div>
+          <div class="photo-attach-hint">최대 3장, 각 10MB 이하</div>
+        </div>
+        <div class="photo-preview-grid" id="photoPreviewGrid"></div>
+        <input type="file" id="qrPhotoInput" accept="image/*" multiple style="display:none" onchange="handleQrPhotos(event)">
+      </div>
+
+      <button class="qr-submit-btn" id="submitBtn" onclick="submitQrRequest()">요청 보내기</button>
+    </div>
+
+    <!-- 제출 완료 -->
+    <div class="qr-card" id="successCard" style="display:none">
+      <div class="submit-success">
+        <div class="submit-success-icon">✅</div>
+        <div class="submit-success-title">요청이 등록되었습니다</div>
+        <div class="submit-success-desc">담당 직원과 관리자에게 전달됩니다.</div>
+        <button class="qr-reset-btn" onclick="resetForm()">새 요청 작성</button>
+      </div>
+    </div>
+
+    <div class="qr-footer">
+      오피스클린프로 &copy; 2026
+    </div>
+  </div>
+
+<script>
+// ─── 설정 ───
+const SUPA_URL = 'https://gcbgzfrffekgcaktspyj.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjYmd6ZnJmZmVrZ2Nha3RzcHlqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NDU2MjMsImV4cCI6MjA4OTAyMTYyM30.sdWUgFWhUXcumkfAYBF6sShkd9xICe77U-D2mEedCWM';
+
+let sb = null;
+let companyId = null;
+let token = null;
+let selectedPhotos = [];
+
+// ─── 초기화 ───
+document.addEventListener('DOMContentLoaded', async () => {
+  // URL 파라미터 파싱
+  const params = new URLSearchParams(window.location.search);
+  companyId = params.get('company');
+  token = params.get('token');
+
+  if (!companyId || !token) {
+    showError();
+    return;
+  }
+
+  // Supabase 초기화
+  try {
+    sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+  } catch (e) {
+    showError();
+    return;
+  }
+
+  // QR 토큰 검증 및 데이터 로드
+  try {
+    const { data, error } = await sb.rpc('validate_qr_token', {
+      p_company_id: companyId,
+      p_token: token
+    });
+
+    if (error || !data || !data.valid) {
+      showError();
+      return;
+    }
+
+    // 데이터 렌더링
+    renderPage(data);
+
+  } catch (e) {
+    console.error('QR validation error:', e);
+    showError();
+  }
+});
+
+function showError() {
+  document.getElementById('loading').classList.add('hidden');
+  document.getElementById('errorScreen').classList.add('show');
+}
+
+function qrToast(msg, type) {
+  document.querySelectorAll('.qr-toast').forEach(el => el.remove());
+  const el = document.createElement('div');
+  el.className = 'qr-toast qr-toast-' + (type || 'success');
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => {
+    el.style.opacity = '0';
+    el.style.transition = 'opacity 0.3s';
+    setTimeout(() => el.remove(), 300);
+  }, 2700);
+}
+
+// ─── 페이지 렌더링 ───
+function renderPage(data) {
+  // 업체명
+  document.getElementById('companyName').textContent = data.company_name;
+  document.title = data.company_name + ' - 오피스클린프로';
+
+  // 청소 상태
+  const statusEl = document.getElementById('cleanStatus');
+  if (data.is_today && data.is_completed) {
+    statusEl.innerHTML = `
+      <div class="clean-status done">
+        <div class="clean-status-icon">✅</div>
+        <div>
+          <div class="clean-status-text">오늘 청소 완료</div>
+          <div class="clean-status-sub">금일 청소가 정상적으로 완료되었습니다</div>
+        </div>
+      </div>
+    `;
+  } else if (data.is_today && !data.is_completed) {
+    statusEl.innerHTML = `
+      <div class="clean-status pending">
+        <div class="clean-status-icon">⏳</div>
+        <div>
+          <div class="clean-status-text">오늘 청소 예정</div>
+          <div class="clean-status-sub">아직 청소가 완료되지 않았습니다</div>
+        </div>
+      </div>
+    `;
+  } else if (!data.is_today && data.is_completed) {
+    statusEl.innerHTML = `
+      <div class="clean-status done">
+        <div class="clean-status-icon">✅</div>
+        <div>
+          <div class="clean-status-text">최근 청소 완료</div>
+          <div class="clean-status-sub">가장 최근 청소가 정상적으로 완료되었습니다</div>
+        </div>
+      </div>
+    `;
+  } else {
+    statusEl.innerHTML = `
+      <div class="clean-status none">
+        <div class="clean-status-icon">📋</div>
+        <div>
+          <div class="clean-status-text">청소 기록 없음</div>
+          <div class="clean-status-sub">아직 등록된 청소 기록이 없습니다</div>
+        </div>
+      </div>
+    `;
+  }
+
+  // 직원 전달사항
+  const msgEl = document.getElementById('staffMessage');
+  if (data.staff_message && data.staff_message.trim()) {
+    msgEl.innerHTML = `<div class="message-box">${data.staff_message.replace(/\n/g, '<br>')}</div>`;
+  } else {
+    msgEl.innerHTML = `<div class="message-empty">등록된 전달사항이 없습니다</div>`;
+  }
+
+  // 로딩 숨기고 앱 표시
+  document.getElementById('loading').classList.add('hidden');
+  document.getElementById('app').style.display = 'block';
+}
+
+
+// ─── 사진 처리 ───
+function handleQrPhotos(event) {
+  const files = Array.from(event.target.files);
+  if (!files.length) return;
+
+  // 최대 3장
+  const remaining = 3 - selectedPhotos.length;
+  if (remaining <= 0) {
+    qrToast('사진은 최대 3장까지 첨부 가능합니다', 'error');
+    return;
+  }
+
+  const newFiles = files.slice(0, remaining);
+
+  for (const file of newFiles) {
+    // 10MB 체크
+    if (file.size > 10 * 1024 * 1024) {
+      qrToast('사진 크기는 10MB 이하여야 합니다', 'error');
+      continue;
+    }
+    if (!file.type.startsWith('image/')) {
+      qrToast('이미지 파일만 첨부 가능합니다', 'error');
+      continue;
+    }
+    selectedPhotos.push(file);
+  }
+
+  renderPhotoPreview();
+  // 인풋 초기화 (같은 파일 재선택 가능)
+  event.target.value = '';
+}
+
+function renderPhotoPreview() {
+  const grid = document.getElementById('photoPreviewGrid');
+  const area = document.getElementById('photoAttachArea');
+
+  if (selectedPhotos.length === 0) {
+    grid.innerHTML = '';
+    area.style.display = 'block';
+    return;
+  }
+
+  if (selectedPhotos.length >= 3) {
+    area.style.display = 'none';
+  } else {
+    area.style.display = 'block';
+  }
+
+  grid.innerHTML = selectedPhotos.map((file, idx) => {
+    const url = URL.createObjectURL(file);
+    return `
+      <div class="photo-preview-item">
+        <img src="${url}" alt="사진 ${idx + 1}">
+        <button class="photo-preview-remove" onclick="removePhoto(${idx})">&times;</button>
+      </div>
+    `;
+  }).join('');
+}
+
+function removePhoto(idx) {
+  selectedPhotos.splice(idx, 1);
+  renderPhotoPreview();
+}
+
+
+// ─── 요청 제출 ───
+async function submitQrRequest() {
+  const content = document.getElementById('requestContent').value.trim();
+  if (!content) {
+    qrToast('요청 내용을 입력해주세요', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = '전송 중...';
+
+  try {
+    // 사진 업로드
+    let photoPath = null;
+    if (selectedPhotos.length > 0) {
+      const paths = [];
+      for (const file of selectedPhotos) {
+        const ext = file.name.split('.').pop().toLowerCase();
+        const ts = Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+        const storagePath = `${companyId}/${ts}.${ext}`;
+
+        const { error: uploadErr } = await sb.storage
+          .from('qr-photos')
+          .upload(storagePath, file, {
+            cacheControl: '3600',
+            upsert: false,
+          });
+
+        if (uploadErr) {
+          console.error('Photo upload error:', uploadErr);
+          qrToast('사진 업로드 실패', 'error');
+          btn.disabled = false;
+          btn.textContent = '요청 보내기';
+          return;
+        }
+
+        paths.push(storagePath);
+      }
+      photoPath = paths.join(',');
+    }
+
+    // RPC로 요청 제출
+    const { data, error } = await sb.rpc('submit_qr_request', {
+      p_company_id: companyId,
+      p_token: token,
+      p_content: content,
+      p_photo_path: photoPath,
+    });
+
+    if (error || (data && data.error)) {
+      qrToast('요청 등록에 실패했습니다', 'error');
+      btn.disabled = false;
+      btn.textContent = '요청 보내기';
+      return;
+    }
+
+    // 성공
+    document.getElementById('requestFormCard').style.display = 'none';
+    document.getElementById('successCard').style.display = 'block';
+    qrToast('요청이 등록되었습니다');
+
+  } catch (e) {
+    console.error('Submit error:', e);
+    qrToast('오류가 발생했습니다', 'error');
+    btn.disabled = false;
+    btn.textContent = '요청 보내기';
+  }
+}
+
+function resetForm() {
+  document.getElementById('requestContent').value = '';
+  selectedPhotos = [];
+  renderPhotoPreview();
+  document.getElementById('requestFormCard').style.display = 'block';
+  document.getElementById('successCard').style.display = 'none';
+  document.getElementById('submitBtn').disabled = false;
+  document.getElementById('submitBtn').textContent = '요청 보내기';
+}
+</script>
+
+</body>
+</html>

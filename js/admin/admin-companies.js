@@ -13,23 +13,13 @@ function getFreqLabel(freq) {
   return FREQ_LABELS[freq] || '매주';
 }
 
-// 상세 모달 전용 월 변수 (selectedMonth와 독립)
-let detailMonth = '';
-
-// 에코 분류 필터 변수
-let clientEcoFilter = '';
-
 // ════════════════════════════════════════════════════
 // 업체 목록 조회
 // ════════════════════════════════════════════════════
 
-function getCompanyContractAmount(companyId) {
-  const fin = (adminData.financials || []).find(f => f.company_id === companyId && f.month === selectedMonth);
-  return fin ? (fin.contract_amount || 0) : 0;
-}
-
-function renderAllClients(listOnly) {
+function renderAllClients() {
   const mc = $('mainContent');
+  const areas = getUniqueAreas();
 
   let filtered = adminData.companies;
   if (clientSearch) {
@@ -43,89 +33,7 @@ function renderAllClients(listOnly) {
   if (clientAreaFilter) {
     filtered = filtered.filter(c => c.area_name === clientAreaFilter);
   }
-  // 에코 분류 필터
-  if (clientEcoFilter === 'direct') {
-    filtered = filtered.filter(c => !c.subcontract_from);
-  } else if (clientEcoFilter === 'eco_sub') {
-    filtered = filtered.filter(c => c.subcontract_from === '에코오피스클린');
-  } else if (clientEcoFilter === 'eco_ad') {
-    filtered = filtered.filter(c => c.subcontract_from === '에코광고비');
-  }
 
-  // 구역코드 순 정렬 (한글 지역명 → 숫자 순)
-  filtered = [...filtered].sort((a, b) => {
-    const codeA = (a.area_code || '').replace(/[0-9]/g, '');
-    const codeB = (b.area_code || '').replace(/[0-9]/g, '');
-    if (codeA !== codeB) return codeA.localeCompare(codeB, 'ko');
-    const numA = parseInt((a.area_code || '0').replace(/[^0-9]/g, '')) || 0;
-    const numB = parseInt((b.area_code || '0').replace(/[^0-9]/g, '')) || 0;
-    return numA - numB;
-  });
-
-  // 분류별 합계 계산
-  const allCompanies = adminData.companies;
-  const directCount = allCompanies.filter(c => !c.subcontract_from).length;
-  const ecoSubCount = allCompanies.filter(c => c.subcontract_from === '에코오피스클린').length;
-  const ecoAdCount = allCompanies.filter(c => c.subcontract_from === '에코광고비').length;
-
-  // 목록 HTML 생성
-  const listHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-      <p class="text-muted" style="margin:0">총 ${filtered.length}개 업체</p>
-    </div>
-    ${filtered.map(c => {
-      const scheds = getCompanySchedules(c.id);
-      const daysWithFreq = scheds.map(s => {
-        const freq = s.frequency || 'weekly';
-        const label = WEEKDAY_NAMES[s.weekday];
-        return freq === 'biweekly' ? label + '(격주)' : label;
-      }).join(', ') || '-';
-      const assigns = getCompanyAssignments(c.id, selectedMonth);
-      const workers = assigns.map(a => getWorkerName(a.worker_id)).join(', ') || '미배정';
-
-      const contractAmt = getCompanyContractAmount(c.id);
-
-      const statusBadge = c.status === 'active'
-        ? '<span class="badge badge-done">활성</span>'
-        : c.status === 'paused'
-          ? '<span class="badge badge-today">중지</span>'
-          : '<span class="badge badge-warn">해지</span>';
-
-      const ecoBadge = c.subcontract_from === '에코오피스클린'
-        ? '<span style="font-size:10px;background:var(--orange);color:#fff;padding:2px 6px;border-radius:4px;margin-left:4px">도급</span>'
-        : c.subcontract_from === '에코광고비'
-          ? '<span style="font-size:10px;background:#8b5cf6;color:#fff;padding:2px 6px;border-radius:4px;margin-left:4px">광고비</span>'
-          : '';
-
-      return `
-        <div class="card company-card" onclick="openCompanyDetail('${c.id}')">
-          <div class="card-header">
-            <div style="flex:1;min-width:0">
-              <div class="card-title">${c.name} ${c.area_code ? '<span style="font-size:11px;color:var(--primary);font-weight:500;margin-left:6px">[' + c.area_code + ']</span>' : ''}${ecoBadge}</div>
-              <div class="card-subtitle">${c.location || ''} ${c.area_name ? '· ' + c.area_name : ''}</div>
-            </div>
-            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
-              ${statusBadge}
-              <div style="font-size:16px;font-weight:700;color:var(--primary);white-space:nowrap">${contractAmt > 0 ? fmt(contractAmt) + '원' : ''}</div>
-            </div>
-          </div>
-          <div class="company-card-info">
-            <span class="info-chip">📅 ${daysWithFreq}</span>
-            <span class="info-chip">👤 ${workers}</span>
-          </div>
-        </div>
-      `;
-    }).join('')}
-  `;
-
-  // 검색 시: 목록 컨테이너만 갱신 (input 보존 → IME 유지)
-  if (listOnly) {
-    const lc = document.getElementById('clientListContainer');
-    if (lc) { lc.innerHTML = listHTML; return; }
-  }
-
-  // 전체 렌더
-  const areas = getUniqueAreas();
   mc.innerHTML = `
     <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
       업체관리
@@ -133,14 +41,6 @@ function renderAllClients(listOnly) {
         <button class="btn-sm btn-blue" onclick="exportCompanies()" style="font-size:11px;padding:6px 10px">📥 엑셀</button>
         <button class="btn-sm btn-green" onclick="openCompanyForm()">+ 업체 등록</button>
       </div>
-    </div>
-
-    <!-- 에코 분류 탭 -->
-    <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
-      <button class="btn-sm ${clientEcoFilter === '' ? 'btn-blue' : ''}" style="font-size:12px;padding:6px 14px;border-radius:20px;${clientEcoFilter === '' ? '' : 'background:var(--bg2);color:var(--text1);border:1px solid var(--border)'}" onclick="clientEcoFilter='';renderAllClients()">전체 (${allCompanies.length})</button>
-      <button class="btn-sm ${clientEcoFilter === 'direct' ? 'btn-green' : ''}" style="font-size:12px;padding:6px 14px;border-radius:20px;${clientEcoFilter === 'direct' ? '' : 'background:var(--bg2);color:var(--text1);border:1px solid var(--border)'}" onclick="clientEcoFilter='direct';renderAllClients()">직영 (${directCount})</button>
-      <button class="btn-sm ${clientEcoFilter === 'eco_sub' ? '' : ''}" style="font-size:12px;padding:6px 14px;border-radius:20px;${clientEcoFilter === 'eco_sub' ? 'background:var(--orange);color:#fff' : 'background:var(--bg2);color:var(--text1);border:1px solid var(--border)'}" onclick="clientEcoFilter='eco_sub';renderAllClients()">에코 도급 (${ecoSubCount})</button>
-      <button class="btn-sm ${clientEcoFilter === 'eco_ad' ? '' : ''}" style="font-size:12px;padding:6px 14px;border-radius:20px;${clientEcoFilter === 'eco_ad' ? 'background:#8b5cf6;color:#fff' : 'background:var(--bg2);color:var(--text1);border:1px solid var(--border)'}" onclick="clientEcoFilter='eco_ad';renderAllClients()">에코 광고비 (${ecoAdCount})</button>
     </div>
 
     <div class="admin-filter-bar">
@@ -153,13 +53,47 @@ function renderAllClients(listOnly) {
       </select>
     </div>
 
-    <div id="clientListContainer">${listHTML}</div>
+    <p class="text-muted" style="margin-bottom:12px">총 ${filtered.length}개 업체</p>
+
+    ${filtered.map(c => {
+      const scheds = getCompanySchedules(c.id);
+      // 빈도 표시: 요일 + 빈도
+      const daysWithFreq = scheds.map(s => {
+        const freq = s.frequency || 'weekly';
+        const label = WEEKDAY_NAMES[s.weekday];
+        return freq === 'biweekly' ? label + '(격주)' : label;
+      }).join(', ') || '-';
+      const assigns = getCompanyAssignments(c.id, selectedMonth);
+      const workers = assigns.map(a => getWorkerName(a.worker_id)).join(', ') || '미배정';
+
+      const statusBadge = c.status === 'active'
+        ? '<span class="badge badge-done">활성</span>'
+        : c.status === 'paused'
+          ? '<span class="badge badge-today">중지</span>'
+          : '<span class="badge badge-warn">해지</span>';
+
+      return `
+        <div class="card company-card" onclick="openCompanyDetail('${c.id}')">
+          <div class="card-header">
+            <div>
+              <div class="card-title">${c.name}</div>
+              <div class="card-subtitle">${c.location || ''} ${c.area_name ? '· ' + c.area_name : ''}</div>
+            </div>
+            ${statusBadge}
+          </div>
+          <div class="company-card-info">
+            <span class="info-chip">📅 ${daysWithFreq}</span>
+            <span class="info-chip">👤 ${workers}</span>
+          </div>
+        </div>
+      `;
+    }).join('')}
   `;
 
   // 한글 IME 조합 방지 검색 바인딩
   bindSearchInput('clientSearchInput', (val) => {
     clientSearch = val;
-    renderAllClients(true);
+    renderAllClients();
   });
 }
 
@@ -204,33 +138,13 @@ function openCompanyForm(companyId) {
         <input id="fPhone" value="${c.contact_phone || ''}" placeholder="010-0000-0000">
       </div>
     </div>
-    <div class="admin-row-2">
-      <div class="field">
-        <label>계약 시작일</label>
-        <input type="date" id="fContractStart" value="${c.contract_start_date || ''}">
-      </div>
-      <div class="field">
-        <label>계약 종료일</label>
-        <input type="date" id="fContractEnd" value="${c.contract_end_date || ''}">
-      </div>
-    </div>
-    <div class="admin-row-2">
-      <div class="field">
-        <label>에코 관계</label>
-        <select id="fSubcontract">
-          <option value=""${!c.subcontract_from ? ' selected' : ''}>직영 (에코 무관)</option>
-          <option value="에코오피스클린"${c.subcontract_from === '에코오피스클린' ? ' selected' : ''}>에코 도급 (세금계산서 X)</option>
-          <option value="에코광고비"${c.subcontract_from === '에코광고비' ? ' selected' : ''}>에코 광고비만</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>상태</label>
-        <select id="fStatus">
-          <option value="active"${c.status === 'active' ? ' selected' : ''}>활성</option>
-          <option value="paused"${c.status === 'paused' ? ' selected' : ''}>중지</option>
-          <option value="terminated"${c.status === 'terminated' ? ' selected' : ''}>해지</option>
-        </select>
-      </div>
+    <div class="field">
+      <label>상태</label>
+      <select id="fStatus">
+        <option value="active"${c.status === 'active' ? ' selected' : ''}>활성</option>
+        <option value="paused"${c.status === 'paused' ? ' selected' : ''}>중지</option>
+        <option value="terminated"${c.status === 'terminated' ? ' selected' : ''}>해지</option>
+      </select>
     </div>
     <div class="field">
       <label>메모</label>
@@ -251,22 +165,21 @@ async function saveCompany(companyId) {
 
   const payload = {
     name,
-    location:            $('fLocation').value.trim(),
-    area_code:           $('fAreaCode').value.trim(),
-    area_name:           $('fAreaName').value.trim(),
-    contact_name:        $('fContact').value.trim(),
-    contact_phone:       $('fPhone').value.trim(),
-    contract_start_date: $('fContractStart').value || null,
-    contract_end_date:   $('fContractEnd').value || null,
-    subcontract_from:    $('fSubcontract').value || null,
-    status:              $('fStatus').value,
-    memo:                $('fMemo').value.trim(),
+    location:      $('fLocation').value.trim(),
+    area_code:     $('fAreaCode').value.trim(),
+    area_name:     $('fAreaName').value.trim(),
+    contact_name:  $('fContact').value.trim(),
+    contact_phone: $('fPhone').value.trim(),
+    status:        $('fStatus').value,
+    memo:          $('fMemo').value.trim(),
   };
 
   let error;
   if (companyId) {
     ({ error } = await sb.from('companies').update(payload).eq('id', companyId));
   } else {
+    // 신규 업체: QR 토큰 자동 생성
+    payload.qr_token = crypto.randomUUID();
     const { data: newCompany, error: insertErr } = await sb.from('companies').insert(payload).select().single();
     error = insertErr;
 
@@ -336,37 +249,12 @@ async function saveAdminNoteInfo(companyId, noteId) {
   await loadAdminData();
 }
 
-/** 상세 모달 전용 월 선택 HTML (6개월 범위: -2 ~ +3) */
-function detailMonthSelectorHTML(current, companyId) {
-  const now = new Date();
-  const months = [];
-  for (let i = -2; i <= 3; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-    const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    const label = `${d.getMonth() + 1}월`;
-    months.push({ val, label });
-  }
-  return `<div class="month-selector" style="margin-bottom:10px">${months.map(m =>
-    `<button class="month-btn${m.val === current ? ' active' : ''}"
-       onclick="changeDetailMonth('${companyId}', '${m.val}')">${m.label}</button>`
-  ).join('')}</div>`;
-}
-
-async function changeDetailMonth(companyId, month) {
-  detailMonth = month;
-  await ensureMonthData(month);
-  await openCompanyDetail(companyId);
-}
-
 async function openCompanyDetail(companyId) {
   const c = adminData.companies.find(x => x.id === companyId);
   if (!c) return;
 
-  // 상세 모달 월이 아직 설정되지 않았으면 selectedMonth 사용
-  if (!detailMonth) detailMonth = selectedMonth;
-
   const scheds = getCompanySchedules(companyId);
-  const assigns = getCompanyAssignments(companyId, detailMonth);
+  const assigns = getCompanyAssignments(companyId, selectedMonth);
   const allWorkers = getActiveWorkers();
   const note = getCompanyNote(companyId);
 
@@ -374,21 +262,10 @@ async function openCompanyDetail(companyId) {
   const currentFreq = scheds.length > 0 ? (scheds[0].frequency || 'weekly') : 'weekly';
   const currentAnchor = scheds.length > 0 ? (scheds[0].anchor_date || '') : '';
 
-  // 계약일 표시
-  const contractInfo = [];
-  if (c.contract_start_date) contractInfo.push(`시작: ${c.contract_start_date}`);
-  if (c.contract_end_date) contractInfo.push(`종료: ${c.contract_end_date}`);
-  const todayForContract = today();
-  const isBeforeStart = c.contract_start_date && todayForContract < c.contract_start_date;
-  const isAfterEnd = c.contract_end_date && todayForContract > c.contract_end_date;
-
   const html = `
     <button class="modal-close" onclick="closeModal()">&times;</button>
-    <h3>${c.name} ${c.subcontract_from === '에코오피스클린' ? '<span style="font-size:12px;background:var(--orange);color:#fff;padding:2px 8px;border-radius:4px;margin-left:6px;vertical-align:middle">에코 도급</span>' : c.subcontract_from === '에코광고비' ? '<span style="font-size:12px;background:#8b5cf6;color:#fff;padding:2px 8px;border-radius:4px;margin-left:6px;vertical-align:middle">에코 광고비</span>' : '<span style="font-size:12px;background:var(--green);color:#fff;padding:2px 8px;border-radius:4px;margin-left:6px;vertical-align:middle">직영</span>'}</h3>
+    <h3>${c.name}</h3>
     <div class="detail-location">${c.location || ''} ${c.area_name ? '· ' + c.area_name : ''}</div>
-    ${contractInfo.length > 0 ? `<div style="font-size:12px;color:var(--text-muted);margin-top:4px">📋 계약기간: ${contractInfo.join(' / ')}</div>` : ''}
-    ${isBeforeStart ? `<div style="margin-top:6px;padding:8px 12px;background:rgba(255,165,0,0.15);border:1px solid var(--orange);border-radius:8px;font-size:12px;color:var(--orange)">⚠️ 계약 시작일(${c.contract_start_date})이 아직 도래하지 않았습니다. 일정이 자동 생성되지 않습니다.</div>` : ''}
-    ${isAfterEnd ? `<div style="margin-top:6px;padding:8px 12px;background:rgba(255,70,70,0.15);border:1px solid var(--red);border-radius:8px;font-size:12px;color:var(--red)">⛔ 계약이 종료(${c.contract_end_date})되었습니다. 일정이 자동 생성되지 않습니다.</div>` : ''}
 
     <div class="detail-section">
       <button class="btn-sm btn-blue" onclick="openCompanyForm('${companyId}')">기본정보 수정</button>
@@ -457,9 +334,8 @@ async function openCompanyDetail(companyId) {
 
     <div class="detail-section">
       <div class="detail-section-title">
-        👤 직원 배정
+        👤 ${selectedMonth.split('-')[1]}월 직원 배정
       </div>
-      ${detailMonthSelectorHTML(detailMonth, companyId)}
 
       <div id="assignList_${companyId}">
         ${assigns.length > 0 ? assigns.map(a => `
@@ -491,86 +367,6 @@ async function openCompanyDetail(companyId) {
       </div>
     </div>
 
-    <div class="detail-section">
-      <div class="detail-section-title">💰 정산 정보 (${detailMonth})</div>
-      ${(() => {
-        const fin = adminData.financials.find(f => f.company_id === companyId && f.month === detailMonth);
-        const meta = typeof parseFeeMetadata === 'function' ? parseFeeMetadata(fin?.memo) : {};
-        const contractAmt = fin?.contract_amount || 0;
-        const ocpAmt = fin?.ocp_amount || 0;
-        const ecoAmt = fin?.eco_amount || 0;
-        const ocpRate = meta.ocp_rate || 0;
-        const ecoRate = meta.eco_rate || 0;
-        const workerPay = fin?.worker_pay_total || 0;
-        const autoWorker = contractAmt - ocpAmt - ecoAmt;
-        return `
-          <!-- 계약금액 -->
-          <div class="field" style="margin-bottom:10px">
-            <label style="font-weight:700">계약금액 (월)</label>
-            <input type="number" id="fin_contract_${companyId}" value="${contractAmt}" placeholder="0"
-                   oninput="recalcFinancials('${companyId}')">
-          </div>
-
-          <!-- OCP 수수료 -->
-          <div class="fin-fee-row">
-            <div class="fin-fee-label" style="color:var(--primary)">오피스클린프로 수수료</div>
-            <div class="fin-fee-inputs">
-              <div class="fin-pct-wrap">
-                <input type="number" id="fin_ocp_rate_${companyId}" value="${ocpRate}" placeholder="0"
-                       step="0.1" min="0" max="100"
-                       oninput="recalcFee('${companyId}','ocp')">
-                <span class="fin-pct-unit">%</span>
-              </div>
-              <div class="fin-amt-wrap">
-                <input type="number" id="fin_ocp_${companyId}" value="${ocpAmt}" placeholder="0"
-                       oninput="onFeeAmtManual('${companyId}','ocp')">
-                <span class="fin-amt-unit">원</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 에코 수수료 -->
-          <div class="fin-fee-row">
-            <div class="fin-fee-label" style="color:var(--orange)">에코 수수료</div>
-            <div class="fin-fee-inputs">
-              <div class="fin-pct-wrap">
-                <input type="number" id="fin_eco_rate_${companyId}" value="${ecoRate}" placeholder="0"
-                       step="0.1" min="0" max="100"
-                       oninput="recalcFee('${companyId}','eco')">
-                <span class="fin-pct-unit">%</span>
-              </div>
-              <div class="fin-amt-wrap">
-                <input type="number" id="fin_eco_${companyId}" value="${ecoAmt}" placeholder="0"
-                       oninput="onFeeAmtManual('${companyId}','eco')">
-                <span class="fin-amt-unit">원</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- 자동 계산 결과 -->
-          <div class="fin-auto-result" id="fin_result_${companyId}">
-            <div class="fin-result-row">
-              <span>직원 지급액 (자동: 계약 − OCP − 에코)</span>
-              <strong id="fin_worker_auto_${companyId}" style="color:var(--green)">${fmt(autoWorker)}원</strong>
-            </div>
-            <div class="fin-result-row" style="font-size:11px;color:var(--text2)">
-              <span>에코에서 받는 금액 (계약 − 에코수수료)</span>
-              <span id="fin_eco_recv_${companyId}">${fmt(contractAmt - ecoAmt)}원</span>
-            </div>
-          </div>
-
-          <!-- 직원 지급 합계 (수정 가능) -->
-          <div class="field" style="margin-top:8px;margin-bottom:0">
-            <label>직원 지급 합계 <span class="text-muted" style="font-size:11px">(자동 계산됨, 직접 수정 가능)</span></label>
-            <input type="number" id="fin_worker_${companyId}" value="${workerPay || autoWorker}" placeholder="0">
-          </div>
-
-          <button class="btn-sm btn-blue" style="width:100%;margin-top:10px"
-                  onclick="saveFinancials('${companyId}', '${fin?.id || ''}')">정산 정보 저장</button>
-        `;
-      })()}
-    </div>
-
     ${c.contact_name || c.contact_phone ? `
     <div class="detail-section">
       <div class="detail-section-title">📞 담당자</div>
@@ -584,6 +380,25 @@ async function openCompanyDetail(companyId) {
       <div class="special-notes-box">${c.memo.replace(/\n/g, '<br>')}</div>
     </div>
     ` : ''}
+
+    <!-- QR 코드 관리 -->
+    <div class="detail-section">
+      <div class="detail-section-title">📱 업체 QR 페이지</div>
+      ${c.qr_token ? `
+        <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px">
+          <div style="font-size:11px;color:var(--text2);margin-bottom:4px">QR 링크:</div>
+          <div id="qrUrl_${companyId}" style="font-size:12px;color:var(--accent2);word-break:break-all">${getQrUrl(companyId, c.qr_token)}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn-sm btn-blue" onclick="copyQrUrl('${companyId}', '${c.qr_token}')">📋 링크 복사</button>
+          <button class="btn-sm" style="background:var(--bg3);color:var(--text2);border:1px solid var(--border)"
+                  onclick="regenerateQrToken('${companyId}')">🔄 토큰 재생성</button>
+        </div>
+      ` : `
+        <p class="text-muted" style="margin-bottom:8px">QR 토큰이 아직 생성되지 않았습니다.</p>
+        <button class="btn-sm btn-green" onclick="generateQrToken('${companyId}')">QR 토큰 생성</button>
+      `}
+    </div>
   `;
 
   $('modalBody').innerHTML = html;
@@ -635,9 +450,6 @@ async function toggleWeekday(companyId, weekday, btn) {
       );
 
       existing.is_active = false;
-
-      // ── 미래 미완료 tasks 자동 삭제 ──
-      await syncTasksOnScheduleChange(companyId, weekday, false);
     }
     btn.classList.remove('active');
   } else {
@@ -665,9 +477,6 @@ async function toggleWeekday(companyId, weekday, btn) {
       existing.is_active = true;
       existing.frequency = freq;
       existing.anchor_date = anchorDate;
-
-      // ── 해당 요일 tasks 자동 생성 ──
-      await syncTasksOnScheduleChange(companyId, weekday, true, freq, anchorDate);
     } else {
       const { data, error } = await sb.from('company_schedule')
         .insert({ company_id: companyId, weekday, is_active: true, frequency: freq, anchor_date: anchorDate })
@@ -681,123 +490,11 @@ async function toggleWeekday(companyId, weekday, btn) {
       );
 
       adminData.schedules.push(data);
-
-      // ── 새 스케줄 tasks 자동 생성 ──
-      await syncTasksOnScheduleChange(companyId, weekday, true, freq, anchorDate);
     }
     btn.classList.add('active');
   }
 
   toast('요일 변경됨');
-}
-
-/**
- * 스케줄 변경 시 미래 tasks 자동 동기화
- * - 비활성화: 오늘 이후 해당 업체+요일의 scheduled tasks 삭제
- * - 활성화/추가: 현재 월 + 다음 월에 해당 업체+요일 tasks 자동 생성
- */
-async function syncTasksOnScheduleChange(companyId, weekday, activate, freq, anchorDate) {
-  try {
-    const todayStr = today();
-    const companyName = getCompanyName(companyId);
-    const dayNames = ['일','월','화','수','목','금','토'];
-
-    if (!activate) {
-      // ── 비활성화: 미래 미완료 tasks 삭제 ──
-      const { data: futureTasks, error: fetchErr } = await sb.from('tasks')
-        .select('id, task_date')
-        .eq('company_id', companyId)
-        .eq('status', 'scheduled')
-        .gte('task_date', todayStr);
-
-      if (fetchErr || !futureTasks) return;
-
-      const toDelete = futureTasks.filter(t => {
-        const d = new Date(t.task_date + 'T00:00:00');
-        return d.getDay() === weekday;
-      });
-
-      if (toDelete.length > 0) {
-        const ids = toDelete.map(t => t.id);
-        await sb.from('tasks').delete().in('id', ids);
-        toast(`${companyName} ${dayNames[weekday]}요일 미래 일정 ${toDelete.length}건 자동 삭제`, 'info');
-      }
-    } else {
-      // ── 활성화: 현재 월 + 다음 월 tasks 자동 생성 ──
-      const nowDate = new Date(todayStr + 'T00:00:00');
-      const curMonth = `${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, '0')}`;
-      const nextMonthDate = new Date(nowDate.getFullYear(), nowDate.getMonth() + 1, 1);
-      const nextMonth = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}`;
-
-      const months = [curMonth, nextMonth];
-      let totalCreated = 0;
-
-      for (const month of months) {
-        const [y, m] = month.split('-').map(Number);
-        const daysInMonth = new Date(y, m, 0).getDate();
-
-        // 해당 월 배정 확인
-        const assigns = adminData.assignments.filter(a => a.company_id === companyId && a.month === month);
-        if (assigns.length === 0) continue;
-
-        // 계약기간 가져오기
-        const company = adminData.companies.find(c => c.id === companyId);
-        const contractStart = company?.contract_start_date || '';
-        const contractEnd = company?.contract_end_date || '';
-
-        // 해당 월의 매칭 날짜 수집
-        const dates = [];
-        for (let day = 1; day <= daysInMonth; day++) {
-          const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-          if (dateStr < todayStr) continue; // 과거 제외
-          if (contractStart && dateStr < contractStart) continue; // 계약 시작 전 제외
-          if (contractEnd && dateStr > contractEnd) continue; // 계약 종료 후 제외
-          const d = new Date(dateStr + 'T00:00:00');
-          if (d.getDay() !== weekday) continue;
-          // 격주 체크
-          if (freq === 'biweekly' && !isBiweeklyMatch(anchorDate, dateStr)) continue;
-          dates.push(dateStr);
-        }
-
-        if (dates.length === 0) continue;
-
-        // 기존 tasks 확인 (업체+날짜 기준)
-        const { data: existing } = await sb.from('tasks')
-          .select('task_date')
-          .eq('company_id', companyId)
-          .in('task_date', dates);
-
-        const existingDateSet = new Set((existing || []).map(t => t.task_date));
-
-        // 메인 담당자 (첫 번째 배정자)로 업체당 1개만 생성
-        const mainAssign = assigns[0];
-        const toInsert = [];
-        for (const dateStr of dates) {
-          if (!existingDateSet.has(dateStr)) {
-            toInsert.push({
-              company_id: companyId,
-              worker_id: mainAssign.worker_id,
-              task_date: dateStr,
-              status: 'scheduled',
-              task_source: 'auto',
-              memo: null,
-            });
-          }
-        }
-
-        if (toInsert.length > 0) {
-          const { error: insertErr } = await sb.from('tasks').insert(toInsert);
-          if (!insertErr) totalCreated += toInsert.length;
-        }
-      }
-
-      if (totalCreated > 0) {
-        toast(`${companyName} ${dayNames[weekday]}요일 일정 ${totalCreated}건 자동 생성`, 'info');
-      }
-    }
-  } catch (e) {
-    console.error('syncTasksOnScheduleChange error:', e);
-  }
 }
 
 /**
@@ -873,7 +570,7 @@ async function addAssignment(companyId) {
   const { data, error } = await sb.from('company_workers').insert({
     company_id: companyId,
     worker_id:  workerId,
-    month:      detailMonth || selectedMonth,
+    month:      selectedMonth,
     pay_amount: payAmount,
   }).select().single();
 
@@ -901,7 +598,7 @@ async function removeAssignment(assignId, companyId) {
   // 변경 이력 로그
   await logChange('company_workers', assignId, 'delete',
     [{ field: 'worker_id', oldVal: workerName, newVal: null }],
-    `${companyName} (${detailMonth || selectedMonth}) - ${workerName} 배정 삭제`
+    `${companyName} (${selectedMonth}) - ${workerName} 배정 삭제`
   );
 
   adminData.assignments = adminData.assignments.filter(a => a.id !== assignId);
@@ -928,7 +625,7 @@ async function updatePayAmount(assignId, value) {
     const workerName = getWorkerName(local.worker_id);
     await logChange('company_workers', assignId, 'update',
       [{ field: 'pay_amount', oldVal: oldPay, newVal: payAmount }],
-      `${workerName} - ${companyName} (${detailMonth || selectedMonth}) 지급액 수정`
+      `${workerName} - ${companyName} (${selectedMonth}) 지급액 수정`
     );
   }
 
@@ -939,114 +636,46 @@ async function updatePayAmount(assignId, value) {
 
 
 // ════════════════════════════════════════════════════
-// 정산 정보: 수수료 자동 계산
+// QR 토큰 관리
 // ════════════════════════════════════════════════════
 
-/** %에서 금액 자동 계산 (계약금액 × rate%) */
-function recalcFee(companyId, type) {
-  const contract = parseInt($('fin_contract_' + companyId)?.value) || 0;
-  const rate = parseFloat($(`fin_${type}_rate_${companyId}`)?.value) || 0;
-  const amt = Math.round(contract * rate / 100);
-  const amtInput = $(`fin_${type}_${companyId}`);
-  if (amtInput) amtInput.value = amt;
-  updateFinResult(companyId);
+function getQrUrl(companyId, token) {
+  const base = window.location.origin + window.location.pathname.replace('admin.html', '');
+  return `${base}site-company.html?company=${companyId}&token=${token}`;
 }
 
-/** 금액 직접 입력 시 — %를 역산 */
-function onFeeAmtManual(companyId, type) {
-  const contract = parseInt($('fin_contract_' + companyId)?.value) || 0;
-  const amt = parseInt($(`fin_${type}_${companyId}`)?.value) || 0;
-  const rateInput = $(`fin_${type}_rate_${companyId}`);
-  if (rateInput && contract > 0) {
-    rateInput.value = Math.round((amt / contract) * 1000) / 10; // 소수점 1자리
-  } else if (rateInput && contract === 0) {
-    rateInput.value = 0;
-  }
-  updateFinResult(companyId);
-}
-
-/** 계약금액 변경 시 OCP + 에코 둘 다 재계산 */
-function recalcFinancials(companyId) {
-  recalcFee(companyId, 'ocp');
-  recalcFee(companyId, 'eco');
-}
-
-/** 자동 결과 + 직원 지급액 업데이트 */
-function updateFinResult(companyId) {
-  const contract = parseInt($('fin_contract_' + companyId)?.value) || 0;
-  const ocp = parseInt($('fin_ocp_' + companyId)?.value) || 0;
-  const eco = parseInt($('fin_eco_' + companyId)?.value) || 0;
-  const autoWorker = contract - ocp - eco;
-
-  const workerAutoEl = $('fin_worker_auto_' + companyId);
-  if (workerAutoEl) workerAutoEl.textContent = fmt(autoWorker) + '원';
-
-  const ecoRecvEl = $('fin_eco_recv_' + companyId);
-  if (ecoRecvEl) ecoRecvEl.textContent = fmt(contract - eco) + '원';
-
-  // 직원 지급 합계 자동 세팅
-  const workerInput = $('fin_worker_' + companyId);
-  if (workerInput) workerInput.value = autoWorker;
-}
-
-
-// ════════════════════════════════════════════════════
-// 정산 정보 저장 (financials)
-// ════════════════════════════════════════════════════
-
-async function saveFinancials(companyId, finId) {
-  const month = detailMonth || selectedMonth;
-
-  const contractAmount = parseInt($('fin_contract_' + companyId)?.value) || 0;
-  const workerPayTotal = parseInt($('fin_worker_' + companyId)?.value) || 0;
-  const ocpAmount = parseInt($('fin_ocp_' + companyId)?.value) || 0;
-  const ecoAmount = parseInt($('fin_eco_' + companyId)?.value) || 0;
-  const ocpRate = parseFloat($('fin_ocp_rate_' + companyId)?.value) || 0;
-  const ecoRate = parseFloat($('fin_eco_rate_' + companyId)?.value) || 0;
-
-  // 수수료 메타데이터 (JSON) — memo 필드에 저장
-  const feeMeta = {};
-  if (ocpRate > 0) { feeMeta.ocp_type = 'percent'; feeMeta.ocp_rate = ocpRate; }
-  else if (ocpAmount > 0) { feeMeta.ocp_type = 'fixed'; }
-  if (ecoRate > 0) { feeMeta.eco_type = 'percent'; feeMeta.eco_rate = ecoRate; }
-  else if (ecoAmount > 0) { feeMeta.eco_type = 'fixed'; }
-  const memoStr = Object.keys(feeMeta).length > 0 ? JSON.stringify(feeMeta) : null;
-
-  const payload = {
-    contract_amount: contractAmount,
-    worker_pay_total: workerPayTotal,
-    ocp_amount: ocpAmount,
-    eco_amount: ecoAmount,
-    memo: memoStr,
-  };
-
-  let error;
-  if (finId) {
-    ({ error } = await sb.from('company_financials').update(payload).eq('id', finId));
-  } else {
-    payload.company_id = companyId;
-    payload.month = month;
-    const { data, error: insertErr } = await sb.from('company_financials').insert(payload).select().single();
-    error = insertErr;
-    if (data) adminData.financials.push(data);
-  }
+async function generateQrToken(companyId) {
+  const token = crypto.randomUUID();
+  const { error } = await sb.from('companies')
+    .update({ qr_token: token })
+    .eq('id', companyId);
 
   if (error) return toast(error.message, 'error');
 
-  // 로컬 캐시 업데이트
-  if (finId) {
-    const local = adminData.financials.find(f => f.id === finId);
-    if (local) Object.assign(local, payload);
-  }
+  const local = adminData.companies.find(c => c.id === companyId);
+  if (local) local.qr_token = token;
 
-  const companyName = getCompanyName(companyId);
-  await logChange('company_financials', finId || companyId, finId ? 'update' : 'insert',
-    [{ field: 'contract_amount', oldVal: '-', newVal: contractAmount },
-     { field: 'eco_amount', oldVal: '-', newVal: ecoAmount + (ecoRate > 0 ? ' (' + ecoRate + '%)' : '') },
-     { field: 'ocp_amount', oldVal: '-', newVal: ocpAmount + (ocpRate > 0 ? ' (' + ocpRate + '%)' : '') }],
-    `${companyName} (${month}) 정산 정보 ${finId ? '수정' : '등록'}`
-  );
-
-  toast('정산 정보 저장 완료');
+  toast('QR 토큰 생성 완료');
   await openCompanyDetail(companyId);
+}
+
+async function regenerateQrToken(companyId) {
+  if (!confirm('QR 토큰을 재생성하면 기존 QR 코드가 무효화됩니다. 계속하시겠습니까?')) return;
+  await generateQrToken(companyId);
+}
+
+function copyQrUrl(companyId, token) {
+  const url = getQrUrl(companyId, token);
+  navigator.clipboard.writeText(url).then(() => {
+    toast('QR 링크가 복사되었습니다');
+  }).catch(() => {
+    // 클립보드 API 실패 시 fallback
+    const textarea = document.createElement('textarea');
+    textarea.value = url;
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+    toast('QR 링크가 복사되었습니다');
+  });
 }

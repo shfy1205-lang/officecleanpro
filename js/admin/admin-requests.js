@@ -14,6 +14,7 @@ function renderRequests() {
 
   const pendingCount = adminData.requests.filter(r => !r.is_resolved && !isExpired(r.expires_at)).length;
   const resolvedCount = adminData.requests.filter(r => r.is_resolved).length;
+  const qrCount = adminData.requests.filter(r => r.request_source === 'client_qr' && !r.is_resolved && !isExpired(r.expires_at)).length;
 
   mc.innerHTML = `
     <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
@@ -30,6 +31,10 @@ function renderRequests() {
         <div class="stat-label">처리완료</div>
         <div class="stat-value green">${resolvedCount}</div>
       </div>
+      <div class="stat-card">
+        <div class="stat-label">업체(QR)</div>
+        <div class="stat-value" style="color:var(--orange)">${qrCount}</div>
+      </div>
     </div>
 
     <div class="view-toggle" style="margin-bottom:16px">
@@ -43,19 +48,28 @@ function renderRequests() {
 
     ${list.length > 0 ? list.map(r => {
       const expired = isExpired(r.expires_at);
+      const isQr = r.request_source === 'client_qr';
       const statusBadge = r.is_resolved
         ? '<span class="badge badge-done">처리완료</span>'
         : expired
           ? '<span class="badge badge-warn">만료</span>'
           : '<span class="badge badge-today">대기중</span>';
 
+      const sourceBadge = isQr
+        ? '<span class="badge" style="background:#f97316;color:#fff;font-size:10px;padding:2px 6px;margin-left:4px">업체(QR)</span>'
+        : '';
+
+      const requesterText = isQr
+        ? '업체 직접 요청'
+        : getWorkerName(r.created_by);
+
       return `
         <div class="card request-card ${r.is_resolved ? 'resolved' : ''}" onclick="openRequestDetail('${r.id}')">
           <div class="card-header">
             <div>
-              <div class="card-title">${getCompanyName(r.company_id)}</div>
+              <div class="card-title">${getCompanyName(r.company_id)}${sourceBadge}</div>
               <div class="card-subtitle">
-                ${getWorkerName(r.created_by)} · ${formatDate(r.created_at)}
+                ${requesterText} · ${formatDate(r.created_at)}
               </div>
             </div>
             ${statusBadge}
@@ -83,6 +97,29 @@ function openRequestDetail(requestId) {
 
   const expired = isExpired(r.expires_at);
   const company = adminData.companies.find(c => c.id === r.company_id);
+  const isQr = r.request_source === 'client_qr';
+
+  // QR 사진 표시
+  let photoHtml = '';
+  if (r.photo_path) {
+    const paths = r.photo_path.split(',').filter(Boolean);
+    if (paths.length > 0) {
+      const baseUrl = `${localStorage.getItem('supa_url') || 'https://gcbgzfrffekgcaktspyj.supabase.co'}/storage/v1/object/public/qr-photos/`;
+      photoHtml = `
+        <div class="detail-section">
+          <div class="detail-section-title">📷 첨부 사진</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            ${paths.map(p => `
+              <div style="width:80px;height:80px;border-radius:8px;overflow:hidden;cursor:pointer"
+                   onclick="window.open('${baseUrl}${p}', '_blank')">
+                <img src="${baseUrl}${p}" style="width:100%;height:100%;object-fit:cover" loading="lazy">
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+  }
 
   const html = `
     <button class="modal-close" onclick="closeModal()">&times;</button>
@@ -96,13 +133,20 @@ function openRequestDetail(requestId) {
 
     <div class="detail-section">
       <div class="detail-section-title">👤 요청자</div>
-      <p class="text-muted">${getWorkerName(r.created_by)}</p>
+      <p class="text-muted">
+        ${isQr
+          ? '<span class="badge" style="background:#f97316;color:#fff;font-size:11px;padding:2px 8px">업체 직접 요청(QR)</span>'
+          : getWorkerName(r.created_by)
+        }
+      </p>
     </div>
 
     <div class="detail-section">
       <div class="detail-section-title">📝 요청 내용</div>
       <div class="special-notes-box">${r.content.replace(/\n/g, '<br>')}</div>
     </div>
+
+    ${photoHtml}
 
     <div class="detail-section">
       <div class="admin-row-2">
