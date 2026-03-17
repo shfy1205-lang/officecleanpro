@@ -535,8 +535,8 @@ async function _generateMonthlyBillings(month) {
     if (existingBillIds.has(f.company_id)) continue;
     const c = adminData.companies.find(x => x.id === f.company_id);
     if (!c || c.status !== 'active') continue;
-    // 도급업체는 제외
-    if (c.subcontract_from) continue;
+    // 에코 도급업체만 제외 (광고비 업체는 세금계산서 발행하므로 포함)
+    if (c.subcontract_from === '에코오피스클린') continue;
 
     toInsert.push({
       company_id: f.company_id,

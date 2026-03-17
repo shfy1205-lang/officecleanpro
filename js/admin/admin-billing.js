@@ -66,7 +66,7 @@ function renderBillingOverview() {
     const ocp = fin?.ocp_amount || 0;
     const workerPay = fin?.worker_pay_total || 0;
     const meta = parseFeeMetadata(fin?.memo);
-    const isSub = !!c.subcontract_from;
+    const isSub = c.subcontract_from === '에코오피스클린';
 
     const row = { company: c, contract, eco, ocp, workerPay, meta, isSub };
     if (isSub) subCompanies.push(row);

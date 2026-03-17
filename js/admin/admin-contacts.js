@@ -72,8 +72,8 @@ function renderContacts(listOnly) {
 // ════════════════════════════════════════════════════
 
 function renderBillingCheckList(filtered) {
-  const directCompanies = filtered.filter(c => !c.subcontract_from);
-  const subCompanies = filtered.filter(c => !!c.subcontract_from);
+  const directCompanies = filtered.filter(c => c.subcontract_from !== '에코오피스클린');
+  const subCompanies = filtered.filter(c => c.subcontract_from === '에코오피스클린');
 
   // 해당 월 billing 데이터 매핑
   const billingMap = {};
@@ -340,10 +340,10 @@ function renderContactInfoList(filtered) {
         </thead>
         <tbody>
           ${filtered.map(c => `
-            <tr${c.subcontract_from ? ' style="opacity:0.6"' : ''}>
+            <tr${c.subcontract_from === '에코오피스클린' ? ' style="opacity:0.6"' : ''}>
               <td class="text-ellipsis" title="${escapeHtml(c.name)}">
                 ${escapeHtml(c.name)}
-                ${c.subcontract_from ? '<span class="badge badge-area" style="font-size:9px;margin-left:4px">도급</span>' : ''}
+                ${c.subcontract_from === '에코오피스클린' ? '<span class="badge badge-area" style="font-size:9px;margin-left:4px">도급</span>' : c.subcontract_from === '에코광고비' ? '<span class="badge badge-area" style="font-size:9px;margin-left:4px;background:#8b5cf6">광고비</span>' : ''}
               </td>
               <td>${escapeHtml(c.area_name || '-')}</td>
               <td>
@@ -371,10 +371,10 @@ function renderContactInfoList(filtered) {
     <!-- 모바일 카드 -->
     <div class="contact-mobile-cards">
       ${filtered.map(c => `
-        <div class="card contact-card"${c.subcontract_from ? ' style="opacity:0.6"' : ''}>
+        <div class="card contact-card"${c.subcontract_from === '에코오피스클린' ? ' style="opacity:0.6"' : ''}>
           <div class="contact-card-header">
             <strong>${escapeHtml(c.name)}</strong>
-            <span class="badge badge-area">${escapeHtml(c.area_name || '-')}${c.subcontract_from ? ' · 도급' : ''}</span>
+            <span class="badge badge-area">${escapeHtml(c.area_name || '-')}${c.subcontract_from === '에코오피스클린' ? ' · 도급' : c.subcontract_from === '에코광고비' ? ' · 광고비' : ''}</span>
           </div>
           <div class="contact-card-fields">
             <div class="contact-field-row">
@@ -426,7 +426,7 @@ async function autoCreateBillings() {
   for (const f of monthFin) {
     if (existingIds.has(f.company_id)) continue;
     const c = adminData.companies.find(x => x.id === f.company_id);
-    if (!c || c.status !== 'active' || c.subcontract_from) continue;
+    if (!c || c.status !== 'active' || c.subcontract_from === '에코오피스클린') continue;
 
     toInsert.push({
       company_id: f.company_id,
@@ -591,7 +591,7 @@ function exportContacts() {
     // 직영 + 도급 모두 포함
     const active = adminData.companies.filter(c => c.status === 'active');
     const rows = active.map(c => {
-      const isSub = !!c.subcontract_from;
+      const isSub = c.subcontract_from === '에코오피스클린';
       const b = billingMap[c.id];
       const f = finMap[c.id];
       if (isSub) {
@@ -636,7 +636,7 @@ function exportContacts() {
       .map(c => ({
         '업체명': c.name,
         '구역': c.area_name || '',
-        '구분': c.subcontract_from ? '도급(' + c.subcontract_from + ')' : '직영',
+        '구분': c.subcontract_from === '에코오피스클린' ? '에코 도급' : c.subcontract_from === '에코광고비' ? '에코 광고비' : '직영',
         '담당자명': c.contact_name || '',
         '전화번호': c.contact_phone || '',
         '사업자등록번호': c.business_number || '',

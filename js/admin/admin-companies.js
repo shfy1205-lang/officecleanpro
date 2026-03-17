@@ -65,11 +65,17 @@ function renderAllClients(listOnly) {
           ? '<span class="badge badge-today">중지</span>'
           : '<span class="badge badge-warn">해지</span>';
 
+      const ecoBadge = c.subcontract_from === '에코오피스클린'
+        ? '<span style="font-size:10px;background:var(--orange);color:#fff;padding:2px 6px;border-radius:4px;margin-left:4px">도급</span>'
+        : c.subcontract_from === '에코광고비'
+          ? '<span style="font-size:10px;background:#8b5cf6;color:#fff;padding:2px 6px;border-radius:4px;margin-left:4px">광고비</span>'
+          : '';
+
       return `
         <div class="card company-card" onclick="openCompanyDetail('${c.id}')">
           <div class="card-header">
             <div>
-              <div class="card-title">${c.name} ${c.area_code ? '<span style="font-size:11px;color:var(--primary);font-weight:500;margin-left:6px">[' + c.area_code + ']</span>' : ''}</div>
+              <div class="card-title">${c.name} ${c.area_code ? '<span style="font-size:11px;color:var(--primary);font-weight:500;margin-left:6px">[' + c.area_code + ']</span>' : ''}${ecoBadge}</div>
               <div class="card-subtitle">${c.location || ''} ${c.area_name ? '· ' + c.area_name : ''}</div>
             </div>
             ${statusBadge}
@@ -171,13 +177,23 @@ function openCompanyForm(companyId) {
         <input type="date" id="fContractEnd" value="${c.contract_end_date || ''}">
       </div>
     </div>
-    <div class="field">
-      <label>상태</label>
-      <select id="fStatus">
-        <option value="active"${c.status === 'active' ? ' selected' : ''}>활성</option>
-        <option value="paused"${c.status === 'paused' ? ' selected' : ''}>중지</option>
-        <option value="terminated"${c.status === 'terminated' ? ' selected' : ''}>해지</option>
-      </select>
+    <div class="admin-row-2">
+      <div class="field">
+        <label>에코 관계</label>
+        <select id="fSubcontract">
+          <option value=""${!c.subcontract_from ? ' selected' : ''}>직영 (에코 무관)</option>
+          <option value="에코오피스클린"${c.subcontract_from === '에코오피스클린' ? ' selected' : ''}>에코 도급 (세금계산서 X)</option>
+          <option value="에코광고비"${c.subcontract_from === '에코광고비' ? ' selected' : ''}>에코 광고비만</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>상태</label>
+        <select id="fStatus">
+          <option value="active"${c.status === 'active' ? ' selected' : ''}>활성</option>
+          <option value="paused"${c.status === 'paused' ? ' selected' : ''}>중지</option>
+          <option value="terminated"${c.status === 'terminated' ? ' selected' : ''}>해지</option>
+        </select>
+      </div>
     </div>
     <div class="field">
       <label>메모</label>
@@ -205,6 +221,7 @@ async function saveCompany(companyId) {
     contact_phone:       $('fPhone').value.trim(),
     contract_start_date: $('fContractStart').value || null,
     contract_end_date:   $('fContractEnd').value || null,
+    subcontract_from:    $('fSubcontract').value || null,
     status:              $('fStatus').value,
     memo:                $('fMemo').value.trim(),
   };
@@ -330,7 +347,7 @@ async function openCompanyDetail(companyId) {
 
   const html = `
     <button class="modal-close" onclick="closeModal()">&times;</button>
-    <h3>${c.name}</h3>
+    <h3>${c.name} ${c.subcontract_from === '에코오피스클린' ? '<span style="font-size:12px;background:var(--orange);color:#fff;padding:2px 8px;border-radius:4px;margin-left:6px;vertical-align:middle">에코 도급</span>' : c.subcontract_from === '에코광고비' ? '<span style="font-size:12px;background:#8b5cf6;color:#fff;padding:2px 8px;border-radius:4px;margin-left:6px;vertical-align:middle">에코 광고비</span>' : '<span style="font-size:12px;background:var(--green);color:#fff;padding:2px 8px;border-radius:4px;margin-left:6px;vertical-align:middle">직영</span>'}</h3>
     <div class="detail-location">${c.location || ''} ${c.area_name ? '· ' + c.area_name : ''}</div>
     ${contractInfo.length > 0 ? `<div style="font-size:12px;color:var(--text-muted);margin-top:4px">📋 계약기간: ${contractInfo.join(' / ')}</div>` : ''}
     ${isBeforeStart ? `<div style="margin-top:6px;padding:8px 12px;background:rgba(255,165,0,0.15);border:1px solid var(--orange);border-radius:8px;font-size:12px;color:var(--orange)">⚠️ 계약 시작일(${c.contract_start_date})이 아직 도래하지 않았습니다. 일정이 자동 생성되지 않습니다.</div>` : ''}
