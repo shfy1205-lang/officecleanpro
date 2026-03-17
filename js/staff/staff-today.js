@@ -162,7 +162,7 @@ function buildTodayTaskCard(item, dateStr) {
     html += `
       <div class="sttoday-special">
         <div class="sttoday-special-label">📝 특이사항</div>
-        <div class="sttoday-special-text">${specialNotes.replace(/\n/g, '<br>')}</div>
+        <div class="sttoday-special-text">${escapeHtml(specialNotes).replace(/\n/g, '<br>')}</div>
       </div>
     `;
   }

@@ -311,7 +311,7 @@ function openLeadDetail(leadId) {
           ${wi.map((item, idx) => `
             <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
               <td style="padding:8px;color:var(--text-muted)">${idx + 1}</td>
-              <td style="padding:8px">${item.description || '-'}</td>
+              <td style="padding:8px">${escapeHtml(item.description) || '-'}</td>
               <td style="padding:8px;text-align:right;font-weight:500">${item.amount ? fmt(item.amount) + '원' : '-'}</td>
             </tr>
           `).join('')}
@@ -378,7 +378,7 @@ function openLeadDetail(leadId) {
     ${l.notes ? `
     <div class="detail-section">
       <div class="detail-section-title">메모</div>
-      <div class="special-notes-box">${l.notes.replace(/\n/g, '<br>')}</div>
+      <div class="special-notes-box">${escapeHtml(l.notes).replace(/\n/g, '<br>')}</div>
     </div>
     ` : ''}
 

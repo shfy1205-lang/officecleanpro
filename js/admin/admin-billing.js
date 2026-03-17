@@ -549,7 +549,7 @@ function openBillingForm(billingId) {
       <textarea id="bMemo" rows="2" placeholder="메모">${b.memo || ''}</textarea>
     </div>
 
-    <button class="btn" onclick="saveBilling('${billingId || ''}')">${isEdit ? '수정 저장' : '등록하기'}</button>
+    <button class="btn" id="saveBillingBtn" onclick="saveBilling('${billingId || ''}')">${isEdit ? '수정 저장' : '등록하기'}</button>
     ${isEdit ? `<button class="btn" style="background:var(--red);margin-top:8px" onclick="deleteBilling('${billingId}')">삭제</button>` : ''}
   `;
 
@@ -576,6 +576,18 @@ function onBillingCompanyChange() {
 }
 
 async function saveBilling(billingId) {
+  const btn = $('saveBillingBtn');
+  if (btn && btn.disabled) return;
+  if (btn) { btn.disabled = true; btn.textContent = '저장 중...'; }
+
+  try {
+    await _saveBillingInner(billingId);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = billingId ? '수정 저장' : '등록하기'; }
+  }
+}
+
+async function _saveBillingInner(billingId) {
   const companyId = $('bCompany').value;
   const month = $('bMonth').value;
 
@@ -586,10 +598,19 @@ async function saveBilling(billingId) {
 
   const billedAt = $('bBilledAt').value || null;
   const paidAt = $('bPaidAt').value || null;
-  const billedAmount = parseInt($('bBilledAmount').value) || 0;
-  const paidAmount = parseInt($('bPaidAmount').value) || 0;
+  const billedAmount = parseInt($('bBilledAmount').value, 10) || 0;
+  const paidAmount = parseInt($('bPaidAmount').value, 10) || 0;
   const billedStatus = $('bBilledStatus').value;
   const paidStatus = $('bPaidStatus').value;
+
+  // ─── 금액 검증 ───
+  if (billedAmount < 0) return toast('청구 금액은 0 이상이어야 합니다', 'error');
+  if (paidAmount < 0) return toast('입금 금액은 0 이상이어야 합니다', 'error');
+  if (billedAmount > 999999999) return toast('청구 금액이 너무 큽니다 (최대 9억)', 'error');
+  if (paidAmount > 999999999) return toast('입금 금액이 너무 큽니다 (최대 9억)', 'error');
+  if (paidAmount > billedAmount && billedAmount > 0) {
+    if (!confirm(`입금액(${fmt(paidAmount)}원)이 청구액(${fmt(billedAmount)}원)보다 큽니다. 계속하시겠습니까?`)) return;
+  }
 
   let status = 'pending';
   if (paidStatus === 'yes' || paidAt) {
@@ -727,7 +748,7 @@ function openBillingDetail(billingId) {
     ${b.memo ? `
     <div class="detail-section">
       <div class="detail-section-title">📝 메모</div>
-      <div class="special-notes-box">${b.memo.replace(/\n/g, '<br>')}</div>
+      <div class="special-notes-box">${escapeHtml(b.memo).replace(/\n/g, '<br>')}</div>
     </div>
     ` : ''}
 

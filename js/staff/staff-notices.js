@@ -44,7 +44,7 @@ async function renderNotices() {
           </div>
           <div class="card-subtitle">${date}</div>
         </div>
-        <div class="notice-content">${n.content.replace(/\n/g, '<br>')}</div>
+        <div class="notice-content">${escapeHtml(n.content).replace(/\n/g, '<br>')}</div>
       </div>
     `;
   });

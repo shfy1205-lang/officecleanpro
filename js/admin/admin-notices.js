@@ -237,7 +237,7 @@ function openNoticeDetail(noticeId) {
 
     <div class="detail-section">
       <div class="detail-section-title">내용</div>
-      <div class="special-notes-box">${n.content.replace(/\n/g, '<br>')}</div>
+      <div class="special-notes-box">${escapeHtml(n.content).replace(/\n/g, '<br>')}</div>
     </div>
 
     ${n.is_pinned ? '<p style="margin-top:8px"><span class="badge badge-today">📌 상단 고정</span></p>' : ''}

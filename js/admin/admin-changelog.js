@@ -118,7 +118,7 @@ async function renderChangeLog(listOnly) {
                   <td style="font-size:12px">${l.field_name || '-'}</td>
                   <td style="font-size:12px;color:var(--red)">${oldVal}</td>
                   <td style="font-size:12px;color:var(--green)">${newVal}</td>
-                  <td style="font-size:11px;color:var(--text2);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${(l.note || '').replace(/"/g, '&quot;')}">${l.note || '-'}</td>
+                  <td style="font-size:11px;color:var(--text2);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(l.note || '')}">${escapeHtml(l.note) || '-'}</td>
                 </tr>`;
               }).join('')}
             </tbody>
@@ -143,7 +143,7 @@ async function renderChangeLog(listOnly) {
                 </div>
                 <span style="font-size:11px;color:var(--text2)">${formatDate(l.changed_at)}</span>
               </div>
-              ${l.note ? `<div style="font-size:12px;font-weight:500;margin-bottom:4px">${l.note}</div>` : ''}
+              ${l.note ? `<div style="font-size:12px;font-weight:500;margin-bottom:4px">${escapeHtml(l.note)}</div>` : ''}
               <div style="font-size:12px;color:var(--text2)">
                 ${l.field_name ? `<span style="font-weight:500">${l.field_name}</span>: ` : ''}
                 ${l.old_value ? `<span style="color:var(--red)">${truncateValue(l.old_value)}</span>` : ''}

@@ -216,7 +216,7 @@ function openCompanyForm(companyId) {
       <textarea id="fMemo" rows="2" placeholder="메모">${c.memo || ''}</textarea>
     </div>
 
-    <button class="btn" onclick="saveCompany('${companyId || ''}')">${isEdit ? '수정 저장' : '등록하기'}</button>
+    <button class="btn" id="saveCompanyBtn" onclick="saveCompany('${companyId || ''}')">${isEdit ? '수정 저장' : '등록하기'}</button>
     ${isEdit ? `<button class="btn" style="background:var(--red);margin-top:8px" onclick="deleteCompany('${companyId}')">업체 삭제</button>` : ''}
   `;
 
@@ -225,6 +225,18 @@ function openCompanyForm(companyId) {
 }
 
 async function saveCompany(companyId) {
+  const btn = $('saveCompanyBtn');
+  if (btn && btn.disabled) return;
+  if (btn) { btn.disabled = true; btn.textContent = '저장 중...'; }
+
+  try {
+    await _saveCompanyInner(companyId);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = companyId ? '수정 저장' : '등록하기'; }
+  }
+}
+
+async function _saveCompanyInner(companyId) {
   const name = $('fName').value.trim();
   if (!name) return toast('업체명을 입력하세요', 'error');
 
@@ -442,7 +454,7 @@ async function openCompanyDetail(companyId) {
     ${c.memo ? `
     <div class="detail-section">
       <div class="detail-section-title">📝 메모</div>
-      <div class="special-notes-box">${c.memo.replace(/\n/g, '<br>')}</div>
+      <div class="special-notes-box">${escapeHtml(c.memo).replace(/\n/g, '<br>')}</div>
     </div>
     ` : ''}
 
@@ -637,9 +649,11 @@ async function saveScheduleTimes(companyId) {
 
 async function addAssignment(companyId) {
   const workerId = $(`newWorker_${companyId}`).value;
-  const payAmount = parseInt($(`newPay_${companyId}`).value) || 0;
+  const payAmount = parseInt($(`newPay_${companyId}`).value, 10) || 0;
 
   if (!workerId) return toast('직원을 선택하세요', 'error');
+  if (payAmount < 0) return toast('지급액은 0 이상이어야 합니다', 'error');
+  if (payAmount > 99999999) return toast('지급액이 너무 큽니다', 'error');
 
   const { data, error } = await sb.from('company_workers').insert({
     company_id: companyId,
@@ -681,7 +695,9 @@ async function removeAssignment(assignId, companyId) {
 }
 
 async function updatePayAmount(assignId, value) {
-  const payAmount = parseInt(value) || 0;
+  const payAmount = parseInt(value, 10) || 0;
+  if (payAmount < 0) return toast('지급액은 0 이상이어야 합니다', 'error');
+  if (payAmount > 99999999) return toast('지급액이 너무 큽니다', 'error');
 
   // 변경 이력용 이전값
   const local = adminData.assignments.find(a => a.id === assignId);

@@ -487,7 +487,9 @@ function openStaffPayDetail(workerId) {
 async function savePayAmount(assignId, workerId) {
   const input = $('editPay_' + assignId);
   if (!input) return;
-  const newPay = parseInt(input.value) || 0;
+  const newPay = parseInt(input.value, 10) || 0;
+  if (newPay < 0) return toast('지급금액은 0 이상이어야 합니다', 'error');
+  if (newPay > 99999999) return toast('지급금액이 너무 큽니다', 'error');
 
   // 변경 이력용 이전값 저장
   const local = adminData.assignments.find(a => a.id === assignId);

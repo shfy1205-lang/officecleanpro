@@ -185,7 +185,7 @@ async function openCompanyDetail(companyId) {
       <div class="detail-section-title">📝 특이사항</div>
       <div class="special-notes-box">
         ${note?.special_notes
-          ? note.special_notes.replace(/\n/g, '<br>')
+          ? escapeHtml(note.special_notes).replace(/\n/g, '<br>')
           : '<span class="text-muted">등록된 특이사항 없음</span>'
         }
       </div>

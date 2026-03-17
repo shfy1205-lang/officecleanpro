@@ -47,9 +47,13 @@ async function loadTodayCleaning(dateStr) {
     .select('*')
     .eq('task_date', dateStr);
 
-  if (error) console.error('loadTodayCleaning error:', error);
+  if (error) {
+    console.error('loadTodayCleaning error:', error);
+    toast('오늘 일정 로딩 실패', 'error');
+    return [];
+  }
 
-  const matchedSchedules = adminData.schedules.filter(s => isScheduleActiveOnDate(s, dateStr));
+  const matchedSchedules = (adminData.schedules || []).filter(s => isScheduleActiveOnDate(s, dateStr));
   const scheduledCompanyIds = [...new Set(matchedSchedules.map(s => s.company_id))];
   const month = dateStr.substring(0, 7);
 

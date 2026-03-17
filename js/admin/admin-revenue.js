@@ -371,15 +371,32 @@ function previewRevenue() {
 }
 
 async function saveRevenue(companyId) {
-  const contract = parseInt($('rvContract').value) || 0;
+  const btn = event?.target;
+  if (btn && btn.disabled) return;
+  if (btn) { btn.disabled = true; btn.textContent = '저장 중...'; }
+
+  try {
+    await _saveRevenueInner(companyId);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '저장'; }
+  }
+}
+
+async function _saveRevenueInner(companyId) {
+  const contract = parseInt($('rvContract').value, 10) || 0;
   if (contract <= 0) return toast('계약 금액을 입력하세요', 'error');
+  if (contract > 999999999) return toast('계약 금액이 너무 큽니다 (최대 9억)', 'error');
 
   const ocpType = $('rvOcpType').value;
   const ocpVal = parseFloat($('rvOcpValue')?.value) || 0;
+  if (ocpType === 'percent' && (ocpVal < 0 || ocpVal > 100)) return toast('OCP 수수료율은 0~100% 사이여야 합니다', 'error');
+  if (ocpType === 'fixed' && ocpVal < 0) return toast('OCP 수수료 금액은 0 이상이어야 합니다', 'error');
   const ocpAmount = calcFee(contract, ocpType, ocpVal);
 
   const ecoType = $('rvEcoType').value;
   const ecoVal = parseFloat($('rvEcoValue')?.value) || 0;
+  if (ecoType === 'percent' && (ecoVal < 0 || ecoVal > 100)) return toast('에코 수수료율은 0~100% 사이여야 합니다', 'error');
+  if (ecoType === 'fixed' && ecoVal < 0) return toast('에코 수수료 금액은 0 이상이어야 합니다', 'error');
   const ecoAmount = calcFee(contract, ecoType, ecoVal);
 
   // 직원 지급 총액 자동 계산
