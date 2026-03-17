@@ -13,13 +13,21 @@ function getFreqLabel(freq) {
   return FREQ_LABELS[freq] || '매주';
 }
 
+// 에코 분류 필터 변수
+let clientEcoFilter = '';
+
+// ─── 업체 계약금액 조회 ───
+function getCompanyContractAmount(companyId) {
+  const fin = (adminData.financials || []).find(f => f.company_id === companyId && f.month === selectedMonth);
+  return fin ? (fin.contract_amount || 0) : 0;
+}
+
 // ════════════════════════════════════════════════════
 // 업체 목록 조회
 // ════════════════════════════════════════════════════
 
-function renderAllClients() {
+function renderAllClients(listOnly) {
   const mc = $('mainContent');
-  const areas = getUniqueAreas();
 
   let filtered = adminData.companies;
   if (clientSearch) {
@@ -33,7 +41,90 @@ function renderAllClients() {
   if (clientAreaFilter) {
     filtered = filtered.filter(c => c.area_name === clientAreaFilter);
   }
+  // 에코 분류 필터
+  if (clientEcoFilter === 'direct') {
+    filtered = filtered.filter(c => !c.subcontract_from);
+  } else if (clientEcoFilter === 'eco_sub') {
+    filtered = filtered.filter(c => c.subcontract_from === '에코오피스클린');
+  } else if (clientEcoFilter === 'eco_ad') {
+    filtered = filtered.filter(c => c.subcontract_from === '에코광고비');
+  }
 
+  // 구역코드 순 정렬 (한글 지역명 → 숫자 순)
+  filtered = [...filtered].sort((a, b) => {
+    const codeA = (a.area_code || '').replace(/[0-9]/g, '');
+    const codeB = (b.area_code || '').replace(/[0-9]/g, '');
+    if (codeA !== codeB) return codeA.localeCompare(codeB, 'ko');
+    const numA = parseInt((a.area_code || '0').replace(/[^0-9]/g, '')) || 0;
+    const numB = parseInt((b.area_code || '0').replace(/[^0-9]/g, '')) || 0;
+    return numA - numB;
+  });
+
+  // 분류별 합계 계산
+  const allCompanies = adminData.companies;
+  const directCount = allCompanies.filter(c => !c.subcontract_from).length;
+  const ecoSubCount = allCompanies.filter(c => c.subcontract_from === '에코오피스클린').length;
+  const ecoAdCount = allCompanies.filter(c => c.subcontract_from === '에코광고비').length;
+
+  // 목록 HTML 생성
+  const listHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <p class="text-muted" style="margin:0">총 ${filtered.length}개 업체</p>
+    </div>
+    ${filtered.map(c => {
+      const scheds = getCompanySchedules(c.id);
+      // 빈도 표시: 요일 + 빈도
+      const daysWithFreq = scheds.map(s => {
+        const freq = s.frequency || 'weekly';
+        const label = WEEKDAY_NAMES[s.weekday];
+        return freq === 'biweekly' ? label + '(격주)' : label;
+      }).join(', ') || '-';
+      const assigns = getCompanyAssignments(c.id, selectedMonth);
+      const workers = assigns.map(a => getWorkerName(a.worker_id)).join(', ') || '미배정';
+
+      const contractAmt = getCompanyContractAmount(c.id);
+
+      const statusBadge = c.status === 'active'
+        ? '<span class="badge badge-done">활성</span>'
+        : c.status === 'paused'
+          ? '<span class="badge badge-today">중지</span>'
+          : '<span class="badge badge-warn">해지</span>';
+
+      const ecoBadge = c.subcontract_from === '에코오피스클린'
+        ? '<span style="font-size:10px;background:var(--orange);color:#fff;padding:2px 6px;border-radius:4px;margin-left:4px">도급</span>'
+        : c.subcontract_from === '에코광고비'
+          ? '<span style="font-size:10px;background:#8b5cf6;color:#fff;padding:2px 6px;border-radius:4px;margin-left:4px">광고비</span>'
+          : '';
+
+      return `
+        <div class="card company-card" onclick="openCompanyDetail('${c.id}')">
+          <div class="card-header">
+            <div style="flex:1;min-width:0">
+              <div class="card-title">${c.name} ${c.area_code ? '<span style="font-size:11px;color:var(--primary);font-weight:500;margin-left:6px">[' + c.area_code + ']</span>' : ''}${ecoBadge}</div>
+              <div class="card-subtitle">${c.location || ''} ${c.area_name ? '· ' + c.area_name : ''}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+              ${statusBadge}
+              <div style="font-size:16px;font-weight:700;color:var(--primary);white-space:nowrap">${contractAmt > 0 ? fmt(contractAmt) + '원' : ''}</div>
+            </div>
+          </div>
+          <div class="company-card-info">
+            <span class="info-chip">📅 ${daysWithFreq}</span>
+            <span class="info-chip">👤 ${workers}</span>
+          </div>
+        </div>
+      `;
+    }).join('')}
+  `;
+
+  // 검색 시: 목록 컨테이너만 갱신 (input 보존 → IME 유지)
+  if (listOnly) {
+    const lc = document.getElementById('clientListContainer');
+    if (lc) { lc.innerHTML = listHTML; return; }
+  }
+
+  // 전체 렌더
+  const areas = getUniqueAreas();
   mc.innerHTML = `
     <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
       업체관리
@@ -41,6 +132,14 @@ function renderAllClients() {
         <button class="btn-sm btn-blue" onclick="exportCompanies()" style="font-size:11px;padding:6px 10px">📥 엑셀</button>
         <button class="btn-sm btn-green" onclick="openCompanyForm()">+ 업체 등록</button>
       </div>
+    </div>
+
+    <!-- 에코 분류 탭 -->
+    <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+      <button class="btn-sm ${clientEcoFilter === '' ? 'btn-blue' : ''}" style="font-size:12px;padding:6px 14px;border-radius:20px;${clientEcoFilter === '' ? '' : 'background:var(--bg2);color:var(--text1);border:1px solid var(--border)'}" onclick="clientEcoFilter='';renderAllClients()">전체 (${allCompanies.length})</button>
+      <button class="btn-sm ${clientEcoFilter === 'direct' ? 'btn-green' : ''}" style="font-size:12px;padding:6px 14px;border-radius:20px;${clientEcoFilter === 'direct' ? '' : 'background:var(--bg2);color:var(--text1);border:1px solid var(--border)'}" onclick="clientEcoFilter='direct';renderAllClients()">직영 (${directCount})</button>
+      <button class="btn-sm ${clientEcoFilter === 'eco_sub' ? '' : ''}" style="font-size:12px;padding:6px 14px;border-radius:20px;${clientEcoFilter === 'eco_sub' ? 'background:var(--orange);color:#fff' : 'background:var(--bg2);color:var(--text1);border:1px solid var(--border)'}" onclick="clientEcoFilter='eco_sub';renderAllClients()">에코 도급 (${ecoSubCount})</button>
+      <button class="btn-sm ${clientEcoFilter === 'eco_ad' ? '' : ''}" style="font-size:12px;padding:6px 14px;border-radius:20px;${clientEcoFilter === 'eco_ad' ? 'background:#8b5cf6;color:#fff' : 'background:var(--bg2);color:var(--text1);border:1px solid var(--border)'}" onclick="clientEcoFilter='eco_ad';renderAllClients()">에코 광고비 (${ecoAdCount})</button>
     </div>
 
     <div class="admin-filter-bar">
@@ -53,47 +152,13 @@ function renderAllClients() {
       </select>
     </div>
 
-    <p class="text-muted" style="margin-bottom:12px">총 ${filtered.length}개 업체</p>
-
-    ${filtered.map(c => {
-      const scheds = getCompanySchedules(c.id);
-      // 빈도 표시: 요일 + 빈도
-      const daysWithFreq = scheds.map(s => {
-        const freq = s.frequency || 'weekly';
-        const label = WEEKDAY_NAMES[s.weekday];
-        return freq === 'biweekly' ? label + '(격주)' : label;
-      }).join(', ') || '-';
-      const assigns = getCompanyAssignments(c.id, selectedMonth);
-      const workers = assigns.map(a => getWorkerName(a.worker_id)).join(', ') || '미배정';
-
-      const statusBadge = c.status === 'active'
-        ? '<span class="badge badge-done">활성</span>'
-        : c.status === 'paused'
-          ? '<span class="badge badge-today">중지</span>'
-          : '<span class="badge badge-warn">해지</span>';
-
-      return `
-        <div class="card company-card" onclick="openCompanyDetail('${c.id}')">
-          <div class="card-header">
-            <div>
-              <div class="card-title">${c.name}</div>
-              <div class="card-subtitle">${c.location || ''} ${c.area_name ? '· ' + c.area_name : ''}</div>
-            </div>
-            ${statusBadge}
-          </div>
-          <div class="company-card-info">
-            <span class="info-chip">📅 ${daysWithFreq}</span>
-            <span class="info-chip">👤 ${workers}</span>
-          </div>
-        </div>
-      `;
-    }).join('')}
+    <div id="clientListContainer">${listHTML}</div>
   `;
 
   // 한글 IME 조합 방지 검색 바인딩
   bindSearchInput('clientSearchInput', (val) => {
     clientSearch = val;
-    renderAllClients();
+    renderAllClients(true);
   });
 }
 
