@@ -664,9 +664,20 @@ function renderDashboardHTML() {
     `<option value="${w.id}" ${todayWorkerFilter === w.id ? 'selected' : ''}>${w.name}</option>`
   ).join('');
 
-  // ── 월간 금액 통계 ──
-  const monthFin = adminData.financials.filter(f => f.month === selectedMonth);
-  // 에코 도급 업체 제외한 직영+광고비 업체의 계약 총액
+  // ── 월간 금액 통계 (계약기간 필터링 적용) ──
+  const monthStart = selectedMonth + '-01';
+  const monthEndDay = new Date(parseInt(selectedMonth.split('-')[0]), parseInt(selectedMonth.split('-')[1]), 0).getDate();
+  const monthEnd = selectedMonth + '-' + String(monthEndDay).padStart(2, '0');
+
+  const monthFin = adminData.financials.filter(f => {
+    if (f.month !== selectedMonth) return false;
+    // 계약기간 체크: 해당 월에 계약이 활성인 업체만 포함
+    const c = adminData.companies.find(x => x.id === f.company_id);
+    if (!c) return false;
+    if (c.contract_start_date && c.contract_start_date > monthEnd) return false;   // 계약 시작 전
+    if (c.contract_end_date && c.contract_end_date < monthStart) return false;      // 계약 종료 후
+    return true;
+  });
   const totalContract = monthFin.reduce((s, f) => s + (f.contract_amount || 0), 0);
   const totalEcoFee = monthFin.reduce((s, f) => s + (f.eco_amount || 0), 0);
   const totalOcpFee = monthFin.reduce((s, f) => s + (f.ocp_amount || 0), 0);
