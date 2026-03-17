@@ -810,9 +810,6 @@ function renderDashboardHTML() {
   // ── 미확인 요청 ──
   const pendingReqs = getDashPendingRequests();
 
-  // ── 미입금/미발행 ──
-  const billingAlerts = getDashBillingAlerts();
-
   // ── 날짜 레이블 ──
   const dateObj = new Date(todayDate + 'T00:00:00');
   const dayName = WEEKDAY_NAMES[dateObj.getDay()];
@@ -876,14 +873,6 @@ function renderDashboardHTML() {
       <div class="stat-card" onclick="switchTab('requests', document.querySelectorAll('.tab')[2])" style="cursor:pointer">
         <div class="stat-label">미확인 요청</div>
         <div class="stat-value${pendingReqs.count > 0 ? ' red' : ''}">${pendingReqs.count}</div>
-      </div>
-      <div class="stat-card" onclick="switchTab('billingAlert', document.querySelectorAll('.tab')[6])" style="cursor:pointer">
-        <div class="stat-label">미입금</div>
-        <div class="stat-value${billingAlerts.unpaidCount > 0 ? ' red' : ''}">${billingAlerts.unpaidCount}</div>
-      </div>
-      <div class="stat-card" onclick="switchTab('billingAlert', document.querySelectorAll('.tab')[6])" style="cursor:pointer">
-        <div class="stat-label">미발행</div>
-        <div class="stat-value${billingAlerts.unissuedCount > 0 ? ' orange' : ''}">${billingAlerts.unissuedCount}</div>
       </div>
     </div>
 
@@ -961,56 +950,6 @@ function renderDashboardHTML() {
     </div>
     ` : ''}
 
-    <!-- ═══ 4) 미입금 / 미발행 요약 ═══ -->
-    ${billingAlerts.alertList.length > 0 ? `
-    <div class="dash-summary-box" style="margin-top:24px">
-      <div class="dash-box-header">
-        <span class="dash-box-title">미입금 / 미발행</span>
-        <span class="badge badge-warn" style="font-size:11px">${billingAlerts.unpaidCount + billingAlerts.unissuedCount}건</span>
-        <button class="btn-sm btn-gray" style="margin-left:auto;font-size:11px;padding:4px 10px"
-                onclick="switchTab('billingAlert', document.querySelectorAll('.tab')[6])">전체보기</button>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>업체명</th><th>대상월</th><th>청구금액</th><th>발행여부</th><th>입금여부</th></tr></thead>
-          <tbody>
-            ${billingAlerts.alertList.map(b => `
-              <tr>
-                <td style="font-weight:600">${b.companyName}</td>
-                <td>${b.month}</td>
-                <td>${fmt(b.billedAmount)}원</td>
-                <td>${b.hasBilled
-                  ? '<span class="badge badge-done">발행</span>'
-                  : '<span class="badge badge-today">미발행</span>'
-                }</td>
-                <td>${b.hasPaid
-                  ? (b.paidAmount < b.billedAmount
-                    ? '<span class="badge badge-area">부분</span>'
-                    : '<span class="badge badge-done">입금</span>')
-                  : '<span class="badge badge-warn">미입금</span>'
-                }</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-      <div class="dash-box-cards-mobile">
-        ${billingAlerts.alertList.map(b => `
-          <div class="card" style="padding:10px 12px">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="font-weight:600;font-size:13px">${b.companyName}</span>
-              <span style="font-size:12px;color:var(--text2)">${b.month}</span>
-            </div>
-            <div style="display:flex;gap:8px;margin-top:6px;font-size:12px">
-              <span>청구: ${fmt(b.billedAmount)}원</span>
-              <span>${b.hasBilled ? '✅발행' : '❌미발행'}</span>
-              <span>${b.hasPaid ? '✅입금' : '❌미입금'}</span>
-            </div>
-          </div>
-        `).join('')}
-      </div>
-    </div>
-    ` : ''}
 
     <!-- ═══ 5) 월간 금액 요약 ═══ -->
     <div class="dash-summary-box" style="margin-top:24px">
