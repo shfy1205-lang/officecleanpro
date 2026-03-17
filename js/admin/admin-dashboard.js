@@ -16,6 +16,9 @@ let monthGenResult = null;
 let monthGenMonth = '';
 let monthGenBusy = false;
 
+// ─── 자동 월 일정 생성 추적 (이미 생성된 월 기억) ───
+let _autoGenDoneMonths = new Set();
+
 // ─── 대시보드 추가 캐시 ───
 let _dashRecentLogs = [];
 
@@ -634,6 +637,164 @@ async function renderDashboard() {
     loadDashRecentLogs(),
   ]);
   renderDashboardHTML();
+
+  // ── 자동 월 일정 생성 (백그라운드) ──
+  autoGenerateMonthlyIfNeeded();
+}
+
+/**
+ * 대시보드 로드 시 현재 월 + 다음 월 일정을 자동 생성 (중복 방지)
+ * - 세션 중 이미 생성한 월은 다시 실행하지 않음
+ * - 생성 결과가 있으면 toast로만 알림
+ */
+async function autoGenerateMonthlyIfNeeded() {
+  const cur = currentMonth();
+  // 다음 달 계산
+  const [cy, cm] = cur.split('-').map(Number);
+  const nextDate = new Date(cy, cm, 1); // cm은 이미 1-based이므로 month+1
+  const next = nextDate.getFullYear() + '-' + String(nextDate.getMonth() + 1).padStart(2, '0');
+
+  const targets = [cur, next];
+
+  for (const month of targets) {
+    if (_autoGenDoneMonths.has(month)) continue;
+    _autoGenDoneMonths.add(month);
+
+    try {
+      await ensureMonthData(month);
+      const result = await _doAutoGenerateMonth(month);
+      if (result && result.created > 0) {
+        toast(`${month} 일정 ${result.created}건 자동 생성`, 'info');
+        // 오늘 날짜가 해당 월이면 새로고침
+        if (todayDate && todayDate.startsWith(month)) {
+          await loadTodayCleaning(todayDate);
+          renderDashboardHTML();
+        }
+      }
+    } catch (e) {
+      console.error('autoGenerateMonthly error for', month, e);
+    }
+  }
+}
+
+/**
+ * 자동 생성 전용 — UI 상태 변경 없이 조용히 생성
+ */
+async function _doAutoGenerateMonth(month) {
+  const [year, mon] = month.split('-').map(Number);
+  const daysInMonth = new Date(year, mon, 0).getDate();
+  const allDates = [];
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dd = String(day).padStart(2, '0');
+    const mm = String(mon).padStart(2, '0');
+    allDates.push(`${year}-${mm}-${dd}`);
+  }
+
+  const activeSchedules = adminData.schedules.filter(s => s.is_active);
+  if (activeSchedules.length === 0) return { created: 0 };
+
+  const schedByWeekday = {};
+  for (const s of activeSchedules) {
+    if (!schedByWeekday[s.weekday]) schedByWeekday[s.weekday] = [];
+    schedByWeekday[s.weekday].push(s);
+  }
+
+  const monthAssigns = adminData.assignments.filter(a => a.month === month);
+  const assignMap = {};
+  for (const a of monthAssigns) {
+    if (!assignMap[a.company_id]) assignMap[a.company_id] = [];
+    assignMap[a.company_id].push(a);
+  }
+
+  const firstDay = `${month}-01`;
+  const lastDay = `${month}-${String(daysInMonth).padStart(2, '0')}`;
+  const { data: existingTasks, error: taskErr } = await sb.from('tasks')
+    .select('company_id, task_date')
+    .gte('task_date', firstDay)
+    .lte('task_date', lastDay);
+
+  if (taskErr) { console.error('autoGen task query error:', taskErr); return { created: 0 }; }
+
+  const existingSet = new Set(
+    (existingTasks || []).map(t => `${t.company_id}|${t.task_date}`)
+  );
+
+  let created = 0;
+  let duplicated = 0;
+  let inactiveSkipped = 0;
+  let noWorkerSkipped = 0;
+  const toInsert = [];
+  const inactiveChecked = new Set();
+  const noWorkerChecked = new Set();
+
+  for (const dateStr of allDates) {
+    const d = new Date(dateStr + 'T00:00:00');
+    const weekday = d.getDay();
+    const daySchedules = schedByWeekday[weekday];
+    if (!daySchedules) continue;
+
+    const matchedSchedules = daySchedules.filter(s => isScheduleActiveOnDate(s, dateStr));
+    if (matchedSchedules.length === 0) continue;
+
+    const companyIds = [...new Set(matchedSchedules.map(s => s.company_id))];
+
+    for (const companyId of companyIds) {
+      const company = adminData.companies.find(c => c.id === companyId);
+      if (!company || company.status !== 'active') {
+        if (!inactiveChecked.has(companyId)) { inactiveSkipped++; inactiveChecked.add(companyId); }
+        continue;
+      }
+      // 계약기간 체크
+      if (company.contract_start_date && dateStr < company.contract_start_date) continue;
+      if (company.contract_end_date && dateStr > company.contract_end_date) continue;
+
+      const key = `${companyId}|${dateStr}`;
+      if (existingSet.has(key)) { duplicated++; continue; }
+
+      const assigns = assignMap[companyId];
+      if (!assigns || assigns.length === 0) {
+        if (!noWorkerChecked.has(companyId)) { noWorkerSkipped++; noWorkerChecked.add(companyId); }
+        continue;
+      }
+
+      const mainAssign = assigns[0];
+      toInsert.push({
+        company_id: companyId,
+        worker_id: mainAssign.worker_id,
+        task_date: dateStr,
+        status: 'scheduled',
+        task_source: 'auto',
+        memo: null,
+      });
+    }
+  }
+
+  if (toInsert.length === 0) return { created: 0, duplicated };
+
+  const BATCH_SIZE = 200;
+  for (let i = 0; i < toInsert.length; i += BATCH_SIZE) {
+    const batch = toInsert.slice(i, i + BATCH_SIZE);
+    const { error: insertErr } = await sb.from('tasks').insert(batch);
+    if (insertErr) {
+      console.error('autoGen insert error:', insertErr);
+      return { created: i, duplicated, error: true };
+    }
+  }
+  created = toInsert.length;
+
+  await saveGenerationLog({
+    action_type: 'auto_month_generate',
+    target_month: month,
+    created_count: created,
+    skipped_count: duplicated,
+    excluded_inactive: inactiveSkipped,
+    excluded_no_worker: noWorkerSkipped,
+  });
+
+  // billing_records도 자동 생성
+  await _generateMonthlyBillings(month);
+
+  return { created, duplicated, inactiveSkipped, noWorkerSkipped };
 }
 
 function renderDashboardHTML() {
@@ -930,20 +1091,7 @@ function renderDashboardHTML() {
     </div>
     ` : ''}
 
-    <hr style="border:none;border-top:1px solid var(--border);margin:28px 0">
-
-    <!-- ═══ 월 전체 일정 생성 ═══ -->
-    <div class="mg-section">
-      <div class="section-title" style="font-size:15px;margin-bottom:12px">월 전체 청소 일정 생성</div>
-      <div class="mg-control-bar">
-        <input type="month" id="monthGenInput" class="mg-month-input" value="${monthGenMonth}">
-        <button id="monthGenBtn" class="btn-sm btn-green ag-gen-btn" onclick="generateMonthlyTasks()" ${monthGenBusy ? 'disabled' : ''}>
-          <span class="ag-gen-icon">📅</span> 월 일정 생성
-        </button>
-      </div>
-      <p class="text-muted" style="font-size:11px;margin-top:6px">선택한 월의 모든 스케줄 요일에 대해 청소 일정을 일괄 생성합니다. 격주 스케줄은 기준일(anchor) 기반으로 격주 판별됩니다.</p>
-      ${buildMonthGenResultHTML()}
-    </div>
+    <!-- 일정 자동 생성: 대시보드 로드 시 현재/다음 월 일정 자동 생성됨 -->
   `;
 }
 
