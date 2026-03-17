@@ -692,14 +692,80 @@ function copyQrUrl(companyId, token) {
 function downloadQrCode(companyId, token) {
   const url = getQrUrl(companyId, token);
   const company = adminData.companies.find(c => c.id === companyId);
-  const name = company ? company.name.replace(/[^가-힣a-zA-Z0-9]/g, '_') : 'company';
-  const qrImgUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(url)}`;
-  const a = document.createElement('a');
-  a.href = qrImgUrl;
-  a.download = `QR_${name}.png`;
-  a.target = '_blank';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  toast('QR 이미지 다운로드 시작');
+  const companyName = company ? company.name : '업체';
+  const fileName = company ? company.name.replace(/[^가-힣a-zA-Z0-9]/g, '_') : 'company';
+
+  // QR 이미지 로드 후 스티커 Canvas 생성
+  const qrImg = new Image();
+  qrImg.crossOrigin = 'anonymous';
+  qrImg.onload = function() {
+    const W = 500, H = 620;
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    // 배경 (흰색 라운드 사각형)
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.roundRect(0, 0, W, H, 16);
+    ctx.fill();
+
+    // 상단 파란 헤더 바
+    ctx.fillStyle = '#2563eb';
+    ctx.beginPath();
+    ctx.roundRect(0, 0, W, 80, [16, 16, 0, 0]);
+    ctx.fill();
+
+    // 헤더 텍스트: 오피스클린프로
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 28px "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('오피스클린프로', W / 2, 52);
+
+    // QR 코드 이미지 (중앙 배치)
+    const qrSize = 320;
+    const qrX = (W - qrSize) / 2;
+    const qrY = 105;
+    // QR 코드 배경 (약간의 패딩)
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(qrX - 10, qrY - 10, qrSize + 20, qrSize + 20);
+    ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+
+    // 업체명
+    ctx.fillStyle = '#1e293b';
+    ctx.font = 'bold 26px "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
+    ctx.textAlign = 'center';
+    // 긴 이름 줄바꿈 처리
+    const maxWidth = W - 60;
+    if (ctx.measureText(companyName).width > maxWidth) {
+      ctx.font = 'bold 22px "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
+    }
+    ctx.fillText(companyName, W / 2, qrY + qrSize + 40, maxWidth);
+
+    // 하단 안내 문구
+    ctx.fillStyle = '#64748b';
+    ctx.font = '16px "Apple SD Gothic Neo", "Malgun Gothic", sans-serif';
+    ctx.fillText('QR코드를 스캔하여 요청사항을 남겨주세요', W / 2, qrY + qrSize + 70);
+
+    // 테두리
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(1, 1, W - 2, H - 2, 16);
+    ctx.stroke();
+
+    // 다운로드
+    const link = document.createElement('a');
+    link.download = `QR스티커_${fileName}.png`;
+    link.href = canvas.toDataURL('image/png');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast('QR 스티커 이미지 다운로드 완료');
+  };
+  qrImg.onerror = function() {
+    toast('QR 이미지 로드 실패. 다시 시도해주세요.', 'error');
+  };
+  qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(url)}`;
 }
