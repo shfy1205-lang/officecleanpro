@@ -12,7 +12,7 @@ const QUOTE_WORK_ITEMS = [
   '개인사무실 탁자 및 바닥 청소',
   '벌레 제거',
   '선반 먼지 제거',
-  '문 유리 닦기 여부',
+  '문 유리 닦기',
   '화물 물주기',
   '파쇄기 비우기',
   '창틀 먼지 제거',
@@ -458,7 +458,7 @@ async function exportQuotePDF() {
 
     // jsPDF 로드 확인
     if (!window.jspdf && !window.jsPDF) {
-      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js');
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
     }
 
     const canvas = await html2canvas(el, {
