@@ -2,6 +2,9 @@
  * admin-leads.js - 견적관리 탭
  */
 
+// 작업내용 임시 저장 배열
+let leadWorkItems = [];
+
 function renderLeads(listOnly) {
   const mc = $('mainContent');
 
@@ -25,6 +28,9 @@ function renderLeads(listOnly) {
     <p class="text-muted" style="margin-bottom:12px">총 ${list.length}건</p>
     ${list.length > 0 ? list.map(l => {
       const st = LEAD_STATUS_MAP[l.status] || LEAD_STATUS_MAP.new;
+      const wi = l.work_items || [];
+      const wiTotal = wi.reduce((s, item) => s + (item.amount || 0), 0);
+      const displayAmount = wiTotal > 0 ? wiTotal : l.estimated_amount;
       return `
         <div class="card lead-card" onclick="openLeadDetail('${l.id}')">
           <div class="card-header">
@@ -37,7 +43,8 @@ function renderLeads(listOnly) {
             <span class="badge ${st.badge}">${st.label}</span>
           </div>
           <div class="lead-card-info">
-            ${l.estimated_amount ? `<span class="info-chip">💰 ${fmt(l.estimated_amount)}원</span>` : ''}
+            ${displayAmount ? `<span class="info-chip">💰 ${fmt(displayAmount)}원</span>` : ''}
+            ${wi.length > 0 ? `<span class="info-chip">📋 작업 ${wi.length}건</span>` : ''}
             ${l.location ? `<span class="info-chip">📍 ${l.location}</span>` : ''}
             ${l.assigned_to ? `<span class="info-chip">👤 ${getWorkerName(l.assigned_to)}</span>` : ''}
           </div>
@@ -65,7 +72,11 @@ function renderLeads(listOnly) {
 
   const totalEstimate = adminData.leads
     .filter(l => !['lost'].includes(l.status))
-    .reduce((s, l) => s + (l.estimated_amount || 0), 0);
+    .reduce((s, l) => {
+      const wi = l.work_items || [];
+      const wiTotal = wi.reduce((sum, item) => sum + (item.amount || 0), 0);
+      return s + (wiTotal > 0 ? wiTotal : (l.estimated_amount || 0));
+    }, 0);
 
   mc.innerHTML = `
     <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
@@ -114,6 +125,11 @@ function openLeadForm(leadId) {
   const l = isEdit ? adminData.leads.find(x => x.id === leadId) : {};
   const workers = getActiveWorkers();
 
+  // 작업내용 초기화
+  leadWorkItems = (l.work_items && l.work_items.length > 0)
+    ? JSON.parse(JSON.stringify(l.work_items))
+    : [];
+
   const html = `
     <button class="modal-close" onclick="closeModal()">&times;</button>
     <h3>${isEdit ? '견적 수정' : '견적 업체 등록'}</h3>
@@ -136,10 +152,17 @@ function openLeadForm(leadId) {
       <label>위치</label>
       <input id="lLocation" value="${l.location || ''}" placeholder="주소 입력">
     </div>
-    <div class="field">
-      <label>견적 금액 (원)</label>
-      <input id="lAmount" type="number" value="${l.estimated_amount || ''}" placeholder="예: 500000">
+
+    <!-- 작업내용 섹션 -->
+    <div class="field" style="margin-top:16px">
+      <label style="display:flex;justify-content:space-between;align-items:center">
+        <span>작업내용 및 금액</span>
+        <button type="button" class="btn-sm btn-green" onclick="addLeadWorkItem()" style="font-size:11px;padding:4px 10px">+ 항목 추가</button>
+      </label>
+      <div id="leadWorkItemsList" style="margin-top:8px"></div>
+      <div id="leadWorkItemsTotal" style="text-align:right;font-weight:600;color:var(--green);margin-top:8px;font-size:14px"></div>
     </div>
+
     <div class="field">
       <label>진행 상태</label>
       <select id="lStatus">
@@ -166,21 +189,86 @@ function openLeadForm(leadId) {
 
   $('modalBody').innerHTML = html;
   $('detailModal').classList.add('show');
+  renderLeadWorkItems();
+}
+
+function addLeadWorkItem() {
+  leadWorkItems.push({ description: '', amount: 0 });
+  renderLeadWorkItems();
+  // 새로 추가된 항목의 작업내용 input에 포커스
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('.lwi-desc');
+    if (inputs.length > 0) inputs[inputs.length - 1].focus();
+  }, 50);
+}
+
+function removeLeadWorkItem(idx) {
+  leadWorkItems.splice(idx, 1);
+  renderLeadWorkItems();
+}
+
+function updateLeadWorkItem(idx, field, value) {
+  if (!leadWorkItems[idx]) return;
+  if (field === 'amount') {
+    leadWorkItems[idx].amount = parseInt(value) || 0;
+  } else {
+    leadWorkItems[idx].description = value;
+  }
+  updateLeadWorkItemsTotal();
+}
+
+function updateLeadWorkItemsTotal() {
+  const totalEl = document.getElementById('leadWorkItemsTotal');
+  if (!totalEl) return;
+  const total = leadWorkItems.reduce((s, item) => s + (item.amount || 0), 0);
+  totalEl.textContent = total > 0 ? `합계: ${fmt(total)}원` : '';
+}
+
+function renderLeadWorkItems() {
+  const container = document.getElementById('leadWorkItemsList');
+  if (!container) return;
+
+  if (leadWorkItems.length === 0) {
+    container.innerHTML = '<p class="text-muted" style="font-size:12px;text-align:center;padding:12px 0">항목 추가 버튼을 눌러 작업내용을 입력하세요</p>';
+    updateLeadWorkItemsTotal();
+    return;
+  }
+
+  container.innerHTML = leadWorkItems.map((item, idx) => `
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px">
+      <span style="font-size:11px;color:var(--text-muted);min-width:20px">${idx + 1}</span>
+      <input class="lwi-desc" value="${(item.description || '').replace(/"/g, '&quot;')}" placeholder="작업내용"
+             oninput="updateLeadWorkItem(${idx}, 'description', this.value)"
+             style="flex:2;padding:6px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;background:rgba(255,255,255,0.05);color:var(--text-primary);font-size:13px">
+      <input type="number" value="${item.amount || ''}" placeholder="금액"
+             oninput="updateLeadWorkItem(${idx}, 'amount', this.value)"
+             style="flex:1;max-width:120px;padding:6px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;background:rgba(255,255,255,0.05);color:var(--text-primary);font-size:13px;text-align:right">
+      <span style="font-size:12px;color:var(--text-muted)">원</span>
+      <button type="button" onclick="removeLeadWorkItem(${idx})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px;padding:2px 6px" title="삭제">&times;</button>
+    </div>
+  `).join('');
+
+  updateLeadWorkItemsTotal();
 }
 
 async function saveLead(leadId) {
   const companyName = $('lCompanyName').value.trim();
   if (!companyName) return toast('업체명을 입력하세요', 'error');
 
+  // 작업내용에서 빈 항목 제거 후 합계 계산
+  const validWorkItems = leadWorkItems.filter(item => item.description.trim() || item.amount > 0);
+  const wiTotal = validWorkItems.reduce((s, item) => s + (item.amount || 0), 0);
+
   const payload = {
     company_name:    companyName,
     contact_name:    $('lContact').value.trim(),
     contact_phone:   $('lPhone').value.trim(),
     location:        $('lLocation').value.trim(),
-    estimated_amount: parseInt($('lAmount').value) || null,
+    estimated_amount: wiTotal > 0 ? wiTotal : null,
     status:          $('lStatus').value,
     assigned_to:     $('lAssigned').value || null,
     notes:           $('lNotes').value.trim(),
+    work_items:      validWorkItems.length > 0 ? validWorkItems : [],
   };
 
   let error;
@@ -203,6 +291,38 @@ function openLeadDetail(leadId) {
   if (!l) return;
 
   const st = LEAD_STATUS_MAP[l.status] || LEAD_STATUS_MAP.new;
+  const wi = l.work_items || [];
+  const wiTotal = wi.reduce((s, item) => s + (item.amount || 0), 0);
+  const displayAmount = wiTotal > 0 ? wiTotal : l.estimated_amount;
+
+  // 작업내용 테이블
+  const workItemsHTML = wi.length > 0 ? `
+    <div class="detail-section">
+      <div class="detail-section-title">작업내용</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.1)">
+            <th style="text-align:left;padding:6px 8px;color:var(--text-muted);font-weight:500">No</th>
+            <th style="text-align:left;padding:6px 8px;color:var(--text-muted);font-weight:500">작업내용</th>
+            <th style="text-align:right;padding:6px 8px;color:var(--text-muted);font-weight:500">금액</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${wi.map((item, idx) => `
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+              <td style="padding:8px;color:var(--text-muted)">${idx + 1}</td>
+              <td style="padding:8px">${item.description || '-'}</td>
+              <td style="padding:8px;text-align:right;font-weight:500">${item.amount ? fmt(item.amount) + '원' : '-'}</td>
+            </tr>
+          `).join('')}
+          <tr style="border-top:2px solid rgba(255,255,255,0.15)">
+            <td colspan="2" style="padding:8px;text-align:right;font-weight:600">합계</td>
+            <td style="padding:8px;text-align:right;font-weight:700;color:var(--green);font-size:15px">${fmt(wiTotal)}원</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  ` : '';
 
   const html = `
     <button class="modal-close" onclick="closeModal()">&times;</button>
@@ -225,7 +345,7 @@ function openLeadDetail(leadId) {
       <div class="admin-row-2">
         <div>
           <div class="stat-label">견적 금액</div>
-          <p style="font-size:18px;font-weight:700;color:var(--green)">${l.estimated_amount ? fmt(l.estimated_amount) + '원' : '미입력'}</p>
+          <p style="font-size:18px;font-weight:700;color:var(--green)">${displayAmount ? fmt(displayAmount) + '원' : '미입력'}</p>
         </div>
         <div>
           <div class="stat-label">진행 상태</div>
@@ -233,6 +353,8 @@ function openLeadDetail(leadId) {
         </div>
       </div>
     </div>
+
+    ${workItemsHTML}
 
     <!-- 상태 빠른 변경 -->
     <div class="detail-section">
