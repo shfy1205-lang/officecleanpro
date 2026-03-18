@@ -71,8 +71,8 @@ function renderTodayTasks() {
   // 날짜 이동 버튼 (어제/오늘/내일)
   const prevDate = new Date(d); prevDate.setDate(prevDate.getDate() - 1);
   const nextDate = new Date(d); nextDate.setDate(nextDate.getDate() + 1);
-  const prevStr = prevDate.toISOString().split('T')[0];
-  const nextStr = nextDate.toISOString().split('T')[0];
+  const prevStr = `${prevDate.getFullYear()}-${String(prevDate.getMonth()+1).padStart(2,'0')}-${String(prevDate.getDate()).padStart(2,'0')}`;
+  const nextStr = `${nextDate.getFullYear()}-${String(nextDate.getMonth()+1).padStart(2,'0')}-${String(nextDate.getDate()).padStart(2,'0')}`;
 
   let html = `
     <div class="sttoday-date-nav">

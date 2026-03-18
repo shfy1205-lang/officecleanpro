@@ -169,9 +169,10 @@ function toast(msg, type = 'success') {
   }, 2700);
 }
 
-/** 오늘 날짜 (YYYY-MM-DD) */
+/** 오늘 날짜 (YYYY-MM-DD) - 한국 시간(로컬) 기준 */
 function today() {
-  return new Date().toISOString().split('T')[0];
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 /** 현재 월 (YYYY-MM) */
