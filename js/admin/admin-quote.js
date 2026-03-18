@@ -303,7 +303,7 @@ ${workContent ? workContent.split('\n').map(l => escapeHtml(l)).join('\n') : '(�
 // ════════════════════════════════════════════════════
 
 function getStampHTML() {
-  return `<img src="assets/stamp.png" alt="인감" style="width:50px;height:50px;opacity:0.9;vertical-align:middle;position:relative;top:-2px;margin-left:-18px">`;
+  return `<img src="assets/stamp.png" alt="인감" style="width:48px;height:48px;opacity:0.85;vertical-align:middle;position:relative;top:2px;margin-left:-28px">`;
 }
 
 // ════════════════════════════════════════════════════
