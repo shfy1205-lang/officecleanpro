@@ -377,28 +377,31 @@ async function openCompanyDetail(companyId) {
       <button class="btn-sm btn-blue" onclick="openCompanyForm('${companyId}')">기본정보 수정</button>
     </div>
 
-    <!-- 💰 수수료 계산 -->
+    <!-- 💰 수수료 현황 (수정 가능) -->
     <div class="detail-section">
       <div class="detail-section-title">💰 ${selectedMonth.split('-')[1]}월 수수료 현황</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px">
-          <div style="font-size:11px;color:var(--text2)">계약금액</div>
-          <div style="font-size:16px;font-weight:700;color:var(--primary)">${contractAmt > 0 ? fmt(contractAmt) + '원' : '-'}</div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:4px">계약금액</div>
+          <input type="number" id="feeContract_${companyId}" value="${contractAmt}"
+                 style="width:100%;font-size:15px;font-weight:700;color:var(--primary);background:transparent;border:1px solid var(--border);border-radius:6px;padding:4px 8px;text-align:right">
         </div>
         <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px">
-          <div style="font-size:11px;color:var(--text2)">직원 지급 합계</div>
-          <div style="font-size:16px;font-weight:700;color:var(--text1)">${workerPay > 0 ? fmt(workerPay) + '원' : '-'}</div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:4px">직원 지급 합계</div>
+          <div style="font-size:15px;font-weight:700;color:var(--text1);padding:5px 8px;text-align:right">${fmt(workerPay)}원</div>
         </div>
         <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px">
-          <div style="font-size:11px;color:var(--text2)">OCP 수수료</div>
-          <div style="font-size:16px;font-weight:700;color:var(--green)">${ocpAmt > 0 ? fmt(ocpAmt) + '원' : '-'}</div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:4px">OCP 수수료</div>
+          <input type="number" id="feeOcp_${companyId}" value="${ocpAmt}"
+                 style="width:100%;font-size:15px;font-weight:700;color:var(--green);background:transparent;border:1px solid var(--border);border-radius:6px;padding:4px 8px;text-align:right">
         </div>
         <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px">
-          <div style="font-size:11px;color:var(--text2)">에코 수수료</div>
-          <div style="font-size:16px;font-weight:700;color:var(--orange)">${ecoAmt > 0 ? fmt(ecoAmt) + '원' : '-'}</div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:4px">에코 수수료</div>
+          <input type="number" id="feeEco_${companyId}" value="${ecoAmt}"
+                 style="width:100%;font-size:15px;font-weight:700;color:var(--orange);background:transparent;border:1px solid var(--border);border-radius:6px;padding:4px 8px;text-align:right">
         </div>
       </div>
-      ${contractAmt > 0 ? `<p style="font-size:12px;color:var(--text2);margin-top:6px;text-align:right">순수익: <strong style="color:var(--green)">${fmt(contractAmt - ocpAmt - ecoAmt - workerPay)}원</strong></p>` : ''}
+      <button class="btn-sm btn-blue" style="width:100%;margin-top:8px" onclick="saveFeeInfo('${companyId}')">수수료 저장</button>
     </div>
 
     <div class="detail-section">
@@ -912,4 +915,39 @@ async function changeCompanyDetailMonth(month) {
   selectedMonth = month;
   await ensureMonthData(month);
   if (_openCompanyId) openCompanyDetail(_openCompanyId);
+}
+
+// ─── 수수료 저장 ───
+async function saveFeeInfo(companyId) {
+  const contractAmt = parseInt($(`feeContract_${companyId}`)?.value, 10) || 0;
+  const ocpAmt = parseInt($(`feeOcp_${companyId}`)?.value, 10) || 0;
+  const ecoAmt = parseInt($(`feeEco_${companyId}`)?.value, 10) || 0;
+
+  if (contractAmt < 0 || ocpAmt < 0 || ecoAmt < 0) return toast('금액은 0 이상이어야 합니다', 'error');
+
+  const payload = {
+    contract_amount: contractAmt,
+    ocp_amount: ocpAmt,
+    eco_amount: ecoAmt,
+  };
+
+  // 기존 financials 레코드가 있으면 update, 없으면 insert
+  const existing = adminData.financials.find(
+    f => f.company_id === companyId && f.month === selectedMonth
+  );
+
+  let error;
+  if (existing) {
+    ({ error } = await sb.from('company_financials').update(payload).eq('id', existing.id));
+  } else {
+    payload.company_id = companyId;
+    payload.month = selectedMonth;
+    ({ error } = await sb.from('company_financials').insert(payload));
+  }
+
+  if (error) return toast('저장 실패: ' + error.message, 'error');
+
+  toast('수수료 저장 완료');
+  await loadAdminData();
+  openCompanyDetail(companyId);
 }
