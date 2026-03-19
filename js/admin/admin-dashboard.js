@@ -72,6 +72,10 @@ async function loadTodayCleaning(dateStr) {
       r => r.company_id === companyId && !r.is_resolved && !isExpired(r.expires_at)
     );
 
+    // 금액 조회
+    const fin = adminData.financials.find(f => f.company_id === companyId && f.month === month);
+    const contractAmount = fin?.contract_amount || 0;
+
     return {
       companyId,
       companyName: company.name,
@@ -83,6 +87,7 @@ async function loadTodayCleaning(dateStr) {
       hasProblem: unresolvedReqs.length > 0,
       completedAt: completedTask ? (completedTask.updated_at || completedTask.created_at) : null,
       requestCount: unresolvedReqs.length,
+      contractAmount,
     };
   }).filter(Boolean);
 
@@ -1053,6 +1058,7 @@ function buildTodayTable(data) {
       <td><strong>${d.companyName}</strong></td>
       <td class="text-muted" style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.address}</td>
       <td>${d.workers.join(', ') || '-'}</td>
+      <td style="font-size:12px;font-weight:600;color:var(--primary);white-space:nowrap">${d.contractAmount > 0 ? fmt(d.contractAmount) + '원' : '-'}</td>
       <td>${statusBadge}</td>
       <td style="font-size:12px">${time}</td>
       <td>${problemBadge}</td>
@@ -1063,7 +1069,7 @@ function buildTodayTable(data) {
   return `<div class="table-wrap today-table-pc">
     <table>
       <thead><tr>
-        <th>업체명</th><th>주소</th><th>담당직원</th><th>상태</th><th>완료시간</th><th>요청여부</th><th>상세보기</th>
+        <th>업체명</th><th>주소</th><th>담당직원</th><th>금액</th><th>상태</th><th>완료시간</th><th>요청여부</th><th>상세보기</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>
@@ -1091,8 +1097,9 @@ function buildTodayCards(data) {
       </div>
       <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-top:4px">
         <span>담당: ${d.workers.join(', ') || '-'}</span>
-        ${time ? `<span>완료: ${time}</span>` : ''}
+        ${d.contractAmount > 0 ? `<span style="font-weight:600;color:var(--primary)">${fmt(d.contractAmount)}원</span>` : ''}
       </div>
+      ${time ? `<div style="font-size:11px;color:var(--text2);margin-top:2px;text-align:right">완료: ${time}</div>` : ''}
     </div>`;
   }).join('');
 
