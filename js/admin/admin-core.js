@@ -14,6 +14,7 @@ let leadSearch = '';
 let billingMonth = '';
 let billingView = 'overview'; // overview | all | unpaid
 let revenueMonth = '';
+let pendingQuoteLead = null; // 견적관리 → 견적서 연동용
 
 // ─── 초기화 ───
 

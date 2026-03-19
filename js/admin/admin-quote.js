@@ -30,16 +30,25 @@ const SUPPLIER_INFO = {
 
 function renderQuote() {
   const mc = $('mainContent');
+  const lead = pendingQuoteLead;
 
   mc.innerHTML = `
     <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
       견적서 생성
-      <div>
-        <button class="btn-sm btn-blue" onclick="exportQuoteExcel()" style="font-size:11px;padding:6px 10px;margin-right:4px">📊 엑셀</button>
-        <button class="btn-sm btn-green" onclick="exportQuoteImage()" style="font-size:11px;padding:6px 10px;margin-right:4px">🖼️ 이미지</button>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        ${lead ? `<button class="btn-sm" onclick="saveQuoteToLead()" style="font-size:11px;padding:6px 12px;background:var(--orange);color:#fff">💾 견적 저장</button>` : ''}
+        <button class="btn-sm btn-blue" onclick="exportQuoteExcel()" style="font-size:11px;padding:6px 10px">📊 엑셀</button>
+        <button class="btn-sm btn-green" onclick="exportQuoteImage()" style="font-size:11px;padding:6px 10px">🖼️ 이미지</button>
         <button class="btn-sm" onclick="exportQuotePDF()" style="font-size:11px;padding:6px 10px;background:var(--red);color:#fff">📄 PDF</button>
       </div>
     </div>
+
+    ${lead ? `
+    <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:13px;color:var(--primary)">📋 <strong>${escapeHtml(lead.clientName)}</strong> 견적서 작성 중</span>
+      <button class="btn-sm" style="font-size:11px;padding:4px 10px;background:var(--bg3);color:var(--text2);border:1px solid var(--border)" onclick="clearQuoteLead()">✕ 연동 해제</button>
+    </div>
+    ` : ''}
 
     <!-- 입력 폼 -->
     <div class="card" style="padding:16px;margin-bottom:16px">
@@ -115,6 +124,32 @@ function renderQuote() {
   `;
 
   updateQuotePreview();
+
+  // 견적관리 연동: lead 데이터 자동 입력
+  if (lead) {
+    setTimeout(() => {
+      if ($('qClientName')) $('qClientName').value = lead.clientName || '';
+      if ($('qAddress')) $('qAddress').value = lead.address || '';
+      if ($('qFrequency')) $('qFrequency').value = lead.frequency || '주1회';
+      if ($('qSpec')) $('qSpec').value = lead.spec || '사무실전체';
+      if ($('qAmount') && lead.amount) $('qAmount').value = lead.amount;
+
+      // 작업내용 체크박스 매칭
+      if (lead.quoteWorkItems && lead.quoteWorkItems.length > 0) {
+        // 저장된 견적서 작업내용이 있으면 그것 사용
+        document.querySelectorAll('.qWorkCheck').forEach(cb => cb.checked = false);
+        lead.quoteWorkItems.forEach(savedItem => {
+          const idx = QUOTE_WORK_ITEMS.findIndex(q => q === savedItem);
+          if (idx >= 0) {
+            const cb = document.querySelector(`.qWorkCheck[data-index="${idx}"]`);
+            if (cb) cb.checked = true;
+          }
+        });
+      }
+
+      updateQuotePreview();
+    }, 50);
+  }
 }
 
 function getQuoteFormData() {
@@ -498,4 +533,47 @@ function buildWorkContentText(d) {
     text += `- ${item}\n`;
   });
   return text;
+}
+
+
+// ════════════════════════════════════════════════════
+// 견적관리 연동: 저장/해제
+// ════════════════════════════════════════════════════
+
+async function saveQuoteToLead() {
+  if (!pendingQuoteLead || !pendingQuoteLead.id) {
+    return toast('연동된 견적 정보가 없습니다', 'error');
+  }
+
+  const d = getQuoteFormData();
+  if (!d.clientName) return toast('업체명을 입력해주세요', 'error');
+  if (!d.amount) return toast('금액을 입력해주세요', 'error');
+
+  const payload = {
+    quote_date:       d.date,
+    quote_amount:     d.total,
+    quote_spec:       d.spec,
+    quote_frequency:  d.frequency,
+    quote_work_items: d.workItems,
+    status:           'proposal', // 견적서 작성 → 견적제출 상태로
+  };
+
+  const { error } = await sb.from('leads')
+    .update(payload)
+    .eq('id', pendingQuoteLead.id);
+
+  if (error) return toast('저장 실패: ' + error.message, 'error');
+
+  // 로컬 데이터도 업데이트
+  const local = adminData.leads.find(l => l.id === pendingQuoteLead.id);
+  if (local) {
+    Object.assign(local, payload);
+  }
+
+  toast('견적서가 저장되었습니다 ✓');
+}
+
+function clearQuoteLead() {
+  pendingQuoteLead = null;
+  renderQuote();
 }

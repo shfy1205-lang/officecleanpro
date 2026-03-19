@@ -47,6 +47,7 @@ function renderLeads(listOnly) {
             ${wi.length > 0 ? `<span class="info-chip">📋 작업 ${wi.length}건</span>` : ''}
             ${l.location ? `<span class="info-chip">📍 ${l.location}</span>` : ''}
             ${l.assigned_to ? `<span class="info-chip">👤 ${getWorkerName(l.assigned_to)}</span>` : ''}
+            ${l.quote_date ? `<span class="info-chip" style="background:var(--green);color:#fff">📄 견적서 작성됨</span>` : ''}
           </div>
         </div>
       `;
@@ -386,7 +387,29 @@ function openLeadDetail(leadId) {
       <p class="text-muted">등록일: ${formatDate(l.created_at)}</p>
     </div>
 
+    ${l.quote_date ? `
+    <div class="detail-section" style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:8px;padding:12px">
+      <div class="detail-section-title" style="color:var(--green)">📄 견적서 정보</div>
+      <div class="admin-row-2">
+        <div>
+          <div class="stat-label">견적서 작성일</div>
+          <p class="text-muted">${l.quote_date}</p>
+        </div>
+        <div>
+          <div class="stat-label">견적 금액 (VAT포함)</div>
+          <p style="font-weight:700;color:var(--green)">${l.quote_amount ? fmt(l.quote_amount) + '원' : '-'}</p>
+        </div>
+      </div>
+      ${l.quote_frequency ? `<p class="text-muted" style="font-size:12px;margin-top:4px">규격: ${l.quote_spec || '-'} / 횟수: ${l.quote_frequency}</p>` : ''}
+    </div>
+    ` : ''}
+
     <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn" style="flex:1;background:var(--primary)" onclick="goToQuoteFromLead('${l.id}')">
+        ${l.quote_date ? '📄 견적서 수정' : '📝 견적서 작성'}
+      </button>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
       <button class="btn" style="flex:1" onclick="openLeadForm('${l.id}')">수정</button>
       <button class="btn" style="flex:1;background:var(--red)" onclick="deleteLead('${l.id}')">삭제</button>
     </div>
@@ -420,4 +443,43 @@ async function deleteLead(leadId) {
   closeModal();
   await loadAdminData();
   renderLeads();
+}
+
+// ═══ 견적관리 → 견적서 연동 ═══
+function goToQuoteFromLead(leadId) {
+  const l = adminData.leads.find(x => x.id === leadId);
+  if (!l) return;
+
+  // 글로벌 변수에 lead 데이터 저장
+  pendingQuoteLead = {
+    id:        l.id,
+    clientName: l.company_name,
+    address:   l.location || '',
+    amount:    0,
+    frequency: l.quote_frequency || '주1회',
+    spec:      l.quote_spec || '사무실전체',
+    workItems: l.work_items || [],
+    quoteWorkItems: l.quote_work_items || null,
+  };
+
+  // work_items에서 금액 합계 계산 → 공급가액으로
+  const wi = l.work_items || [];
+  const wiTotal = wi.reduce((s, item) => s + (item.amount || 0), 0);
+  if (l.quote_amount) {
+    // 기존 견적서 금액이 있으면 VAT 역산하여 공급가액 계산
+    pendingQuoteLead.amount = Math.round(l.quote_amount / 1.1);
+  } else if (wiTotal > 0) {
+    pendingQuoteLead.amount = wiTotal;
+  } else if (l.estimated_amount) {
+    pendingQuoteLead.amount = l.estimated_amount;
+  }
+
+  // 모달 닫고 견적서 탭으로 전환
+  closeModal();
+  const quoteTab = [...document.querySelectorAll('.tab')].find(t => t.textContent.trim() === '견적서');
+  if (quoteTab) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    quoteTab.classList.add('active');
+  }
+  renderQuote();
 }
