@@ -7,6 +7,7 @@
 let prorateMonth = '';
 let prorateWorkerId = '';
 let prorateAbsences = {}; // { assignId: absenceDays }
+let prorateExtraDeduct = 0; // 추가 제외금액 (3.3% 공제 전)
 
 function renderProrate() {
   const mc = $('mainContent');
@@ -70,8 +71,9 @@ function renderProrate() {
     });
   }
 
-  const deduction = Math.round(totalProrated * 0.033);
-  const netPay = totalProrated - deduction;
+  const adjustedTotal = Math.max(0, totalProrated - prorateExtraDeduct);
+  const deduction = Math.round(adjustedTotal * 0.033);
+  const netPay = adjustedTotal - deduction;
   const origDeduction = Math.round(totalOriginal * 0.033);
   const origNet = totalOriginal - origDeduction;
   const diff = netPay - origNet;
@@ -89,7 +91,7 @@ function renderProrate() {
     <!-- 필터 -->
     <div class="admin-filter-bar" style="margin-bottom:16px">
       ${monthSelectorHTML(prorateMonth, 'changeProrateMonth')}
-      <select class="admin-area-select" style="min-width:140px" onchange="prorateWorkerId=this.value;prorateAbsences={};renderProrate()">
+      <select class="admin-area-select" style="min-width:140px" onchange="prorateWorkerId=this.value;prorateAbsences={};prorateExtraDeduct=0;renderProrate()">
         <option value="">직원 선택</option>
         ${workers.map(w => `<option value="${w.id}"${w.id === prorateWorkerId ? ' selected' : ''}>${w.name}</option>`).join('')}
       </select>
@@ -104,9 +106,9 @@ function renderProrate() {
         <div style="font-size:11px;color:var(--text2)">공제 후 ${fmt(origNet)}원</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">일할 계산 후</div>
-        <div class="stat-value" style="color:var(--primary)">${fmt(totalProrated)}</div>
-        <div style="font-size:11px;color:var(--text2)">공제 후 ${fmt(netPay)}원</div>
+        <div class="stat-label">최종 확정액</div>
+        <div class="stat-value" style="color:var(--primary)">${fmt(adjustedTotal)}</div>
+        <div style="font-size:11px;color:var(--text2)">공제 후 ${fmt(netPay)}원${prorateExtraDeduct > 0 ? ` (추가제외 ${fmt(prorateExtraDeduct)})` : ''}</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">차액</div>
@@ -147,9 +149,23 @@ function renderProrate() {
         </tbody>
         <tfoot>
           <tr style="font-weight:700;background:rgba(255,255,255,0.03)">
-            <td colspan="4" style="text-align:right">합계</td>
+            <td colspan="4" style="text-align:right">일할 합계</td>
             <td style="text-align:right">${fmt(totalOriginal)}원</td>
             <td style="text-align:right;color:var(--primary)">${fmt(totalProrated)}원</td>
+          </tr>
+          <tr style="background:rgba(239,68,68,0.06)">
+            <td colspan="4" style="text-align:right;font-size:13px;font-weight:600;color:var(--red)">추가 제외금액</td>
+            <td></td>
+            <td style="text-align:right">
+              <input type="number" value="${prorateExtraDeduct}" min="0"
+                     style="width:100px;text-align:right;padding:4px 8px;border:1px solid var(--red);border-radius:4px;background:var(--bg);color:var(--red);font-size:13px;font-weight:600"
+                     onchange="prorateExtraDeduct=parseInt(this.value)||0;renderProrate()">
+            </td>
+          </tr>
+          <tr style="font-weight:600;background:rgba(255,255,255,0.03)">
+            <td colspan="4" style="text-align:right;font-size:13px">공제 전 확정금액</td>
+            <td></td>
+            <td style="text-align:right;font-size:14px;color:var(--primary)">${fmt(adjustedTotal)}원</td>
           </tr>
           <tr style="font-size:12px;color:var(--text2)">
             <td colspan="4" style="text-align:right">3.3% 공제</td>
@@ -182,5 +198,6 @@ function renderProrate() {
 function changeProrateMonth(month) {
   prorateMonth = month;
   prorateAbsences = {};
+  prorateExtraDeduct = 0;
   renderProrate();
 }
