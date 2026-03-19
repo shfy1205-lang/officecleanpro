@@ -6,11 +6,13 @@
 const WEEKDAY_NAMES = ['일', '월', '화', '수', '목', '금', '토'];
 
 const LEAD_STATUS_MAP = {
-  new:       { label: '신규', badge: 'badge-area' },
-  contacted: { label: '연락중', badge: 'badge-today' },
-  proposal:  { label: '견적제출', badge: 'badge-day' },
-  won:       { label: '성공', badge: 'badge-done' },
-  lost:      { label: '실패', badge: 'badge-warn' },
+  new:        { label: '신규', badge: 'badge-area' },
+  contacted:  { label: '연락중', badge: 'badge-today' },
+  visit_plan: { label: '방문예정', badge: 'badge-day' },
+  visit_done: { label: '방문완료', badge: 'badge-done' },
+  proposal:   { label: '견적제출', badge: 'badge-day' },
+  won:        { label: '성공', badge: 'badge-done' },
+  lost:       { label: '실패', badge: 'badge-warn' },
 };
 
 const BILLING_STATUS_MAP = {
