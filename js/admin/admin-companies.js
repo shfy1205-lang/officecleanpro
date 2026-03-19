@@ -401,6 +401,7 @@ async function openCompanyDetail(companyId) {
                  style="width:100%;font-size:15px;font-weight:700;color:var(--orange);background:transparent;border:1px solid var(--border);border-radius:6px;padding:4px 8px;text-align:right">
         </div>
       </div>
+      ${contractAmt > 0 ? `<p style="font-size:12px;color:var(--text2);margin-top:6px;text-align:right">잔여 배분가능: <strong style="color:${(contractAmt - ocpAmt - ecoAmt - workerPay) >= 0 ? 'var(--green)' : 'var(--red)'}">${fmt(contractAmt - ocpAmt - ecoAmt - workerPay)}원</strong> <span style="font-size:10px">(계약 - OCP - 에코 - 직원)</span></p>` : ''}
       <button class="btn-sm btn-blue" style="width:100%;margin-top:8px" onclick="saveFeeInfo('${companyId}')">수수료 저장</button>
     </div>
 
@@ -714,6 +715,12 @@ async function addAssignment(companyId) {
   if (payAmount < 0) return toast('지급액은 0 이상이어야 합니다', 'error');
   if (payAmount > 99999999) return toast('지급액이 너무 큽니다', 'error');
 
+  // 계약금액 초과 검증
+  const cost = getCompanyTotalCost(companyId, selectedMonth);
+  if (cost.contract > 0 && (cost.total + payAmount) > cost.contract) {
+    return toast(`배정 시 합계(${fmt(cost.total + payAmount)}원)가 계약금액(${fmt(cost.contract)}원)을 초과합니다`, 'error');
+  }
+
   const { data, error } = await sb.from('company_workers').insert({
     company_id: companyId,
     worker_id:  workerId,
@@ -761,6 +768,15 @@ async function updatePayAmount(assignId, value) {
   // 변경 이력용 이전값
   const local = adminData.assignments.find(a => a.id === assignId);
   const oldPay = local ? (local.pay_amount || 0) : 0;
+
+  // 계약금액 초과 검증
+  if (local) {
+    const cost = getCompanyTotalCost(local.company_id, selectedMonth);
+    const newTotal = cost.total - oldPay + payAmount;
+    if (cost.contract > 0 && newTotal > cost.contract) {
+      return toast(`합계(${fmt(newTotal)}원)가 계약금액(${fmt(cost.contract)}원)을 초과합니다`, 'error');
+    }
+  }
 
   const { error } = await sb.from('company_workers')
     .update({ pay_amount: payAmount })
@@ -918,6 +934,17 @@ async function changeCompanyDetailMonth(month) {
 }
 
 // ─── 수수료 저장 ───
+// ─── 계약금액 초과 검증 헬퍼 ───
+function getCompanyTotalCost(companyId, month) {
+  const fin = adminData.financials.find(f => f.company_id === companyId && f.month === month);
+  const assigns = adminData.assignments.filter(a => a.company_id === companyId && a.month === month);
+  const contract = fin?.contract_amount || 0;
+  const ocp = fin?.ocp_amount || 0;
+  const eco = fin?.eco_amount || 0;
+  const workerPay = assigns.reduce((s, a) => s + (a.pay_amount || 0), 0);
+  return { contract, ocp, eco, workerPay, total: ocp + eco + workerPay };
+}
+
 async function saveFeeInfo(companyId) {
   const contractAmt = parseInt($(`feeContract_${companyId}`)?.value, 10) || 0;
   const ocpAmt = parseInt($(`feeOcp_${companyId}`)?.value, 10) || 0;
@@ -925,13 +952,22 @@ async function saveFeeInfo(companyId) {
 
   if (contractAmt < 0 || ocpAmt < 0 || ecoAmt < 0) return toast('금액은 0 이상이어야 합니다', 'error');
 
+  // 직원 지급 합계
+  const assigns = adminData.assignments.filter(a => a.company_id === companyId && a.month === selectedMonth);
+  const workerPay = assigns.reduce((s, a) => s + (a.pay_amount || 0), 0);
+  const totalCost = ocpAmt + ecoAmt + workerPay;
+
+  if (contractAmt > 0 && totalCost > contractAmt) {
+    return toast(`수수료+직원지급(${fmt(totalCost)}원)이 계약금액(${fmt(contractAmt)}원)을 초과합니다`, 'error');
+  }
+
   const payload = {
     contract_amount: contractAmt,
     ocp_amount: ocpAmt,
     eco_amount: ecoAmt,
+    worker_pay_total: workerPay,
   };
 
-  // 기존 financials 레코드가 있으면 update, 없으면 insert
   const existing = adminData.financials.find(
     f => f.company_id === companyId && f.month === selectedMonth
   );
