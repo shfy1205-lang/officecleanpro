@@ -60,11 +60,10 @@ async function loadTodayCleaning(dateStr) {
   const result = scheduledCompanyIds.map(companyId => {
     const company = adminData.companies.find(c => c.id === companyId);
     if (!company || company.status === 'paused') return null;
-    // 해지 업체: 해지한 달까지는 일정 포함, 다음 달부터 제외
+    // 해지 업체: 해지일 당일까지 일정 포함, 다음 날부터 제외
     if (company.status === 'terminated') {
       if (company.terminated_at) {
-        const termMonth = company.terminated_at.substring(0, 7);
-        if (month > termMonth) return null;
+        if (dateStr > company.terminated_at) return null;
       } else {
         return null;
       }
@@ -852,7 +851,8 @@ function renderDashboardHTML() {
     if (!c) return false;
     if (c.contract_start_date && c.contract_start_date > monthEnd) return false;   // 계약 시작 전
     if (c.contract_end_date && c.contract_end_date < monthStart) return false;      // 계약 종료 후
-    // 해지 업체: 해지한 달까지는 금액 포함, 다음 달부터 제외
+    // 해지 업체: 해지일이 속한 달까지 금액 포함, 다음 달부터 제외
+    // (예: 3/15 해지 → 3월 금액 O, 4월 금액 X)
     if (c.status === 'terminated' && c.terminated_at) {
       const termMonth = c.terminated_at.substring(0, 7);
       if (selectedMonth > termMonth) return false;
