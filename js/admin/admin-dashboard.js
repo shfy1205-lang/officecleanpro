@@ -59,7 +59,16 @@ async function loadTodayCleaning(dateStr) {
 
   const result = scheduledCompanyIds.map(companyId => {
     const company = adminData.companies.find(c => c.id === companyId);
-    if (!company || company.status !== 'active') return null;
+    if (!company || company.status === 'paused') return null;
+    // 해지 업체: 해지한 달까지는 일정 포함, 다음 달부터 제외
+    if (company.status === 'terminated') {
+      if (company.terminated_at) {
+        const termMonth = company.terminated_at.substring(0, 7);
+        if (month > termMonth) return null;
+      } else {
+        return null;
+      }
+    }
 
     const assigns = adminData.assignments.filter(
       a => a.company_id === companyId && a.month === month
@@ -843,6 +852,13 @@ function renderDashboardHTML() {
     if (!c) return false;
     if (c.contract_start_date && c.contract_start_date > monthEnd) return false;   // 계약 시작 전
     if (c.contract_end_date && c.contract_end_date < monthStart) return false;      // 계약 종료 후
+    // 해지 업체: 해지한 달까지는 금액 포함, 다음 달부터 제외
+    if (c.status === 'terminated' && c.terminated_at) {
+      const termMonth = c.terminated_at.substring(0, 7);
+      if (selectedMonth > termMonth) return false;
+    } else if (c.status === 'terminated' && !c.terminated_at) {
+      return false;
+    }
     return true;
   });
   const totalContract = monthFin.reduce((s, f) => s + (f.contract_amount || 0), 0);

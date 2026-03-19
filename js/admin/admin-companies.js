@@ -43,13 +43,21 @@ function renderAllClients(listOnly) {
   if (clientAreaFilter) {
     filtered = filtered.filter(c => c.area_name === clientAreaFilter);
   }
-  // 에코 분류 필터
-  if (clientEcoFilter === 'direct') {
-    filtered = filtered.filter(c => !c.subcontract_from);
-  } else if (clientEcoFilter === 'eco_sub') {
-    filtered = filtered.filter(c => c.subcontract_from === '에코오피스클린');
-  } else if (clientEcoFilter === 'eco_ad') {
-    filtered = filtered.filter(c => c.subcontract_from === '에코광고비');
+  // 해지/활성 분리
+  if (clientEcoFilter === 'terminated') {
+    filtered = filtered.filter(c => c.status === 'terminated');
+  } else {
+    // 해지 업체는 기본 목록에서 제외 (해지 탭에서만 표시)
+    filtered = filtered.filter(c => c.status !== 'terminated');
+
+    // 에코 분류 필터
+    if (clientEcoFilter === 'direct') {
+      filtered = filtered.filter(c => !c.subcontract_from);
+    } else if (clientEcoFilter === 'eco_sub') {
+      filtered = filtered.filter(c => c.subcontract_from === '에코오피스클린');
+    } else if (clientEcoFilter === 'eco_ad') {
+      filtered = filtered.filter(c => c.subcontract_from === '에코광고비');
+    }
   }
 
   // 구역코드 순 정렬 (한글 지역명 → 숫자 순)
@@ -64,9 +72,11 @@ function renderAllClients(listOnly) {
 
   // 분류별 합계 계산
   const allCompanies = adminData.companies;
-  const directCount = allCompanies.filter(c => !c.subcontract_from).length;
-  const ecoSubCount = allCompanies.filter(c => c.subcontract_from === '에코오피스클린').length;
-  const ecoAdCount = allCompanies.filter(c => c.subcontract_from === '에코광고비').length;
+  const activeCompanies = allCompanies.filter(c => c.status !== 'terminated');
+  const terminatedCount = allCompanies.filter(c => c.status === 'terminated').length;
+  const directCount = activeCompanies.filter(c => !c.subcontract_from).length;
+  const ecoSubCount = activeCompanies.filter(c => c.subcontract_from === '에코오피스클린').length;
+  const ecoAdCount = activeCompanies.filter(c => c.subcontract_from === '에코광고비').length;
 
   // 목록 HTML 생성
   const listHTML = `
@@ -138,10 +148,11 @@ function renderAllClients(listOnly) {
 
     <!-- 에코 분류 탭 -->
     <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
-      <button class="btn-sm ${clientEcoFilter === '' ? 'btn-blue' : ''}" style="font-size:12px;padding:6px 14px;border-radius:20px;${clientEcoFilter === '' ? '' : 'background:var(--bg2);color:var(--text1);border:1px solid var(--border)'}" onclick="clientEcoFilter='';renderAllClients()">전체 (${allCompanies.length})</button>
+      <button class="btn-sm ${clientEcoFilter === '' ? 'btn-blue' : ''}" style="font-size:12px;padding:6px 14px;border-radius:20px;${clientEcoFilter === '' ? '' : 'background:var(--bg2);color:var(--text1);border:1px solid var(--border)'}" onclick="clientEcoFilter='';renderAllClients()">전체 (${activeCompanies.length})</button>
       <button class="btn-sm ${clientEcoFilter === 'direct' ? 'btn-green' : ''}" style="font-size:12px;padding:6px 14px;border-radius:20px;${clientEcoFilter === 'direct' ? '' : 'background:var(--bg2);color:var(--text1);border:1px solid var(--border)'}" onclick="clientEcoFilter='direct';renderAllClients()">직영 (${directCount})</button>
       <button class="btn-sm ${clientEcoFilter === 'eco_sub' ? '' : ''}" style="font-size:12px;padding:6px 14px;border-radius:20px;${clientEcoFilter === 'eco_sub' ? 'background:var(--orange);color:#fff' : 'background:var(--bg2);color:var(--text1);border:1px solid var(--border)'}" onclick="clientEcoFilter='eco_sub';renderAllClients()">에코 도급 (${ecoSubCount})</button>
       <button class="btn-sm ${clientEcoFilter === 'eco_ad' ? '' : ''}" style="font-size:12px;padding:6px 14px;border-radius:20px;${clientEcoFilter === 'eco_ad' ? 'background:#8b5cf6;color:#fff' : 'background:var(--bg2);color:var(--text1);border:1px solid var(--border)'}" onclick="clientEcoFilter='eco_ad';renderAllClients()">에코 광고비 (${ecoAdCount})</button>
+      ${terminatedCount > 0 ? `<button class="btn-sm ${clientEcoFilter === 'terminated' ? '' : ''}" style="font-size:12px;padding:6px 14px;border-radius:20px;${clientEcoFilter === 'terminated' ? 'background:var(--red);color:#fff' : 'background:var(--bg2);color:var(--text1);border:1px solid var(--border)'}" onclick="clientEcoFilter='terminated';renderAllClients()">해지 (${terminatedCount})</button>` : ''}
     </div>
 
     <div class="admin-filter-bar">
