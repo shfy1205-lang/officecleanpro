@@ -69,7 +69,7 @@ async function doLogin() {
   const email = $('loginEmail').value.trim();
   const pw = $('loginPw').value.trim();
 
-  // 입력값 검증
+  // 입렕값 검증
   if (!email || !pw) {
     return toast('이메일과 비밀번호를 입력하세요', 'error');
   }
@@ -78,7 +78,7 @@ async function doLogin() {
   if (!sb) {
     const ok = initFromStorage();
     if (!ok) {
-      return toast('먼저 Supabase 설정을 해주세요', 'error');
+      return toast('먼저 Supabase 설정으 해주세요', 'error');
     }
   }
 
@@ -134,7 +134,7 @@ async function doLogin() {
     } else {
       localStorage.removeItem('ocp_remember');
     }
-    // 현재 세션 활성 표시 (브라우저 닫히면 sessionStorage는 자동 삭제됨)
+    // 현재 세션 활성 표시 (브라우저 닫히메 sessionStorage는 자동 삭제됨)
     sessionStorage.setItem('ocp_session_active', 'true');
 
     // ── Step 5: 역할별 리다이렉트 ──
@@ -153,7 +153,7 @@ async function doLogin() {
  * 역할별 페이지 이동
  */
 function redirectByRole() {
-  if (isAdmin()) {
+  if (isAdmin() || isEcoUser()) {
     location.href = 'admin.html';
   } else {
     location.href = 'staff.html';
