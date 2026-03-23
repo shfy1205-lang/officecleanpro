@@ -66,72 +66,40 @@ async function loadAdminData() {
 
 // ─── 월별 데이터 자동 생성 ───
 
-/**
- * 특정 월에 financials/assignments 데이터가 없으면
- * 가장 최근 이전 달 데이터를 복사하여 자동 생성
- */
 async function ensureMonthData(month) {
   const hasFinancials = adminData.financials.some(f => f.month === month);
   const hasAssignments = adminData.assignments.some(a => a.month === month);
-
-  if (hasFinancials && hasAssignments) return; // 이미 데이터 있음
-
-  // 이전 달 중 데이터가 있는 가장 최근 달 찾기
+  if (hasFinancials && hasAssignments) return;
   const allMonths = [...new Set(adminData.financials.map(f => f.month))].sort().reverse();
   const prevMonth = allMonths.find(m => m < month);
-
-  if (!prevMonth) return; // 이전 데이터 자체가 없으면 스킵
-
+  if (!prevMonth) return;
   let inserted = false;
-
-  // 1) company_financials 복사
   if (!hasFinancials) {
     const prevFins = adminData.financials.filter(f => f.month === prevMonth);
     if (prevFins.length > 0) {
       const newFins = prevFins.map(f => ({
-        company_id:      f.company_id,
-        month:           month,
-        contract_amount: f.contract_amount,
-        ocp_amount:      f.ocp_amount,
-        eco_amount:      f.eco_amount,
-        worker_pay_total: f.worker_pay_total,
-        memo:            f.memo,
+        company_id: f.company_id, month: month,
+        contract_amount: f.contract_amount, ocp_amount: f.ocp_amount,
+        eco_amount: f.eco_amount, worker_pay_total: f.worker_pay_total, memo: f.memo,
       }));
-
       const { error } = await sb.from('company_financials').insert(newFins);
-      if (error && error.code !== '23505') {
-        console.error('ensureMonthData financials error:', error);
-      } else {
-        inserted = true;
-      }
+      if (error && error.code !== '23505') console.error('ensureMonthData financials error:', error);
+      else inserted = true;
     }
   }
-
-  // 2) company_workers 복사
   if (!hasAssignments) {
     const prevAssigns = adminData.assignments.filter(a => a.month === prevMonth);
     if (prevAssigns.length > 0) {
       const newAssigns = prevAssigns.map(a => ({
-        company_id: a.company_id,
-        worker_id:  a.worker_id,
-        month:      month,
-        pay_amount: a.pay_amount,
-        share:      a.share,
+        company_id: a.company_id, worker_id: a.worker_id,
+        month: month, pay_amount: a.pay_amount, share: a.share,
       }));
-
       const { error } = await sb.from('company_workers').insert(newAssigns);
-      if (error && error.code !== '23505') {
-        console.error('ensureMonthData assignments error:', error);
-      } else {
-        inserted = true;
-      }
+      if (error && error.code !== '23505') console.error('ensureMonthData assignments error:', error);
+      else inserted = true;
     }
   }
-
-  // 데이터 새로고침
-  if (inserted) {
-    await loadAdminData();
-  }
+  if (inserted) await loadAdminData();
 }
 
 // ─── 탭 전환 ───
@@ -139,27 +107,17 @@ async function ensureMonthData(month) {
 function switchTab(tabName, el) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
-
   const renderers = {
-    dashboard:    renderDashboard,
-    allClients:   renderAllClients,
-    requests:     renderRequests,
-    notices:      renderNotices,
-    leads:        renderLeads,
-    billing:      renderBilling,
-    billingAlert: renderBillingAlert,
-    staffPay:     renderStaffPay,
-    areaSummary:  renderAreaSummary,
-    revenue:      renderRevenue,
-    analysis:     renderAnalysis,
-    calendar:     renderCalendar,
-    scheduleLog:  renderScheduleLog,
-    changeLog:    renderChangeLog,
-    contacts:     renderContacts,
-    quote:        renderQuote,
-    prorate:      renderProrate,
+    dashboard: renderDashboard, allClients: renderAllClients,
+    requests: renderRequests, notices: renderNotices,
+    leads: renderLeads, billing: renderBilling,
+    billingAlert: renderBillingAlert, staffPay: renderStaffPay,
+    areaSummary: renderAreaSummary, revenue: renderRevenue,
+    analysis: renderAnalysis, calendar: renderCalendar,
+    scheduleLog: renderScheduleLog, changeLog: renderChangeLog,
+    contacts: renderContacts, quote: renderQuote,
+    prorate: renderProrate, eco: renderEco,
   };
-
   if (renderers[tabName]) renderers[tabName]();
 }
 
