@@ -2472,3 +2472,70 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
 .eco-check-box { font-size: 18px; line-height: 1; flex-shrink: 0; margin-top: 1px; }
 .eco-check-label { font-size: 14px; font-weight: 600; }
 .eco-check-desc { font-size: 12px; color: var(--text2); margin-top: 2px; }
+/* ─── 에코탭 인라인 편집 ─── */
+.eco-editable {
+  cursor: pointer;
+  position: relative;
+  transition: background 0.15s;
+  border-radius: 4px;
+}
+.eco-editable:hover {
+  background: rgba(59,130,246,0.08);
+}
+.eco-inline-input {
+  width: 100%;
+  padding: 4px 6px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 2px solid var(--primary, #3b82f6);
+  border-radius: 6px;
+  background: var(--bg1, #fff);
+  color: var(--text1);
+  text-align: right;
+  outline: none;
+  box-sizing: border-box;
+}
+.eco-inline-input:focus {
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+}
+.eco-override {
+  color: #2563eb;
+  font-style: italic;
+}
+.eco-reset {
+  display: inline-block;
+  margin-left: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #94a3b8;
+  vertical-align: middle;
+  transition: color 0.15s;
+}
+.eco-reset:hover {
+  color: #ef4444;
+}
+.eco-reset-m {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: #64748b;
+  background: var(--bg3);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.eco-editable-m {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.eco-edit-hint {
+  font-size: 12px;
+  color: var(--text2, #94a3b8);
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: rgba(59,130,246,0.04);
+  border-radius: 6px;
+  border-left: 3px solid var(--primary, #3b82f6);
+}
