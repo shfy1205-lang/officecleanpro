@@ -207,5 +207,5 @@ function openEcoDetail(companyId) {
       <div class="eco-checklist">${checklistHTML}</div>
     </div>
   `;
-  $('detailModal').classList.add('active');
+  $('detailModal').classList.add('show');
 }
