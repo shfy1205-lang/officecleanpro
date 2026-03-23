@@ -1,49 +1,49 @@
 /**
- * admin-eco.js - ìì½ì¤í¼ì¤ ê´ë¦¬
- * ìì½ ê´ë ¨ ìì²´ íí© + ìì½ ê¸ì¡ ê´ë¦¬
- * íì ëì: eco_amountê° ìë ìì²´ OR subcontract_fromì´ ìì½ ê´ë ¨ì¸ ìì²´
+ * admin-eco.js - 에코오피스 관리
+ * 에코 관련 업체 현황 + 에코 금액 관리
+ * 표시 대상: eco_amount가 있는 업체 OR subcontract_from이 에코 관련인 업체
  */
 
-/* âââ ìí âââ */
+/* ─── 상태 ─── */
 let ecoMonth = '';
 let ecoSearch = '';
 let ecoTypeFilter = ''; // '' | 'subcontract' | 'eco_fee' | 'no_invoice'
 
-/* âââ ìì½ ê´ë ¨ ìì²´ì¸ì§ íë³ âââ */
+/* ─── 에코 관련 업체인지 판별 ─── */
 function isEcoRelated(company, fin) {
-  // 1) subcontract_fromì´ ìì½ ê´ë ¨
+  // 1) subcontract_from이 에코 관련
   const sf = company.subcontract_from || '';
-  const isEcoSubcontract = sf === 'ìì½ì¤í¼ì¤í´ë¦°' || sf === 'ìì½ê´ê³ ë¹';
-  // 2) eco_amountê° ìì
+  const isEcoSubcontract = sf === '에코오피스클린' || sf === '에코광고비';
+  // 2) eco_amount가 있음
   const hasEcoFee = (fin?.eco_amount || 0) > 0;
   return isEcoSubcontract || hasEcoFee;
 }
 
-/* ìì²´ ë¶ë¥ íê·¸ */
+/* 업체 분류 태그 */
 function getEcoTag(company, fin) {
   const sf = company.subcontract_from || '';
   const hasEcoFee = (fin?.eco_amount || 0) > 0;
 
-  if (sf === 'ìì½ì¤í¼ì¤í´ë¦°' && hasEcoFee) return { label: 'ëê¸+ììë£', cls: 'badge-warn' };
-  if (sf === 'ìì½ì¤í¼ì¤í´ë¦°') return { label: 'ìì½ëê¸', cls: 'badge-today' };
-  if (sf === 'ìì½ê´ê³ ë¹') return { label: 'ìì½ê´ê³ ë¹', cls: 'badge-purple' };
-  if (hasEcoFee) return { label: 'ìì½ììë£', cls: 'badge-orange' };
+  if (sf === '에코오피스클린' && hasEcoFee) return { label: '도급+수수료', cls: 'badge-warn' };
+  if (sf === '에코오피스클린') return { label: '에코도급', cls: 'badge-today' };
+  if (sf === '에코광고비') return { label: '에코광고비', cls: 'badge-purple' };
+  if (hasEcoFee) return { label: '에코수수료', cls: 'badge-orange' };
   return { label: '-', cls: '' };
 }
 
-/* ì¸ê¸ê³ì°ì ë°í ì¬ë¶ */
+/* 세금계산서 발행 여부 */
 function isOcpInvoice(company) {
   const sf = company.subcontract_from || '';
-  // ìì½ì¤í¼ì¤í´ë¦°/ìì½ê´ê³ ë¹ ëê¸ì´ë©´ OCPìì ì¸ê¸ê³ì°ìë¥¼ ì ëì
-  return sf !== 'ìì½ì¤í¼ì¤í´ë¦°' && sf !== 'ìì½ê´ê³ ë¹';
+  // 에코오피스클린/에코광고비 도급이면 OCP에서 세금계산서를 안 끊음
+  return sf !== '에코오피스클린' && sf !== '에코광고비';
 }
 
-/* âââ ìì½ ìì²´ ë°ì´í° ê°ê³µ âââ */
+/* ─── 에코 업체 데이터 가공 ─── */
 function getEcoCompanies(month) {
   const m = month || ecoMonth || selectedMonth;
   const finMap = buildFinMap(adminData.financials, m);
 
-  // ìì½ ê´ë ¨ ìì²´ë§ íí° (í´ì§ ì ì¸)
+  // 에코 관련 업체만 필터 (해지 제외)
   const ecoCompanies = adminData.companies.filter(c => {
     if (c.status === 'terminated') return false;
     const fin = finMap[c.id];
@@ -59,7 +59,7 @@ function getEcoCompanies(month) {
     const tag = getEcoTag(c, fin);
     const ocpInvoice = isOcpInvoice(c);
 
-    // ë°°ì  ì§ì
+    // 배정 직원
     const assigns = adminData.assignments.filter(a => a.company_id === c.id && a.month === m);
     const workerNames = assigns.map(a => getWorkerName(a.worker_id)).join(', ') || '-';
 
@@ -75,7 +75,7 @@ function getEcoCompanies(month) {
   }).sort((a, b) => a.name.localeCompare(b.name, 'ko'));
 }
 
-/* âââ íí° ì ì© âââ */
+/* ─── 필터 적용 ─── */
 function getFilteredEcoCompanies() {
   let list = getEcoCompanies();
 
@@ -85,7 +85,7 @@ function getFilteredEcoCompanies() {
   }
 
   if (ecoTypeFilter === 'subcontract') {
-    list = list.filter(d => d.subcontractFrom === 'ìì½ì¤í¼ì¤í´ë¦°');
+    list = list.filter(d => d.subcontractFrom === '에코오피스클린');
   } else if (ecoTypeFilter === 'eco_fee') {
     list = list.filter(d => d.eco > 0);
   } else if (ecoTypeFilter === 'no_invoice') {
@@ -95,7 +95,7 @@ function getFilteredEcoCompanies() {
   return list;
 }
 
-/* âââ ìì½ íµê³ âââ */
+/* ─── 요약 통계 ─── */
 function getEcoSummary() {
   const all = getEcoCompanies();
   const totalEcoFee = all.reduce((s, d) => s + d.eco, 0);
@@ -107,7 +107,7 @@ function getEcoSummary() {
   return { totalEcoFee, totalContract, totalOcp, noInvoiceCount, ecoFeeCount, total: all.length };
 }
 
-/* âââ ë©ì¸ ë ë âââ */
+/* ─── 메인 렌더 ─── */
 function renderEco() {
   ecoMonth = ecoMonth || selectedMonth;
   renderEcoHTML();
@@ -118,39 +118,39 @@ function renderEcoHTML(listOnly) {
   const filtered = getFilteredEcoCompanies();
   const m = ecoMonth || selectedMonth;
 
-  // ëª©ë¡ HTML
+  // 목록 HTML
   const listHTML = `
-    <div class="eco-result-count">${filtered.length}ê° ìì²´ ${ecoSearch || ecoTypeFilter ? '(íí° ì ì©ë¨)' : ''}</div>
+    <div class="eco-result-count">${filtered.length}개 업체 ${ecoSearch || ecoTypeFilter ? '(필터 적용됨)' : ''}</div>
 
     ${filtered.length > 0 ? `
-      <!-- PC íì´ë¸ -->
+      <!-- PC 테이블 -->
       <div class="eco-table-pc">
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>ìì²´ëª</th>
-                <th>êµ¬ì­</th>
-                <th>êµ¬ë¶</th>
-                <th>ê³ì½ê¸ì¡</th>
-                <th>ìì½ ììë£</th>
-                <th>OCP ììë£</th>
-                <th>ì¸ê¸ê³ì°ì</th>
-                <th>ë´ë¹ì</th>
+                <th>업체명</th>
+                <th>구역</th>
+                <th>구분</th>
+                <th>계약금액</th>
+                <th>에코 수수료</th>
+                <th>OCP 수수료</th>
+                <th>세금계산서</th>
+                <th>담당자</th>
               </tr>
             </thead>
             <tbody>
               ${filtered.map(d => {
                 const invoiceBadge = d.ocpInvoice
-                  ? '<span class="badge badge-done">OCPë°í</span>'
-                  : '<span class="badge badge-warn">ë¯¸ë°í</span>';
+                  ? '<span class="badge badge-done">OCP발행</span>'
+                  : '<span class="badge badge-warn">미발행</span>';
                 return `<tr>
                   <td style="font-weight:600">${escapeHtml(d.name)}</td>
                   <td>${escapeHtml(d.areaCode)}</td>
                   <td><span class="badge ${d.tag.cls}">${d.tag.label}</span></td>
-                  <td>${fmt(d.contract)}ì</td>
-                  <td style="color:var(--orange);font-weight:600">${d.eco > 0 ? fmt(d.eco) + 'ì' : '-'}</td>
-                  <td>${fmt(d.ocp)}ì</td>
+                  <td>${fmt(d.contract)}원</td>
+                  <td style="color:var(--orange);font-weight:600">${d.eco > 0 ? fmt(d.eco) + '원' : '-'}</td>
+                  <td>${fmt(d.ocp)}원</td>
                   <td>${invoiceBadge}</td>
                   <td style="font-size:12px">${escapeHtml(d.workerNames)}</td>
                 </tr>`;
@@ -160,12 +160,12 @@ function renderEcoHTML(listOnly) {
         </div>
       </div>
 
-      <!-- ëª¨ë°ì¼ ì¹´ë -->
+      <!-- 모바일 카드 -->
       <div class="eco-cards-mobile">
         ${filtered.map(d => {
           const invoiceBadge = d.ocpInvoice
-            ? '<span class="badge badge-done">OCPë°í</span>'
-            : '<span class="badge badge-warn">ë¯¸ë°í</span>';
+            ? '<span class="badge badge-done">OCP발행</span>'
+            : '<span class="badge badge-warn">미발행</span>';
           return `<div class="card eco-card">
             <div class="eco-card-header">
               <div>
@@ -176,23 +176,23 @@ function renderEcoHTML(listOnly) {
             </div>
             <div class="eco-card-body">
               <div class="eco-card-row">
-                <span class="eco-card-label">ê³ì½ê¸ì¡</span>
-                <span>${fmt(d.contract)}ì</span>
+                <span class="eco-card-label">계약금액</span>
+                <span>${fmt(d.contract)}원</span>
               </div>
               <div class="eco-card-row">
-                <span class="eco-card-label">ìì½ ììë£</span>
-                <span style="color:var(--orange);font-weight:600">${d.eco > 0 ? fmt(d.eco) + 'ì' : '-'}</span>
+                <span class="eco-card-label">에코 수수료</span>
+                <span style="color:var(--orange);font-weight:600">${d.eco > 0 ? fmt(d.eco) + '원' : '-'}</span>
               </div>
               <div class="eco-card-row">
-                <span class="eco-card-label">OCP ììë£</span>
-                <span>${fmt(d.ocp)}ì</span>
+                <span class="eco-card-label">OCP 수수료</span>
+                <span>${fmt(d.ocp)}원</span>
               </div>
               <div class="eco-card-row">
-                <span class="eco-card-label">ì¸ê¸ê³ì°ì</span>
+                <span class="eco-card-label">세금계산서</span>
                 ${invoiceBadge}
               </div>
               <div class="eco-card-row">
-                <span class="eco-card-label">ë´ë¹ì</span>
+                <span class="eco-card-label">담당자</span>
                 <span>${escapeHtml(d.workerNames)}</span>
               </div>
             </div>
@@ -201,81 +201,81 @@ function renderEcoHTML(listOnly) {
       </div>
     ` : `
       <div class="empty-state">
-        <div class="empty-icon">ð¢</div>
-        <p>${ecoSearch || ecoTypeFilter ? 'í´ë¹ ì¡°ê±´ì ìì²´ê° ììµëë¤' : 'ìì½ ê´ë ¨ ìì²´ê° ììµëë¤'}</p>
+        <div class="empty-icon">🏢</div>
+        <p>${ecoSearch || ecoTypeFilter ? '해당 조건의 업체가 없습니다' : '에코 관련 업체가 없습니다'}</p>
       </div>
     `}
   `;
 
-  // ê²ì ì: ëª©ë¡ë§ ê°±ì 
+  // 검색 시: 목록만 갱신
   if (listOnly) {
     const lc = document.getElementById('ecoListContainer');
     if (lc) { lc.innerHTML = listHTML; return; }
   }
 
-  // ì ì²´ ë ë
+  // 전체 렌더
   const summary = getEcoSummary();
 
-  // ì¬ì© ê°ë¥í ì ëª©ë¡
+  // 사용 가능한 월 목록
   const allMonths = [...new Set(adminData.financials.map(f => f.month))].sort().reverse();
 
   mc.innerHTML = `
-    <div class="section-title">ìì½ì¤í¼ì¤ ê´ë¦¬</div>
+    <div class="section-title">에코오피스 관리</div>
 
-    <!-- ìì½ ì¹´ë -->
+    <!-- 요약 카드 -->
     <div class="stats-grid-4 eco-stats">
       <div class="stat-card">
-        <div class="stat-label">ìì½ ê´ë ¨ ìì²´</div>
-        <div class="stat-value">${summary.total}<span class="eco-unit">ê°</span></div>
+        <div class="stat-label">에코 관련 업체</div>
+        <div class="stat-value">${summary.total}<span class="eco-unit">개</span></div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">ìì½ ììë£ í©ê³</div>
-        <div class="stat-value orange">${fmt(summary.totalEcoFee)}<span class="eco-unit">ì</span></div>
+        <div class="stat-label">에코 수수료 합계</div>
+        <div class="stat-value orange">${fmt(summary.totalEcoFee)}<span class="eco-unit">원</span></div>
       </div>
       <div class="stat-card eco-stat-clickable${ecoTypeFilter === 'eco_fee' ? ' active' : ''}"
            onclick="filterEcoByType('eco_fee')">
-        <div class="stat-label">ììë£ ì§ê¸ ìì²´</div>
-        <div class="stat-value">${summary.ecoFeeCount}<span class="eco-unit">ê°</span></div>
+        <div class="stat-label">수수료 지급 업체</div>
+        <div class="stat-value">${summary.ecoFeeCount}<span class="eco-unit">개</span></div>
       </div>
       <div class="stat-card eco-stat-clickable${ecoTypeFilter === 'no_invoice' ? ' active' : ''}"
            onclick="filterEcoByType('no_invoice')">
-        <div class="stat-label">ì¸ê¸ê³ì°ì ë¯¸ë°í</div>
-        <div class="stat-value red">${summary.noInvoiceCount}<span class="eco-unit">ê°</span></div>
+        <div class="stat-label">세금계산서 미발행</div>
+        <div class="stat-value red">${summary.noInvoiceCount}<span class="eco-unit">개</span></div>
       </div>
     </div>
 
-    <!-- ìì½ ê¸ì¡ ìì½ -->
+    <!-- 에코 금액 요약 -->
     <div class="card eco-fee-summary">
-      <div class="eco-fee-title">${m} ìì½ ê¸ì¡ íí©</div>
+      <div class="eco-fee-title">${m} 에코 금액 현황</div>
       <div class="eco-fee-grid">
         <div class="eco-fee-item">
-          <div class="eco-fee-label">ì´ ê³ì½ê¸ì¡</div>
-          <div class="eco-fee-value">${fmt(summary.totalContract)}ì</div>
+          <div class="eco-fee-label">총 계약금액</div>
+          <div class="eco-fee-value">${fmt(summary.totalContract)}원</div>
         </div>
         <div class="eco-fee-item">
-          <div class="eco-fee-label">ìì½ ììë£ í©ê³</div>
-          <div class="eco-fee-value orange">${fmt(summary.totalEcoFee)}ì</div>
+          <div class="eco-fee-label">에코 수수료 합계</div>
+          <div class="eco-fee-value orange">${fmt(summary.totalEcoFee)}원</div>
         </div>
         <div class="eco-fee-item">
-          <div class="eco-fee-label">OCP ììë£ í©ê³</div>
-          <div class="eco-fee-value accent">${fmt(summary.totalOcp)}ì</div>
+          <div class="eco-fee-label">OCP 수수료 합계</div>
+          <div class="eco-fee-value accent">${fmt(summary.totalOcp)}원</div>
         </div>
       </div>
     </div>
 
-    <!-- íí° -->
+    <!-- 필터 -->
     <div class="eco-filter-bar">
       <select class="eco-filter-select" onchange="changeEcoMonth(this.value)">
-        ${allMonths.map(mm => `<option value="${mm}"${mm === m ? ' selected' : ''}>${mm.split('-')[1]}ì (${mm})</option>`).join('')}
+        ${allMonths.map(mm => `<option value="${mm}"${mm === m ? ' selected' : ''}>${mm.split('-')[1]}월 (${mm})</option>`).join('')}
       </select>
       <select class="eco-filter-select" onchange="changeEcoTypeFilter(this.value)">
-        <option value="">ì ì²´</option>
-        <option value="subcontract"${ecoTypeFilter === 'subcontract' ? ' selected' : ''}>ìì½ëê¸</option>
-        <option value="eco_fee"${ecoTypeFilter === 'eco_fee' ? ' selected' : ''}>ììë£ ì§ê¸</option>
-        <option value="no_invoice"${ecoTypeFilter === 'no_invoice' ? ' selected' : ''}>ì¸ê¸ê³ì°ì ë¯¸ë°í</option>
+        <option value="">전체</option>
+        <option value="subcontract"${ecoTypeFilter === 'subcontract' ? ' selected' : ''}>에코도급</option>
+        <option value="eco_fee"${ecoTypeFilter === 'eco_fee' ? ' selected' : ''}>수수료 지급</option>
+        <option value="no_invoice"${ecoTypeFilter === 'no_invoice' ? ' selected' : ''}>세금계산서 미발행</option>
       </select>
       <div class="eco-search-wrap">
-        <input id="ecoSearchInput" class="eco-search-input" type="text" placeholder="ìì²´ëª ê²ì"
+        <input id="ecoSearchInput" class="eco-search-input" type="text" placeholder="업체명 검색"
                value="${ecoSearch}">
       </div>
     </div>
@@ -289,7 +289,7 @@ function renderEcoHTML(listOnly) {
   });
 }
 
-/* âââ íí° í¸ë¤ë¬ âââ */
+/* ─── 필터 핸들러 ─── */
 function changeEcoMonth(month) {
   ecoMonth = month;
   renderEcoHTML();
@@ -304,4 +304,3 @@ function filterEcoByType(type) {
   ecoTypeFilter = (ecoTypeFilter === type) ? '' : type;
   renderEcoHTML();
 }
-
