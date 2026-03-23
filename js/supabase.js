@@ -86,6 +86,10 @@ function isAdmin() {
   return currentWorker?.role === 'admin';
 }
 
+function isEcoUser() {
+  return currentWorker?.role === 'eco';
+}
+
 /**
  * 로그아웃
  */
@@ -115,7 +119,7 @@ async function requireAuth(requiredRole) {
     }
   }
 
-  // 1-1) "로그인 상태 유지" 안 한 경우: 브라우저 새로 열면 로그아웃
+  // 1-1) "로그인 상태 유지" 안 한 경우: 브라우저 새로 열메 로그아웃
   const remember = localStorage.getItem('ocp_remember');
   const sessionActive = sessionStorage.getItem('ocp_session_active');
   if (remember !== 'true' && !sessionActive) {
@@ -136,7 +140,11 @@ async function requireAuth(requiredRole) {
 
   // 3) 역할 체크
   if (requiredRole && currentWorker.role !== requiredRole) {
-    if (currentWorker.role === 'admin') {
+    // eco 사용자도 admin 페이지 접근 허용 (에코관리 탭만 표시)
+    if (requiredRole === 'admin' && currentWorker.role === 'eco') {
+      return true;
+    }
+    if (currentWorker.role === 'admin' || currentWorker.role === 'eco') {
       location.href = 'admin.html';
     } else {
       location.href = 'staff.html';
