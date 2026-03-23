@@ -2365,3 +2365,110 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   font-size: 13px; padding: 3px 0;
 }
 .fin-result-row span { color: var(--text2); }
+
+/* ═══════════════════════════════════════════════════
+   에코오피스 관리 탭
+   ═══════════════════════════════════════════════════ */
+
+/* 요약 카드 */
+.eco-stats .stat-card { cursor: default; }
+.eco-stat-clickable { cursor: pointer !important; transition: border-color 0.2s; }
+.eco-stat-clickable:hover { border-color: var(--accent); }
+.eco-stat-clickable.active { border-color: var(--accent); background: rgba(59,130,246,0.06); }
+.eco-unit { font-size: 13px; font-weight: 400; color: var(--text2); margin-left: 2px; }
+
+/* 에코 금액 요약 카드 */
+.eco-fee-summary { padding: 20px; margin-bottom: 16px; }
+.eco-fee-title { font-size: 15px; font-weight: 700; margin-bottom: 16px; }
+.eco-fee-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.eco-fee-item { background: var(--bg3); border-radius: 8px; padding: 14px; text-align: center; }
+.eco-fee-label { font-size: 12px; color: var(--text2); margin-bottom: 6px; }
+.eco-fee-value { font-size: 18px; font-weight: 700; color: var(--text); }
+.eco-fee-value.orange { color: var(--orange); }
+.eco-fee-value.accent { color: var(--accent2); }
+@media (max-width: 600px) {
+  .eco-fee-grid { grid-template-columns: 1fr; }
+  .eco-fee-value { font-size: 16px; }
+}
+
+/* 필터 바 */
+.eco-filter-bar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.eco-filter-select {
+  padding: 8px 12px; border-radius: 8px;
+  background: var(--card); border: 1px solid var(--border);
+  color: var(--text); font-size: 13px; min-width: 120px;
+}
+.eco-search-wrap { flex: 1; min-width: 160px; }
+.eco-search-input {
+  width: 100%; padding: 8px 12px; border-radius: 8px;
+  background: var(--card); border: 1px solid var(--border);
+  color: var(--text); font-size: 13px;
+}
+.eco-search-input::placeholder { color: var(--text2); }
+
+/* 결과 수 */
+.eco-result-count { font-size: 12px; color: var(--text2); margin-bottom: 10px; }
+
+/* 프로그레스 바 */
+.eco-progress-bar {
+  width: 80px; height: 6px;
+  background: var(--bg3); border-radius: 3px;
+  overflow: hidden; display: inline-block; vertical-align: middle;
+  margin-right: 6px;
+}
+.eco-progress-bar-lg { width: 100%; height: 8px; border-radius: 4px; }
+.eco-progress-fill {
+  height: 100%; border-radius: 3px;
+  background: linear-gradient(90deg, var(--accent), var(--green));
+  transition: width 0.3s;
+}
+
+/* PC 테이블 / 모바일 카드 토글 */
+.eco-table-pc { display: block; }
+.eco-cards-mobile { display: none; }
+@media (max-width: 768px) {
+  .eco-table-pc { display: none; }
+  .eco-cards-mobile { display: block; }
+}
+
+/* 모바일 카드 */
+.eco-card { margin-bottom: 8px; padding: 12px; cursor: pointer; }
+.eco-card:active { background: var(--bg3); }
+.eco-card-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 8px;
+}
+.eco-card-name { font-weight: 700; font-size: 14px; }
+.eco-card-area { font-size: 11px; color: var(--text2); }
+.eco-card-body { display: flex; flex-direction: column; gap: 4px; }
+.eco-card-row {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 13px; padding: 2px 0;
+}
+.eco-card-label { color: var(--text2); }
+
+/* 모달 — 체크리스트 */
+.eco-detail-info {
+  background: var(--bg3); border-radius: var(--radius);
+  padding: 14px; margin-bottom: 16px;
+}
+.eco-detail-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 5px 0; font-size: 13px;
+}
+.eco-detail-label { color: var(--text2); font-weight: 500; }
+.eco-detail-progress { margin-bottom: 16px; }
+.eco-detail-progress-label { font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+
+.eco-checklist { display: flex; flex-direction: column; gap: 6px; }
+.eco-check-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px; border-radius: 8px;
+  background: var(--bg3); cursor: pointer;
+  transition: background 0.15s;
+}
+.eco-check-item:hover { background: var(--bg2); }
+.eco-check-done { background: rgba(34,197,94,0.06); border: 1px solid rgba(34,197,94,0.12); }
+.eco-check-box { font-size: 18px; line-height: 1; flex-shrink: 0; margin-top: 1px; }
+.eco-check-label { font-size: 14px; font-weight: 600; }
+.eco-check-desc { font-size: 12px; color: var(--text2); margin-top: 2px; }
