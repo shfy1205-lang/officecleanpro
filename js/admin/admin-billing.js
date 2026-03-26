@@ -49,7 +49,14 @@ function renderBillingOverview() {
   const container = document.getElementById('billingContent');
   if (!container) return;
 
-  const activeCompanies = adminData.companies.filter(c => c.status === 'active');
+  const activeCompanies = adminData.companies.filter(c => {
+    if (c.status === 'active') return true;
+    if (c.status === 'terminated' && c.terminated_at) {
+      const termMonth = c.terminated_at.substring(0, 7);
+      return billingMonth <= termMonth;
+    }
+    return false;
+  });
   const finMap = {};
   adminData.financials
     .filter(f => f.month === billingMonth)
@@ -491,7 +498,14 @@ function openBillingForm(billingId) {
   const isEdit = !!billingId;
   const b = isEdit ? adminData.billings.find(x => x.id === billingId) : {};
 
-  const activeCompanies = adminData.companies.filter(c => c.status === 'active');
+  const activeCompanies = adminData.companies.filter(c => {
+    if (c.status === 'active') return true;
+    if (c.status === 'terminated' && c.terminated_at) {
+      const termMonth = c.terminated_at.substring(0, 7);
+      return billingMonth <= termMonth;
+    }
+    return false;
+  });
 
   const html = `
     <button class="modal-close" onclick="closeModal()">&times;</button>
