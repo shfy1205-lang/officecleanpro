@@ -51,8 +51,6 @@ function renderRevenue() {
               }
                   return false;
             });
-              }
-    })
 
   // 월별 재무 데이터 매핑
   const finMap = {};
