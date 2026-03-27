@@ -43,7 +43,16 @@ function getContractType(meta) {
 function renderRevenue() {
   const mc = $('mainContent');
 
-  const activeCompanies = adminData.companies.filter(c => c.status === 'active');
+    const activeCompanies = adminData.companies.filter(c => {
+          if (c.status === 'active') return true;
+              if (c.status === 'terminated' && c.terminated_at) {
+                      const termMonth = c.terminated_at.substring(0, 7);
+                            return revenueMonth <= termMonth;
+              }
+                  return false;
+            });
+              }
+    })
 
   // 월별 재무 데이터 매핑
   const finMap = {};
