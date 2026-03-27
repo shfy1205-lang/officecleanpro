@@ -98,7 +98,7 @@ async function ensureMonthData(month) {
       const newFins = prevFins.map(f => ({
         company_id:      f.company_id,
         month:           month,
-        contract_amount: f.contract_amount,
+        contract_amount: Math.max(f.contract_amount || 0, ...adminData.financials.filter(x => x.company_id === f.company_id && x.contract_amount > 0).map(x => x.contract_amount)),
         ocp_amount:      f.ocp_amount,
         eco_amount:      f.eco_amount,
         worker_pay_total: f.worker_pay_total,
