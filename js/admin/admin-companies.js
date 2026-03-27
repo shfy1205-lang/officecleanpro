@@ -20,8 +20,8 @@ let clientEcoFilter = '';
 
 // ─── 업체 계약금액 조회 ───
 function getCompanyContractAmount(companyId) {
-  const fin = (adminData.financials || []).find(f => f.company_id === companyId && f.month === selectedMonth);
-  return fin ? (fin.contract_amount || 0) : 0;
+  const fins = (adminData.financials || []).filter(f => f.company_id === companyId && f.contract_amount > 0);
+  return fins.length > 0 ? Math.max(...fins.map(f => f.contract_amount)) : 0;
 }
 
 // ════════════════════════════════════════════════════
