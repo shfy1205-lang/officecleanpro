@@ -328,8 +328,8 @@ function buildAutoGenResultHTML() {
             <thead><tr><th>업체명</th><th>담당직원</th><th>날짜</th><th>상태</th></tr></thead>
             <tbody>${r.list.map(item => `
               <tr>
-                <td style="font-weight:600">${item.companyName}</td>
-                <td>${item.workerName}</td>
+                <td style="font-weight:600">${escapeHtml(item.companyName)}</td>
+                <td>${escapeHtml(item.workerName)}</td>
                 <td>${item.date}</td>
                 <td><span class="badge badge-today">예정</span></td>
               </tr>
@@ -340,10 +340,10 @@ function buildAutoGenResultHTML() {
           ${r.list.map(item => `
             <div class="ag-preview-card">
               <div style="display:flex;justify-content:space-between;align-items:center">
-                <span style="font-weight:600">${item.companyName}</span>
+                <span style="font-weight:600">${escapeHtml(item.companyName)}</span>
                 <span class="badge badge-today">예정</span>
               </div>
-              <div class="text-muted" style="font-size:12px;margin-top:4px">${item.workerName} · ${item.date}</div>
+              <div class="text-muted" style="font-size:12px;margin-top:4px">${escapeHtml(item.workerName)} · ${item.date}</div>
             </div>
           `).join('')}
         </div>
@@ -622,8 +622,8 @@ function buildMonthGenResultHTML() {
             <thead><tr><th>업체명</th><th>담당직원</th><th>날짜</th><th>상태</th></tr></thead>
             <tbody>${r.list.map(item => `
               <tr>
-                <td style="font-weight:600">${item.companyName}</td>
-                <td>${item.workerName}</td>
+                <td style="font-weight:600">${escapeHtml(item.companyName)}</td>
+                <td>${escapeHtml(item.workerName)}</td>
                 <td>${item.date}</td>
                 <td><span class="badge badge-today">예정</span></td>
               </tr>
@@ -634,10 +634,10 @@ function buildMonthGenResultHTML() {
           ${r.list.map(item => `
             <div class="ag-preview-card">
               <div style="display:flex;justify-content:space-between;align-items:center">
-                <span style="font-weight:600">${item.companyName}</span>
+                <span style="font-weight:600">${escapeHtml(item.companyName)}</span>
                 <span class="badge badge-today">예정</span>
               </div>
-              <div class="text-muted" style="font-size:12px;margin-top:4px">${item.workerName} · ${item.date}</div>
+              <div class="text-muted" style="font-size:12px;margin-top:4px">${escapeHtml(item.workerName)} · ${item.date}</div>
             </div>
           `).join('')}
         </div>
@@ -850,7 +850,7 @@ function renderDashboardHTML() {
   // ── 직원 필터 옵션 ──
   const staffList = getActiveWorkers();
   const workerOpts = staffList.map(w =>
-    `<option value="${w.id}" ${todayWorkerFilter === w.id ? 'selected' : ''}>${w.name}</option>`
+    `<option value="${w.id}" ${todayWorkerFilter === w.id ? 'selected' : ''}>${escapeHtml(w.name)}</option>`
   ).join('');
 
   // ── 월간 금액 통계 (계약기간 필터링 적용) ──
@@ -964,9 +964,9 @@ function renderDashboardHTML() {
           <tbody>
             ${pendingReqs.list.map(r => `
               <tr>
-                <td style="font-weight:600">${r.companyName}</td>
-                <td>${r.title}</td>
-                <td>${r.createdBy}</td>
+                <td style="font-weight:600">${escapeHtml(r.companyName)}</td>
+                <td>${escapeHtml(r.title)}</td>
+                <td>${escapeHtml(r.createdBy)}</td>
                 <td style="font-size:12px;white-space:nowrap">${formatDate(r.createdAt)}</td>
                 <td><span class="badge badge-warn">미확인</span></td>
               </tr>
@@ -978,11 +978,11 @@ function renderDashboardHTML() {
         ${pendingReqs.list.map(r => `
           <div class="card" style="padding:10px 12px">
             <div style="display:flex;justify-content:space-between;align-items:center">
-              <span style="font-weight:600;font-size:13px">${r.companyName}</span>
+              <span style="font-weight:600;font-size:13px">${escapeHtml(r.companyName)}</span>
               <span class="badge badge-warn" style="font-size:10px">미확인</span>
             </div>
-            <div style="font-size:12px;margin-top:4px">${r.title}</div>
-            <div style="font-size:11px;color:var(--text2);margin-top:2px">${r.createdBy} · ${formatDate(r.createdAt)}</div>
+            <div style="font-size:12px;margin-top:4px">${escapeHtml(r.title)}</div>
+            <div style="font-size:11px;color:var(--text2);margin-top:2px">${escapeHtml(r.createdBy)} · ${formatDate(r.createdAt)}</div>
           </div>
         `).join('')}
       </div>
@@ -1039,8 +1039,8 @@ function renderDashboardHTML() {
                   ? '<span class="badge badge-today">중지</span>'
                   : '<span class="badge badge-warn">해지</span>';
               return `<tr style="cursor:pointer" onclick="openCompanyDetail('${c.id}')">
-                <td style="font-weight:600">${c.name}</td>
-                <td>${c.area_name || '-'}</td>
+                <td style="font-weight:600">${escapeHtml(c.name)}</td>
+                <td>${escapeHtml(c.area_name || '-')}</td>
                 <td>${c.contract_start_date}</td>
                 <td>${ecoLabel}</td>
                 <td>${statusBadge}</td>
@@ -1056,11 +1056,11 @@ function renderDashboardHTML() {
           return `
             <div class="card" style="padding:10px 12px;cursor:pointer" onclick="openCompanyDetail('${c.id}')">
               <div style="display:flex;justify-content:space-between;align-items:center">
-                <span style="font-weight:600;font-size:13px">${c.name}</span>
+                <span style="font-weight:600;font-size:13px">${escapeHtml(c.name)}</span>
                 <span class="badge badge-done" style="font-size:10px">${ecoLabel}</span>
               </div>
               <div style="font-size:12px;color:var(--text2);margin-top:4px">
-                ${c.area_name || ''} · 시작: ${c.contract_start_date}
+                ${escapeHtml(c.area_name || '')} · 시작: ${c.contract_start_date}
               </div>
             </div>
           `;
@@ -1085,9 +1085,9 @@ function buildTodayTable(data) {
     const time = d.completedAt ? formatDate(d.completedAt) : '-';
 
     return `<tr class="today-row">
-      <td><strong>${d.companyName}</strong></td>
-      <td class="text-muted" style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.address}</td>
-      <td>${d.workers.join(', ') || '-'}</td>
+      <td><strong>${escapeHtml(d.companyName)}</strong></td>
+      <td class="text-muted" style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(d.address)}</td>
+      <td>${escapeHtml(d.workers.join(', ')) || '-'}</td>
       <td style="font-size:12px;font-weight:600;color:var(--primary);white-space:nowrap">${d.contractAmount > 0 ? fmt(d.contractAmount) + '원' : '-'}</td>
       <td>${statusBadge}</td>
       <td style="font-size:12px">${time}</td>
@@ -1120,13 +1120,13 @@ function buildTodayCards(data) {
     return `<div class="card today-card" onclick="openCompanyDetail('${d.companyId}')">
       <div class="card-header">
         <div style="min-width:0;flex:1">
-          <div class="card-title" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.companyName}</div>
-          <div class="card-subtitle">${d.address}</div>
+          <div class="card-title" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(d.companyName)}</div>
+          <div class="card-subtitle">${escapeHtml(d.address)}</div>
         </div>
         <div style="display:flex;gap:4px;flex-wrap:wrap;flex-shrink:0">${statusBadge}${problemBadge}</div>
       </div>
       <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-top:4px">
-        <span>담당: ${d.workers.join(', ') || '-'}</span>
+        <span>담당: ${escapeHtml(d.workers.join(', ')) || '-'}</span>
         ${d.contractAmount > 0 ? `<span style="font-weight:600;color:var(--primary)">${fmt(d.contractAmount)}원</span>` : ''}
       </div>
       ${time ? `<div style="font-size:11px;color:var(--text2);margin-top:2px;text-align:right">완료: ${time}</div>` : ''}
