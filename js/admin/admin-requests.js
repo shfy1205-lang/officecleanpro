@@ -67,14 +67,14 @@ function renderRequests() {
         <div class="card request-card ${r.is_resolved ? 'resolved' : ''}" onclick="openRequestDetail('${r.id}')">
           <div class="card-header">
             <div>
-              <div class="card-title">${getCompanyName(r.company_id)}${sourceBadge}</div>
+              <div class="card-title">${escapeHtml(getCompanyName(r.company_id))}${sourceBadge}</div>
               <div class="card-subtitle">
                 ${requesterText} · ${formatDate(r.created_at)}
               </div>
             </div>
             ${statusBadge}
           </div>
-          <div class="request-content">${r.content}</div>
+          <div class="request-content">${escapeHtml(r.content)}</div>
           ${!r.is_resolved && !expired ? `
             <div class="request-card-footer">
               <span class="text-muted">만료: ${formatDateShort(r.expires_at)}</span>
@@ -127,8 +127,8 @@ function openRequestDetail(requestId) {
 
     <div class="detail-section">
       <div class="detail-section-title">📍 업체</div>
-      <p style="font-size:14px;font-weight:600">${company?.name || '알 수 없음'}</p>
-      <p class="text-muted">${company?.location || ''}</p>
+      <p style="font-size:14px;font-weight:600">${escapeHtml(company?.name || '알 수 없음'}</p>
+      <p class="text-muted">${escapeHtml(company?.location || '')}</p>
     </div>
 
     <div class="detail-section">
@@ -143,7 +143,7 @@ function openRequestDetail(requestId) {
 
     <div class="detail-section">
       <div class="detail-section-title">📝 요청 내용</div>
-      <div class="special-notes-box">${r.content.replace(/\n/g, '<br>')}</div>
+      <div class="special-notes-box">${escapeHtml(r.content).replace(/\n/g, '<br>')}</div>
     </div>
 
     ${photoHtml}
