@@ -154,7 +154,7 @@ function renderBillingAlertHTML(listOnly) {
               ${filtered.map(d => {
                 const st = ALERT_STATUS_MAP[d.alertStatus];
                 return `<tr class="ba-row">
-                  <td style="font-weight:600">${d.companyName}</td>
+                  <td style="font-weight:600">${escapeHtml(d.companyName)}</td>
                   <td>${d.month}</td>
                   <td>${fmt(d.billedAmount)}원</td>
                   <td>${d.billedAt
@@ -190,7 +190,7 @@ function renderBillingAlertHTML(listOnly) {
           return `<div class="card ba-card" onclick="openBillingDetail('${d.id}')">
             <div class="ba-card-header">
               <div>
-                <div class="ba-card-name">${d.companyName}</div>
+                <div class="ba-card-name">${escapeHtml(d.companyName)}</div>
                 <div class="ba-card-month">${d.month}</div>
               </div>
               <span class="badge ${st.badge}">${st.label}</span>
@@ -279,7 +279,7 @@ function renderBillingAlertHTML(listOnly) {
       </select>
       <div class="ba-search-wrap">
         <input id="alertSearchInput" class="ba-search-input" type="text" placeholder="업체명 검색"
-               value="${alertCompanySearch}">
+               value="${escapeHtml(alertCompanySearch)}">
       </div>
     </div>
 
