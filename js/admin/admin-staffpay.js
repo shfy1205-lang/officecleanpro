@@ -196,7 +196,7 @@ function renderStaffPay() {
                 const { deduction, netPay } = calcDeduction(r.totalPay);
                 const confirmed = isPayConfirmed(r.workerId, month);
                 return `<tr class="sp-row">
-                  <td style="font-weight:600">${r.name}</td>
+                  <td style="font-weight:600">${escapeHtml(r.name)}</td>
                   <td>${r.companies.length}개</td>
                   <td class="admin-pay-cell">${fmt(r.totalPay)}원</td>
                   <td style="color:var(--red)">${fmt(deduction)}원</td>
@@ -239,7 +239,7 @@ function renderStaffPay() {
               <div class="card-header">
                 <div>
                   <div class="card-title">
-                    ${r.name}
+                    ${escapeHtml(r.name)}
                     ${confirmed
                       ? '<span class="badge badge-done" style="margin-left:6px;font-size:10px">확정</span>'
                       : '<span class="badge badge-warn" style="margin-left:6px;font-size:10px">미확정</span>'
@@ -384,7 +384,7 @@ function openStaffPayDetail(workerId) {
 
   const html = `
     <button class="modal-close" onclick="closeModal()">&times;</button>
-    <h3>${worker.name} - ${monthLabel}월 급여 상세</h3>
+    <h3>${escapeHtml(worker.name)} - ${monthLabel}월 급여 상세</h3>
 
     <!-- 확정 상태 표시 + 토글 버튼 + 다운로드 -->
     <div class="sp-confirm-detail-bar">
@@ -434,7 +434,7 @@ function openStaffPayDetail(workerId) {
           ${worker.companies.map(c => {
             const fees = c.ocp + c.eco;
             return `<tr>
-              <td style="font-weight:600">${c.companyName}</td>
+              <td style="font-weight:600">${escapeHtml(c.companyName)}</td>
               <td>${fmt(c.contract)}원</td>
               <td style="color:var(--red)">${fmt(fees)}원</td>
               <td>${c.method === 'auto'
@@ -738,7 +738,7 @@ function renderAreaSummary() {
       <div class="card">
         <div class="card-header">
           <div>
-            <div class="card-title">${r.area}</div>
+            <div class="card-title">${escapeHtml(r.area)}</div>
             <div class="card-subtitle">${r.companies}개 업체</div>
           </div>
           <div class="card-amount small">${fmt(r.totalPay)}원</div>
@@ -806,21 +806,21 @@ function renderAnalysis() {
     <div class="analysis-card">
       <h4>⚠️ 미배정 업체 (${unassigned.length}곳)</h4>
       <p>${unassigned.length > 0
-        ? unassigned.map(c => c.name).join(', ')
+        ? unassigned.map(c => escapeHtml(c.name)).join(', ')
         : '모든 활성 업체에 직원이 배정되어 있습니다.'}</p>
     </div>
 
     <div class="analysis-card">
       <h4>💰 고액 지급 업체 (50만원 이상)</h4>
       <p>${highPay.length > 0
-        ? highPay.map(h => `${h.name}: ${fmt(h.pay)}원`).join(', ')
+        ? highPay.map(h => `${escapeHtml(h.name)}: ${fmt(h.pay)}원`).join(', ')
         : '50만원 이상 지급 업체가 없습니다.'}</p>
     </div>
 
     <div class="analysis-card">
       <h4>🔥 업무 과부하 직원 (8곳 이상)</h4>
       <p>${heavy.length > 0
-        ? heavy.map(h => `${h.name}: ${h.cnt}곳`).join(', ')
+        ? heavy.map(h => `${escapeHtml(h.name)}: ${h.cnt}곳`).join(', ')
         : '과부하 직원이 없습니다.'}</p>
     </div>
 
@@ -828,7 +828,7 @@ function renderAnalysis() {
       <h4>📋 미처리 요청 (${pendingRequests.length}건)</h4>
       <p>${pendingRequests.length > 0
         ? pendingRequests.slice(0, 5).map(r =>
-            `${getCompanyName(r.company_id)}: ${r.content.slice(0, 30)}${r.content.length > 30 ? '...' : ''}`
+            `${escapeHtml(getCompanyName(r.company_id))}: ${escapeHtml(r.content.slice(0, 30)}${r.content.length > 30 ? '...' : ''}`
           ).join(', ') + (pendingRequests.length > 5 ? ` 외 ${pendingRequests.length - 5}건` : '')
         : '모든 요청이 처리되었습니다.'}</p>
     </div>
@@ -838,7 +838,7 @@ function renderAnalysis() {
       <p>${unpaidBillings.length > 0
         ? unpaidBillings.slice(0, 5).map(b => {
             const amt = (b.billed_amount || 0) - (b.paid_amount || 0);
-            return `${getCompanyName(b.company_id)}(${b.month}): ${fmt(amt)}원`;
+            return `${escapeHtml(getCompanyName(b.company_id))}(${b.month}): ${fmt(amt)}원`;
           }).join(', ') + (unpaidBillings.length > 5 ? ` 외 ${unpaidBillings.length - 5}건` : '')
         : '미수금이 없습니다.'}</p>
     </div>
@@ -848,7 +848,7 @@ function renderAnalysis() {
       <p>${activeLeads.length > 0
         ? activeLeads.slice(0, 5).map(l => {
             const st = LEAD_STATUS_MAP[l.status];
-            return `${l.company_name}(${st.label})`;
+            return `${escapeHtml(l.company_name)}(${st.label})`;
           }).join(', ') + (activeLeads.length > 5 ? ` 외 ${activeLeads.length - 5}건` : '')
         : '진행중인 견적이 없습니다.'}</p>
     </div>
