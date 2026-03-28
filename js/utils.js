@@ -293,6 +293,40 @@ async function viewOfficePassword(companyId, noteId) {
   }
 }
 
+
+
+// ════════════════════════════════════════════════════
+// 레이아웃 헬퍼: PC/모바일 조건부 렌더링 (공통)
+// ════════════════════════════════════════════════════
+
+/** 현재 뷰포트가 모바일인지 판별 (768px 기준) */
+function isMobileView() {
+  return window.innerWidth < 768;
+}
+
+/**
+ * PC 테이블과 모바일 카드 중 현재 뷰포트에 맞는 것만 렌더링
+ * @param {string} pcHTML - PC용 테이블 HTML
+ * @param {string} mobileHTML - 모바일용 카드 HTML
+ * @returns {string} 현재 뷰포트에 맞는 HTML
+ */
+function dualLayout(pcHTML, mobileHTML) {
+  return isMobileView() ? mobileHTML : pcHTML;
+}
+
+// 뷰포트 breakpoint(768px) 교차 시 현재 탭 재렌더
+let _lastMobileState = typeof window !== 'undefined' && window.innerWidth < 768;
+window.addEventListener('resize', function() {
+  var nowMobile = window.innerWidth < 768;
+  if (nowMobile !== _lastMobileState) {
+    _lastMobileState = nowMobile;
+    if (typeof currentTab !== 'undefined' && typeof switchTab === 'function') {
+      var tabEl = document.querySelector('.tab.active');
+      if (tabEl) switchTab(currentTab, tabEl);
+    }
+  }
+});
+
 /**
  * HTML 이스케이프 (XSS 방지)
  */
