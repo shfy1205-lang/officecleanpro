@@ -28,6 +28,13 @@ const SUPPLIER_INFO = {
   manager: '김준희',
 };
 
+let _quotePreviewDebounce = null; // 미리보기 debounce 타이머
+
+function debouncedQuotePreview() {
+  clearTimeout(_quotePreviewDebounce);
+  _quotePreviewDebounce = setTimeout(() => updateQuotePreview(), 150);
+}
+
 function renderQuote() {
   const mc = $('mainContent');
   const lead = pendingQuoteLead;
@@ -76,7 +83,7 @@ function renderQuote() {
         </div>
         <div>
           <label style="font-size:12px;color:var(--text-muted)">공급가액 (VAT 별도)</label>
-          <input id="qAmount" type="number" class="input" placeholder="예: 272727" style="margin-top:4px" oninput="updateQuotePreview()">
+          <input id="qAmount" type="number" class="input" placeholder="예: 272727" style="margin-top:4px" oninput="debouncedQuotePreview()">
         </div>
         <div>
           <label style="font-size:12px;color:var(--text-muted)">견적유효기간 (일)</label>
