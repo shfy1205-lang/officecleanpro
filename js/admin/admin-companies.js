@@ -135,8 +135,8 @@ function renderAllClients(listOnly) {
         <div class="card company-card" onclick="openCompanyDetail('${c.id}')">
           <div class="card-header">
             <div style="flex:1;min-width:0">
-              <div class="card-title">${c.name} ${c.area_code ? '<span style="font-size:11px;color:var(--primary);font-weight:500;margin-left:6px">[' + c.area_code + ']</span>' : ''}${ecoBadge}</div>
-              <div class="card-subtitle">${c.location || ''} ${c.area_name ? '· ' + c.area_name : ''}</div>
+              <div class="card-title">${escapeHtml(c.name)} ${c.area_code ? '<span style="font-size:11px;color:var(--primary);font-weight:500;margin-left:6px">[' + c.area_code + ']</span>' : ''}${ecoBadge}</div>
+              <div class="card-subtitle">${escapeHtml(c.location || '')} ${c.area_name ? '· ' + escapeHtml(c.area_name) : ''}</div>
             </div>
             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
               ${statusBadge}
@@ -145,7 +145,7 @@ function renderAllClients(listOnly) {
           </div>
           <div class="company-card-info">
             <span class="info-chip">📅 ${daysWithFreq}</span>
-            <span class="info-chip">👤 ${workers}</span>
+            <span class="info-chip">👤 ${escapeHtml(workers)}</span>
           </div>
         </div>
       `;
@@ -180,11 +180,11 @@ function renderAllClients(listOnly) {
 
     <div class="admin-filter-bar">
       <div class="search-box" style="flex:1;margin-bottom:0">
-        <input id="clientSearchInput" placeholder="업체명, 주소, 구역 검색" value="${clientSearch}">
+        <input id="clientSearchInput" placeholder="업체명, 주소, 구역 검색" value="${escapeHtml(clientSearch)}">
       </div>
       <select class="admin-area-select" onchange="clientAreaFilter=this.value;renderAllClients()">
         <option value="">전체 구역</option>
-        ${areas.map(a => `<option value="${a}"${a === clientAreaFilter ? ' selected' : ''}>${a}</option>`).join('')}
+        ${areas.map(a => `<option value="${escapeHtml(a)}"${a === clientAreaFilter ? ' selected' : ''}>${escapeHtml(a)}</option>`).join('')}
       </select>
     </div>
 
@@ -216,30 +216,30 @@ function openCompanyForm(companyId) {
 
     <div class="field">
       <label>업체명 *</label>
-      <input id="fName" value="${c.name || ''}" placeholder="업체명 입력">
+      <input id="fName" value="${escapeHtml(c.name || '')}" placeholder="업체명 입력">
     </div>
     <div class="field">
       <label>주소 (위치)</label>
-      <input id="fLocation" value="${c.location || ''}" placeholder="주소 입력">
+      <input id="fLocation" value="${escapeHtml(c.location || '')}" placeholder="주소 입력">
     </div>
     <div class="admin-row-2">
       <div class="field">
         <label>구역 코드</label>
-        <input id="fAreaCode" value="${c.area_code || ''}" placeholder="예: ACE21">
+        <input id="fAreaCode" value="${escapeHtml(c.area_code || '')}" placeholder="예: ACE21">
       </div>
       <div class="field">
         <label>구역명</label>
-        <input id="fAreaName" value="${c.area_name || ''}" placeholder="예: 에이스하이테크21">
+        <input id="fAreaName" value="${escapeHtml(c.area_name || '')}" placeholder="예: 에이스하이테크21">
       </div>
     </div>
     <div class="admin-row-2">
       <div class="field">
         <label>담당자명</label>
-        <input id="fContact" value="${c.contact_name || ''}" placeholder="담당자명">
+        <input id="fContact" value="${escapeHtml(c.contact_name || '')}" placeholder="담당자명">
       </div>
       <div class="field">
         <label>담당자 연락처</label>
-        <input id="fPhone" value="${c.contact_phone || ''}" placeholder="010-0000-0000">
+        <input id="fPhone" value="${escapeHtml(c.contact_phone || '')}" placeholder="010-0000-0000">
       </div>
     </div>
     <div class="admin-row-2">
@@ -266,7 +266,7 @@ function openCompanyForm(companyId) {
     </div>
     <div class="field">
       <label>메모</label>
-      <textarea id="fMemo" rows="2" placeholder="메모">${c.memo || ''}</textarea>
+      <textarea id="fMemo" rows="2" placeholder="메모">${escapeHtml(c.memo || '')}</textarea>
     </div>
 
     <button class="btn" id="saveCompanyBtn" onclick="saveCompany('${companyId || ''}')">${isEdit ? '수정 저장' : '등록하기'}</button>
@@ -405,8 +405,8 @@ async function openCompanyDetail(companyId) {
 
   const html = `
     <button class="modal-close" onclick="closeModal()">&times;</button>
-    <h3>${c.name}${c.terminated_at ? ' <span style="color:var(--red);font-size:13px">(해지: ' + c.terminated_at + ')</span>' : ''}</h3>
-    <div class="detail-location">${c.location || ''} ${c.area_name ? '· ' + c.area_name : ''}
+    <h3>${escapeHtml(c.name)}${c.terminated_at ? ' <span style="color:var(--red);font-size:13px">(해지: ' + c.terminated_at + ')</span>' : ''}</h3>
+    <div class="detail-location">${escapeHtml(c.location || '')} ${c.area_name ? '· ' + escapeHtml(c.area_name) : ''}
       ${c.subcontract_from ? '<span style="font-size:11px;margin-left:6px;background:var(--orange);color:#fff;padding:2px 6px;border-radius:4px">' + (c.subcontract_from === '에코오피스클린' ? '에코 도급' : '에코 광고비') + '</span>' : ''}
     </div>
 
@@ -448,12 +448,12 @@ async function openCompanyDetail(companyId) {
         <div class="info-mini-card">
           <div class="info-mini-icon">🅿️</div>
           <div class="info-mini-title">주차 정보</div>
-          <textarea id="admin_parking_${companyId}" class="info-edit-textarea" placeholder="주차 정보 입력">${note?.parking_info || ''}</textarea>
+          <textarea id="admin_parking_${companyId}" class="info-edit-textarea" placeholder="주차 정보 입력">${escapeHtml(note?.parking_info || '')}</textarea>
         </div>
         <div class="info-mini-card">
           <div class="info-mini-icon">♻️</div>
           <div class="info-mini-title">분리수거장</div>
-          <textarea id="admin_recycling_${companyId}" class="info-edit-textarea" placeholder="분리수거장 위치 입력">${note?.recycling_location || ''}</textarea>
+          <textarea id="admin_recycling_${companyId}" class="info-edit-textarea" placeholder="분리수거장 위치 입력">${escapeHtml(note?.recycling_location || '')}</textarea>
         </div>
       </div>
       <button class="btn-sm btn-blue" style="width:100%;margin-top:8px" onclick="saveAdminNoteInfo('${companyId}', '${note?.id || ''}')">주차/분리수거 정보 저장</button>
@@ -515,7 +515,7 @@ async function openCompanyDetail(companyId) {
         ${assigns.length > 0 ? assigns.map(a => `
           <div class="assign-row">
             <div class="assign-info">
-              <span class="assign-name">${getWorkerName(a.worker_id)}</span>
+              <span class="assign-name">${escapeHtml(getWorkerName(a.worker_id))}</span>
               ${a.is_primary ? '<span class="badge badge-area">주담당</span>' : ''}
             </div>
             <div class="assign-actions">
@@ -533,7 +533,7 @@ async function openCompanyDetail(companyId) {
         <select id="newWorker_${companyId}" class="admin-worker-select">
           <option value="">직원 선택</option>
           ${allWorkers.filter(w => !assigns.some(a => a.worker_id === w.id)).map(w =>
-            `<option value="${w.id}">${w.name}</option>`
+            `<option value="${w.id}">${escapeHtml(w.name)}</option>`
           ).join('')}
         </select>
         <input type="number" id="newPay_${companyId}" class="assign-pay-input" placeholder="지급액" value="0">
@@ -544,7 +544,7 @@ async function openCompanyDetail(companyId) {
     ${c.contact_name || c.contact_phone ? `
     <div class="detail-section">
       <div class="detail-section-title">📞 담당자</div>
-      <p class="text-muted">${c.contact_name || ''} ${c.contact_phone || ''}</p>
+      <p class="text-muted">${escapeHtml(c.contact_name || '')} ${escapeHtml(c.contact_phone || '')}</p>
     </div>
     ` : ''}
 
