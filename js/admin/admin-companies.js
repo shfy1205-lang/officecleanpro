@@ -17,6 +17,7 @@ function getFreqLabel(freq) {
 
 // 에코 분류 필터 변수
 let clientEcoFilter = '';
+let _clientSearchDebounce = null; // 검색 debounce 타이머
 
 // ─── 업체 계약금액 조회 ───
 function getCompanyContractAmount(companyId) {
@@ -78,23 +79,45 @@ function renderAllClients(listOnly) {
   const ecoSubCount = activeCompanies.filter(c => c.subcontract_from === '에코오피스클린').length;
   const ecoAdCount = activeCompanies.filter(c => c.subcontract_from === '에코광고비').length;
 
+  // 성능 최적화: lookup map 구축 (O(n) 1회 → O(1) 조회)
+  const _schedMap = {};
+  adminData.schedules.forEach(s => {
+    if (!s.is_active) return;
+    if (!_schedMap[s.company_id]) _schedMap[s.company_id] = [];
+    _schedMap[s.company_id].push(s);
+  });
+  const _assignMap = {};
+  adminData.assignments.forEach(a => {
+    if (a.month !== selectedMonth) return;
+    if (!_assignMap[a.company_id]) _assignMap[a.company_id] = [];
+    _assignMap[a.company_id].push(a);
+  });
+  const _finMaxMap = {};
+  adminData.financials.forEach(f => {
+    if (f.contract_amount > 0) {
+      if (!_finMaxMap[f.company_id] || f.contract_amount > _finMaxMap[f.company_id]) {
+        _finMaxMap[f.company_id] = f.contract_amount;
+      }
+    }
+  });
+
   // 목록 HTML 생성
   const listHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
       <p class="text-muted" style="margin:0">총 ${filtered.length}개 업체</p>
     </div>
     ${filtered.map(c => {
-      const scheds = getCompanySchedules(c.id);
+      const scheds = _schedMap[c.id] || [];
       // 빈도 표시: 요일 + 빈도
       const daysWithFreq = scheds.map(s => {
         const freq = s.frequency || 'weekly';
         const label = WEEKDAY_NAMES[s.weekday];
         return freq === 'biweekly' ? label + '(격주)' : label;
       }).join(', ') || '-';
-      const assigns = getCompanyAssignments(c.id, selectedMonth);
+      const assigns = _assignMap[c.id] || [];
       const workers = assigns.map(a => getWorkerName(a.worker_id)).join(', ') || '미배정';
 
-      const contractAmt = getCompanyContractAmount(c.id);
+      const contractAmt = _finMaxMap[c.id] || 0;
 
       const statusBadge = c.status === 'active'
         ? '<span class="badge badge-done">활성</span>'
@@ -170,8 +193,11 @@ function renderAllClients(listOnly) {
 
   // 한글 IME 조합 방지 검색 바인딩
   bindSearchInput('clientSearchInput', (val) => {
-    clientSearch = val;
-    renderAllClients(true);
+    clearTimeout(_clientSearchDebounce);
+    _clientSearchDebounce = setTimeout(() => {
+      clientSearch = val;
+      renderAllClients(true);
+    }, 200);
   });
 }
 
