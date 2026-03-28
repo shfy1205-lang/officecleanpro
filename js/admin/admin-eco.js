@@ -18,6 +18,10 @@ let ecoMonth = '';
 let ecoSearch = '';
 let ecoTypeFilter = ''; // '' | 'subcontract' | 'eco_fee'
 let ecoEditingCell = null; // 현재 편집 중인 셀 정보
+let _ecoCache = null; // getEcoCompanies 결과 캐시
+let _ecoCacheMonth = ''; // 캐시된 월
+let _ecoEditTimeout = null; // blur 타임아웃 관리
+let _ecoSearchDebounce = null; // 검색 debounce 타이머
 
 /* ─── 에코 관련 업체인지 판별 ─── */
 function isEcoRelated(company, fin) {
@@ -44,9 +48,13 @@ function isEcoSubcontracted(company) {
   return (company.subcontract_from || '') === '에코오피스클린';
 }
 
-/* ─── 에코 업체 데이터 가공 ─── */
+/* ─── 에코 업체 데이터 가공 (캐싱 + lookup map 최적화) ─── */
 function getEcoCompanies(month) {
   const m = month || ecoMonth || selectedMonth;
+
+  // 캐시 히트: 같은 월 데이터면 재계산 스킵
+  if (_ecoCache && _ecoCacheMonth === m) return _ecoCache;
+
   const finMap = buildFinMap(adminData.financials, m);
 
   const ecoCompanies = adminData.companies.filter(c => {
@@ -55,7 +63,15 @@ function getEcoCompanies(month) {
     return isEcoRelated(c, fin);
   });
 
-  return ecoCompanies.map(c => {
+  // assignment lookup map: O(n) 1회 빌드 → O(1) 조회 (N+1 제거)
+  const assignMap = {};
+  adminData.assignments.forEach(a => {
+    if (a.month !== m) return;
+    if (!assignMap[a.company_id]) assignMap[a.company_id] = [];
+    assignMap[a.company_id].push(a);
+  });
+
+  const result = ecoCompanies.map(c => {
     const fin = finMap[c.id];
     const origContract = fin?.contract_amount || 0;
     const origEco = fin?.eco_amount || 0;
@@ -76,8 +92,8 @@ function getEcoCompanies(month) {
     const hasContractOverride = fin?.eco_contract_override != null;
     const hasFeeOverride = fin?.eco_fee_override != null;
 
-    // 배정 직원
-    const assigns = adminData.assignments.filter(a => a.company_id === c.id && a.month === m);
+    // 배정 직원 (lookup map 사용)
+    const assigns = assignMap[c.id] || [];
     const workerNames = assigns.map(a => getWorkerName(a.worker_id)).join(', ') || '-';
 
     return {
@@ -92,6 +108,11 @@ function getEcoCompanies(month) {
       tag, workerNames, fin,
     };
   }).sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+
+  // 캐시 저장
+  _ecoCache = result;
+  _ecoCacheMonth = m;
+  return result;
 }
 
 /* ─── 필터 적용 ─── */
@@ -148,8 +169,9 @@ function startEcoEdit(companyId, field, currentVal, cellEl) {
     if (e.key === 'Escape') { cancelEcoEdit(); }
   });
   input.addEventListener('blur', () => {
-    // 약간의 지연으로 버튼 클릭 등 처리
-    setTimeout(() => { if (ecoEditingCell) saveEcoEdit(input); }, 150);
+    // clearTimeout으로 중첩 방지
+    clearTimeout(_ecoEditTimeout);
+    _ecoEditTimeout = setTimeout(() => { if (ecoEditingCell) saveEcoEdit(input); }, 150);
   });
 }
 
@@ -223,6 +245,9 @@ function renderEco() {
 }
 
 function renderEcoHTML(listOnly) {
+  // 렌더 시작 시 캐시 무효화 → 이번 렌더 내에서 1회만 재계산
+  _ecoCache = null;
+
   const mc = $('mainContent');
   const filtered = getFilteredEcoCompanies();
   const m = ecoMonth || selectedMonth;
@@ -384,9 +409,13 @@ function renderEcoHTML(listOnly) {
     <div id="ecoListContainer">${listHTML}</div>
   `;
 
+  // 검색 debounce 적용 (200ms)
   bindSearchInput('ecoSearchInput', (val) => {
-    ecoSearch = val.trim();
-    renderEcoHTML(true);
+    clearTimeout(_ecoSearchDebounce);
+    _ecoSearchDebounce = setTimeout(() => {
+      ecoSearch = val.trim();
+      renderEcoHTML(true);
+    }, 200);
   });
 }
 
