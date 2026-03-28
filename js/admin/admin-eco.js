@@ -252,10 +252,8 @@ function renderEcoHTML(listOnly) {
   const filtered = getFilteredEcoCompanies();
   const m = ecoMonth || selectedMonth;
 
-  const listHTML = `
-    <div class="eco-result-count">${filtered.length}개 업체 ${ecoSearch || ecoTypeFilter ? '(필터 적용됨)' : ''}</div>
-
-    ${filtered.length > 0 ? `
+  // PC/모바일 분리 렌더링 (dualLayout)
+    const pcTableHTML = filtered.length > 0 ? `
       <!-- PC 테이블 -->
       <div class="eco-table-pc">
         <div class="table-wrap">
@@ -293,7 +291,9 @@ function renderEcoHTML(listOnly) {
           </table>
         </div>
       </div>
+    ` : '';
 
+    const mobileCardsHTML = filtered.length > 0 ? `
       <!-- 모바일 카드 -->
       <div class="eco-cards-mobile">
         ${filtered.map(d => {
@@ -328,7 +328,13 @@ function renderEcoHTML(listOnly) {
           </div>`;
         }).join('')}
       </div>
-    ` : `
+    ` : '';
+
+    const listHTML = `
+    <div class="eco-result-count">${filtered.length}개 업체 ${ecoSearch || ecoTypeFilter ? '(필터 적용됨)' : ''}</div>
+
+    ${filtered.length > 0 ? dualLayout(pcTableHTML, mobileCardsHTML) : `
+
       <div class="empty-state">
         <div class="empty-icon">🏢</div>
         <p>${ecoSearch || ecoTypeFilter ? '해당 조건의 업체가 없습니다' : '에코 관련 업체가 없습니다'}</p>
