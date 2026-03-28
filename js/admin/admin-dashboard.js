@@ -1,3 +1,4 @@
+1
 /**
  * admin-dashboard.js - 운영 대시보드
  * 오늘 청소 현황 + 미확인 요청 + 미입금/미발행 + 최근 변경 + 월간 요약 + 자동 일정 생성
@@ -554,7 +555,12 @@ async function _generateMonthlyBillings(month) {
   for (const f of monthFin) {
     if (existingBillIds.has(f.company_id)) continue;
     const c = adminData.companies.find(x => x.id === f.company_id);
-    if (!c || c.status !== 'active') continue;
+            if (!c) continue;
+                    if (c.status === 'active') { /* ok */ }
+                            else if (c.status === 'terminated' && c.terminated_at) {
+                                          const termMonth = c.terminated_at.substring(0, 7);
+                                                      if (month > termMonth) continue;
+                            } else { continue; }
     // 에코 도급업체만 제외 (광고비 업체는 세금계산서 발행하므로 포함)
     if (c.subcontract_from === '에코오피스클린') continue;
 
