@@ -127,7 +127,7 @@ function openRequestDetail(requestId) {
 
     <div class="detail-section">
       <div class="detail-section-title">📍 업체</div>
-      <p style="font-size:14px;font-weight:600">${escapeHtml(company?.name || '알 수 없음'}</p>
+      <p style="font-size:14px;font-weight:600">${escapeHtml(company?.name || '알 수 없음')}</p>
       <p class="text-muted">${escapeHtml(company?.location || '')}</p>
     </div>
 
