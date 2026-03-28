@@ -42,9 +42,9 @@ function renderLeads(listOnly) {
         <div class="card lead-card" onclick="openLeadDetail('${l.id}')">
           <div class="card-header">
             <div>
-              <div class="card-title">${l.company_name}</div>
+              <div class="card-title">${escapeHtml(l.company_name)}</div>
               <div class="card-subtitle">
-                ${l.contact_name || ''} ${l.contact_phone ? '· ' + l.contact_phone : ''} · ${formatDate(l.created_at)}
+                ${escapeHtml(l.contact_name || '')} ${l.contact_phone ? '· ' + escapeHtml(l.contact_phone) : ''} · ${formatDate(l.created_at)}
               </div>
             </div>
             <span class="badge ${st.badge}">${st.label}</span>
@@ -52,8 +52,8 @@ function renderLeads(listOnly) {
           <div class="lead-card-info">
             ${displayAmount ? `<span class="info-chip">💰 ${fmt(displayAmount)}원</span>` : ''}
             ${wi.length > 0 ? `<span class="info-chip">📋 작업 ${wi.length}건</span>` : ''}
-            ${l.location ? `<span class="info-chip">📍 ${l.location}</span>` : ''}
-            ${l.assigned_to ? `<span class="info-chip">👤 ${getWorkerName(l.assigned_to)}</span>` : ''}
+            ${l.location ? `<span class="info-chip">📍 ${escapeHtml(l.location)}</span>` : ''}
+            ${l.assigned_to ? `<span class="info-chip">👤 ${escapeHtml(getWorkerName(l.assigned_to))}</span>` : ''}
             ${l.quote_date ? `<span class="info-chip" style="background:var(--green);color:#fff">📄 견적서 작성됨</span>` : ''}
           </div>
         </div>
@@ -108,7 +108,7 @@ function renderLeads(listOnly) {
 
     <div class="admin-filter-bar">
       <div class="search-box" style="flex:1;margin-bottom:0">
-        <input id="leadSearchInput" placeholder="업체명, 담당자, 위치 검색" value="${leadSearch}">
+        <input id="leadSearchInput" placeholder="업체명, 담당자, 위치 검색" value="${escapeHtml(leadSearch)}">
       </div>
       <select class="admin-area-select" onchange="leadFilter=this.value;leadDisplayCount=20;renderLeads()">
         <option value="all"${leadFilter === 'all' ? ' selected' : ''}>전체 상태</option>
@@ -153,21 +153,21 @@ function openLeadForm(leadId) {
 
     <div class="field">
       <label>업체명 *</label>
-      <input id="lCompanyName" value="${l.company_name || ''}" placeholder="업체명 입력">
+      <input id="lCompanyName" value="${escapeHtml(l.company_name || '')}" placeholder="업체명 입력">
     </div>
     <div class="admin-row-2">
       <div class="field">
         <label>담당자명</label>
-        <input id="lContact" value="${l.contact_name || ''}" placeholder="담당자명">
+        <input id="lContact" value="${escapeHtml(l.contact_name || '')}" placeholder="담당자명">
       </div>
       <div class="field">
         <label>연락처</label>
-        <input id="lPhone" value="${l.contact_phone || ''}" placeholder="010-0000-0000">
+        <input id="lPhone" value="${escapeHtml(l.contact_phone || '')}" placeholder="010-0000-0000">
       </div>
     </div>
     <div class="field">
       <label>위치</label>
-      <input id="lLocation" value="${l.location || ''}" placeholder="주소 입력">
+      <input id="lLocation" value="${escapeHtml(l.location || '')}" placeholder="주소 입력">
     </div>
 
     <!-- 작업내용 섹션 -->
@@ -192,12 +192,12 @@ function openLeadForm(leadId) {
       <label>담당 직원</label>
       <select id="lAssigned">
         <option value="">미지정</option>
-        ${workers.map(w => `<option value="${w.id}"${w.id === l.assigned_to ? ' selected' : ''}>${w.name}</option>`).join('')}
+        ${workers.map(w => `<option value="${w.id}"${w.id === l.assigned_to ? ' selected' : ''}>${escapeHtml(w.name)}</option>`).join('')}
       </select>
     </div>
     <div class="field">
       <label>메모</label>
-      <textarea id="lNotes" rows="3" placeholder="메모">${l.notes || ''}</textarea>
+      <textarea id="lNotes" rows="3" placeholder="메모">${escapeHtml(l.notes || '')}</textarea>
     </div>
 
     <button class="btn" onclick="saveLead('${leadId || ''}')">${isEdit ? '수정 저장' : '등록하기'}</button>
@@ -254,7 +254,7 @@ function renderLeadWorkItems() {
   container.innerHTML = leadWorkItems.map((item, idx) => `
     <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px">
       <span style="font-size:11px;color:var(--text-muted);min-width:20px">${idx + 1}</span>
-      <input class="lwi-desc" value="${(item.description || '').replace(/"/g, '&quot;')}" placeholder="작업내용"
+      <input class="lwi-desc" value="${escapeHtml(item.description || '')}" placeholder="작업내용"
              oninput="updateLeadWorkItem(${idx}, 'description', this.value)"
              style="flex:2;padding:6px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;background:rgba(255,255,255,0.05);color:var(--text-primary);font-size:13px">
       <input type="number" value="${item.amount || ''}" placeholder="금액"
@@ -343,17 +343,17 @@ function openLeadDetail(leadId) {
 
   const html = `
     <button class="modal-close" onclick="closeModal()">&times;</button>
-    <h3>${l.company_name}</h3>
+    <h3>${escapeHtml(l.company_name)}</h3>
 
     <div class="detail-section">
       <div class="admin-row-2">
         <div>
           <div class="stat-label">담당자</div>
-          <p class="text-muted">${l.contact_name || '-'} ${l.contact_phone || ''}</p>
+          <p class="text-muted">${escapeHtml(l.contact_name || '-')} ${escapeHtml(l.contact_phone || '')}</p>
         </div>
         <div>
           <div class="stat-label">위치</div>
-          <p class="text-muted">${l.location || '-'}</p>
+          <p class="text-muted">${escapeHtml(l.location || '-')}</p>
         </div>
       </div>
     </div>
@@ -388,7 +388,7 @@ function openLeadDetail(leadId) {
     ${l.assigned_to ? `
     <div class="detail-section">
       <div class="detail-section-title">담당 직원</div>
-      <p class="text-muted">${getWorkerName(l.assigned_to)}</p>
+      <p class="text-muted">${escapeHtml(getWorkerName(l.assigned_to))}</p>
     </div>
     ` : ''}
 
@@ -416,7 +416,7 @@ function openLeadDetail(leadId) {
           <p style="font-weight:700;color:var(--green)">${l.quote_amount ? fmt(l.quote_amount) + '원' : '-'}</p>
         </div>
       </div>
-      ${l.quote_frequency ? `<p class="text-muted" style="font-size:12px;margin-top:4px">규격: ${l.quote_spec || '-'} / 횟수: ${l.quote_frequency}</p>` : ''}
+      ${l.quote_frequency ? `<p class="text-muted" style="font-size:12px;margin-top:4px">규격: ${escapeHtml(l.quote_spec || '-')} / 횟수: ${escapeHtml(l.quote_frequency)}</p>` : ''}
     </div>
     ` : ''}
 
