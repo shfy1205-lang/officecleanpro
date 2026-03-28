@@ -4,6 +4,7 @@
 
 // 작업내용 임시 저장 배열
 let leadWorkItems = [];
+let _leadSearchDebounce = null; // 검색 debounce 타이머
 
 function renderLeads(listOnly) {
   const mc = $('mainContent');
@@ -116,8 +117,11 @@ function renderLeads(listOnly) {
 
   // 한글 IME 조합 방지 검색 바인딩
   bindSearchInput('leadSearchInput', (val) => {
-    leadSearch = val;
-    renderLeads(true);
+    clearTimeout(_leadSearchDebounce);
+    _leadSearchDebounce = setTimeout(() => {
+      leadSearch = val;
+      renderLeads(true);
+    }, 200);
   });
 }
 
