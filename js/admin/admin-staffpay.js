@@ -828,7 +828,7 @@ function renderAnalysis() {
       <h4>📋 미처리 요청 (${pendingRequests.length}건)</h4>
       <p>${pendingRequests.length > 0
         ? pendingRequests.slice(0, 5).map(r =>
-            `${escapeHtml(getCompanyName(r.company_id))}: ${escapeHtml(r.content.slice(0, 30)}${r.content.length > 30 ? '...' : ''}`
+            `${escapeHtml(getCompanyName(r.company_id))}: ${escapeHtml(r.content.slice(0, 30))}${r.content.length > 30 ? '...' : ''}`
           ).join(', ') + (pendingRequests.length > 5 ? ` 외 ${pendingRequests.length - 5}건` : '')
         : '모든 요청이 처리되었습니다.'}</p>
     </div>
