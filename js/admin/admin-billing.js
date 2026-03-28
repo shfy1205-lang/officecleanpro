@@ -202,8 +202,8 @@ function renderBillingOverview() {
                 const feeInfo = getFeeInfoText(r.meta);
                 return `<tr onclick="openCompanyDetail('${r.company.id}')" style="cursor:pointer">
                   <td>
-                    <div style="font-weight:600">${r.company.name}</div>
-                    <div class="text-muted" style="font-size:11px">${r.company.area_name || ''}</div>
+                    <div style="font-weight:600">${escapeHtml(r.company.name)}</div>
+                    <div class="text-muted" style="font-size:11px">${escapeHtml(r.company.area_name || '')}</div>
                   </td>
                   <td><span class="badge bo-badge-sub">도급</span></td>
                   <td>${r.contract > 0 ? fmt(r.contract) + '원' : '-'}</td>
@@ -263,8 +263,8 @@ function renderBillingOverview() {
                 const net = r.contract - r.workerPay - r.ocp;
                 return `<tr onclick="openCompanyDetail('${r.company.id}')" style="cursor:pointer">
                   <td>
-                    <div style="font-weight:600">${r.company.name}</div>
-                    <div class="text-muted" style="font-size:11px">${r.company.area_name || ''}</div>
+                    <div style="font-weight:600">${escapeHtml(r.company.name)}</div>
+                    <div class="text-muted" style="font-size:11px">${escapeHtml(r.company.area_name || '')}</div>
                   </td>
                   <td><span class="badge bo-badge-direct">직영</span></td>
                   <td>${r.contract > 0 ? fmt(r.contract) + '원' : '-'}</td>
@@ -318,9 +318,9 @@ function renderBillingOverviewCard(r, type) {
       <div class="bo-card-header">
         <div>
           <span class="badge ${badgeClass}" style="margin-right:6px">${badgeText}</span>
-          <strong>${r.company.name}</strong>
+          <strong>${escapeHtml(r.company.name)}</strong>
         </div>
-        <span class="text-muted" style="font-size:11px">${r.company.area_name || ''}</span>
+        <span class="text-muted" style="font-size:11px">${escapeHtml(r.company.area_name || '')}</span>
       </div>
       <div class="bo-card-body">
         <div class="bo-card-row">
@@ -400,7 +400,7 @@ function renderBillingMonthly(unpaidAll, totalUnpaid) {
             const bst = BILLING_STATUS_MAP[b.status] || BILLING_STATUS_MAP.pending;
             const unpaid = (b.billed_amount || 0) - (b.paid_amount || 0);
             return `<tr class="billing-row" onclick="openBillingDetail('${b.id}')" style="cursor:pointer">
-              <td>${getCompanyName(b.company_id)}</td>
+              <td>${escapeHtml(getCompanyName(b.company_id))}</td>
               <td><span class="badge ${bst.badge}">${bst.label}</span></td>
               <td>${fmt(b.billed_amount)}원</td>
               <td class="admin-pay-cell">${fmt(b.paid_amount)}원</td>
@@ -458,7 +458,7 @@ function renderBillingUnpaid(unpaidAll, totalUnpaid) {
           <tbody>${unpaidAll.map(b => {
             const unpaid = (b.billed_amount || 0) - (b.paid_amount || 0);
             return `<tr class="billing-row" onclick="openBillingDetail('${b.id}')" style="cursor:pointer">
-              <td>${getCompanyName(b.company_id)}</td>
+              <td>${escapeHtml(getCompanyName(b.company_id))}</td>
               <td>${b.month}</td>
               <td>${fmt(b.billed_amount)}원</td>
               <td class="admin-pay-cell">${fmt(b.paid_amount)}원</td>
@@ -516,7 +516,7 @@ function openBillingForm(billingId) {
       <select id="bCompany" ${isEdit ? 'disabled' : ''} onchange="onBillingCompanyChange()">
         <option value="">업체 선택</option>
         ${activeCompanies.map(c =>
-          `<option value="${c.id}"${c.id === b.company_id ? ' selected' : ''}>${c.name}</option>`
+          `<option value="${c.id}"${c.id === b.company_id ? ' selected' : ''}>${escapeHtml(c.name)}</option>`
         ).join('')}
       </select>
     </div>
@@ -560,7 +560,7 @@ function openBillingForm(billingId) {
     </div>
     <div class="field">
       <label>메모</label>
-      <textarea id="bMemo" rows="2" placeholder="메모">${b.memo || ''}</textarea>
+      <textarea id="bMemo" rows="2" placeholder="메모">${escapeHtml(b.memo || '')}</textarea>
     </div>
 
     <button class="btn" id="saveBillingBtn" onclick="saveBilling('${billingId || ''}')">${isEdit ? '수정 저장' : '등록하기'}</button>
@@ -694,7 +694,7 @@ function openBillingDetail(billingId) {
 
   const html = `
     <button class="modal-close" onclick="closeModal()">&times;</button>
-    <h3>${getCompanyName(b.company_id)} - ${b.month}</h3>
+    <h3>${escapeHtml(getCompanyName(b.company_id))} - ${b.month}</h3>
 
     <div class="detail-section">
       <div class="admin-row-2">
