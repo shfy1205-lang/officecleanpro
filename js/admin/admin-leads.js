@@ -5,6 +5,7 @@
 // 작업내용 임시 저장 배열
 let leadWorkItems = [];
 let _leadSearchDebounce = null; // 검색 debounce 타이머
+let leadDisplayCount = 20; // 페이지네이션 표시 개수
 
 function renderLeads(listOnly) {
   const mc = $('mainContent');
@@ -24,10 +25,15 @@ function renderLeads(listOnly) {
     );
   }
 
+  // 페이지네이션
+  const totalCount = list.length;
+  const displayList = list.slice(0, leadDisplayCount);
+  const hasMore = totalCount > leadDisplayCount;
+
   // 목록 HTML 생성
   const listHTML = `
-    <p class="text-muted" style="margin-bottom:12px">총 ${list.length}건</p>
-    ${list.length > 0 ? list.map(l => {
+    <p class="text-muted" style="margin-bottom:12px">총 ${totalCount}건${hasMore ? ` (표시 ${displayList.length}건)` : ""}</p>
+    ${list.length > 0 ? displayList.map(l => {
       const st = LEAD_STATUS_MAP[l.status] || LEAD_STATUS_MAP.new;
       const wi = l.work_items || [];
       const wiTotal = wi.reduce((s, item) => s + (item.amount || 0), 0);
@@ -52,7 +58,7 @@ function renderLeads(listOnly) {
           </div>
         </div>
       `;
-    }).join('') : `
+    }).join('') + (hasMore ? `\n      <div style="text-align:center;padding:16px 0"><button class="btn" onclick="loadMoreLeads()" style="background:transparent;border:1px solid var(--primary);color:var(--primary);width:100%;padding:10px;border-radius:8px;font-size:13px;cursor:pointer">더보기 (${displayList.length}/${totalCount})</button></div>` : '') : `
       <div class="empty-state">
         <div class="empty-icon">📊</div>
         <p>견적 데이터가 없습니다</p>
@@ -104,7 +110,7 @@ function renderLeads(listOnly) {
       <div class="search-box" style="flex:1;margin-bottom:0">
         <input id="leadSearchInput" placeholder="업체명, 담당자, 위치 검색" value="${leadSearch}">
       </div>
-      <select class="admin-area-select" onchange="leadFilter=this.value;renderLeads()">
+      <select class="admin-area-select" onchange="leadFilter=this.value;leadDisplayCount=20;renderLeads()">
         <option value="all"${leadFilter === 'all' ? ' selected' : ''}>전체 상태</option>
         ${Object.entries(LEAD_STATUS_MAP).map(([k, v]) =>
           `<option value="${k}"${leadFilter === k ? ' selected' : ''}>${v.label} (${statusCounts[k] || 0})</option>`
@@ -120,9 +126,15 @@ function renderLeads(listOnly) {
     clearTimeout(_leadSearchDebounce);
     _leadSearchDebounce = setTimeout(() => {
       leadSearch = val;
+      leadDisplayCount = 20;
       renderLeads(true);
     }, 200);
   });
+}
+
+function loadMoreLeads() {
+  leadDisplayCount += 20;
+  renderLeads(true);
 }
 
 function openLeadForm(leadId) {
