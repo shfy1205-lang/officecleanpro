@@ -707,6 +707,12 @@ function renderAreaSummary() {
 
   const areaMap = {};
   adminData.companies.forEach(c => {
+            if (c.status === 'paused') return;
+                    if (c.status === 'terminated') {
+                                  if (!c.terminated_at) return;
+                                              const termMonth = c.terminated_at.substring(0, 7);
+                                                          if (selectedMonth > termMonth) return;
+                    }
     const area = c.area_name || '기타';
     if (!areaMap[area]) areaMap[area] = { companies: 0, totalPay: 0 };
     areaMap[area].companies += 1;
