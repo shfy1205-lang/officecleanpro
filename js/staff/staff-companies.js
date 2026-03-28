@@ -35,7 +35,7 @@ function renderMyCompanies() {
   });
 
   Object.keys(groups).sort().forEach(area => {
-    html += `<div class="area-group-label">${area}</div>`;
+    html += `<div class="area-group-label">${escapeHtml(area)}</div>`;
     groups[area].forEach(({ assign, company }) => {
       const scheds = getCompanySchedules(company.id);
       const days = scheds.map(s => WEEKDAY_NAMES[s.weekday]).join(', ') || '-';
@@ -55,8 +55,8 @@ function renderMyCompanies() {
         <div class="card company-card" onclick="openCompanyDetail('${company.id}')">
           <div class="card-header">
             <div>
-              <div class="card-title">${company.name}</div>
-              <div class="card-subtitle">${company.location || ''}</div>
+              <div class="card-title">${escapeHtml(company.name)}</div>
+              <div class="card-subtitle">${escapeHtml(company.location || '')}</div>
             </div>
             <div style="display:flex;gap:4px;flex-wrap:wrap">
               ${qrReqCount > 0 ? `<span class="badge" style="background:#f97316;color:#fff;font-size:10px">업체요청 ${qrReqCount}</span>` : ''}
@@ -119,8 +119,8 @@ async function openCompanyDetail(companyId) {
 
   let html = `
     <button class="modal-close" onclick="closeModal()">&times;</button>
-    <h3>${company.name}</h3>
-    <div class="detail-location">${company.location || ''} ${company.area_name ? '· ' + company.area_name : ''}</div>
+    <h3>${escapeHtml(company.name)}</h3>
+    <div class="detail-location">${escapeHtml(company.location || '')} ${company.area_name ? '· ' + escapeHtml(company.area_name) : ''}</div>
 
     <!-- 청소 완료 버튼 -->
     ${isScheduledToday ? `
@@ -161,12 +161,12 @@ async function openCompanyDetail(companyId) {
       <div class="info-mini-card">
         <div class="info-mini-icon">🅿️</div>
         <div class="info-mini-title">주차 정보</div>
-        <textarea id="edit_parking_${companyId}" class="info-edit-textarea" placeholder="주차 정보 입력">${note?.parking_info || ''}</textarea>
+        <textarea id="edit_parking_${companyId}" class="info-edit-textarea" placeholder="주차 정보 입력">${escapeHtml(note?.parking_info || ''}</textarea>
       </div>
       <div class="info-mini-card">
         <div class="info-mini-icon">♻️</div>
         <div class="info-mini-title">분리수거장</div>
-        <textarea id="edit_recycling_${companyId}" class="info-edit-textarea" placeholder="분리수거장 위치 입력">${note?.recycling_location || ''}</textarea>
+        <textarea id="edit_recycling_${companyId}" class="info-edit-textarea" placeholder="분리수거장 위치 입력">${escapeHtml(note?.recycling_location || ''}</textarea>
       </div>
     </div>
     <button class="btn btn-blue" style="width:100%;margin-bottom:16px" onclick="saveNoteInfo('${companyId}', '${note?.id || ''}')">주차/분리수거 정보 저장</button>
@@ -176,7 +176,7 @@ async function openCompanyDetail(companyId) {
       <div class="detail-section-title">📢 업체 전달사항 <span class="text-muted" style="font-size:11px;font-weight:400">(QR 페이지에 표시)</span></div>
       <textarea id="edit_staffmsg_${companyId}" class="info-edit-textarea" rows="3"
                 placeholder="업체측에 전달할 사항을 입력하세요.&#10;(QR 페이지에서 업체가 확인할 수 있습니다)"
-                style="width:100%;margin-bottom:8px">${note?.staff_message || ''}</textarea>
+                style="width:100%;margin-bottom:8px">${escapeHtml(note?.staff_message || ''}</textarea>
       <button class="btn-sm btn-blue" style="width:100%" onclick="saveStaffMessage('${companyId}', '${note?.id || ''}')">전달사항 저장</button>
     </div>
 
@@ -196,7 +196,7 @@ async function openCompanyDetail(companyId) {
       <div class="detail-section-title">🔑 사무실 비밀번호</div>
       <div class="password-box" onclick="this.classList.toggle('revealed')">
         <span class="pw-hidden">탭하여 확인</span>
-        <span class="pw-text">${note.office_password}</span>
+        <span class="pw-text">${escapeHtml(note.office_password)}</span>
       </div>
     </div>
     ` : ''}
@@ -211,7 +211,7 @@ async function openCompanyDetail(companyId) {
         ? `<div class="photo-grid">${photos.map(p =>
             `<div class="photo-thumb" onclick="openLightbox('${getStorageUrl(p.storage_path)}', '${(p.caption || '').replace(/'/g, "\\'")}')">
               <img src="${getStorageUrl(p.storage_path)}" alt="${p.caption || '사진'}" loading="lazy">
-              ${p.caption ? `<div class="photo-thumb-caption">${p.caption}</div>` : ''}
+              ${p.caption ? `<div class="photo-thumb-caption">${escapeHtml(p.caption)}</div>` : ''}
             </div>`
           ).join('')}</div>`
         : '<p class="text-muted">등록된 사진이 없습니다.</p>'
@@ -228,7 +228,7 @@ async function openCompanyDetail(companyId) {
         const rDate = new Date(r.created_at).toLocaleDateString('ko-KR');
         const expDate = new Date(r.expires_at).toLocaleDateString('ko-KR');
         return `<div class="request-item" style="border-left:3px solid #f97316">
-          <div class="request-content">${r.content}</div>
+          <div class="request-content">${escapeHtml(r.content)}</div>
           ${r.photo_path ? `<div style="margin-top:6px;font-size:11px;color:var(--accent2)">📷 사진 ${r.photo_path.split(',').length}장 첨부</div>` : ''}
           <div class="request-meta">${rDate} · 만료: ${expDate}</div>
         </div>`;
@@ -247,7 +247,7 @@ async function openCompanyDetail(companyId) {
             const rDate = new Date(r.created_at).toLocaleDateString('ko-KR');
             const expDate = new Date(r.expires_at).toLocaleDateString('ko-KR');
             return `<div class="request-item">
-              <div class="request-content">${r.content}</div>
+              <div class="request-content">${escapeHtml(r.content)}</div>
               <div class="request-meta">${rDate} · 만료: ${expDate}</div>
             </div>`;
           }).join('')
