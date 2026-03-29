@@ -343,10 +343,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Sup// Supabase 초기화 (supabase.js 사용)
-  // Supif (!initFromStorage()) {
-  // Sup    showError();
-  // Sup    return;
-  // Sup}
+  // Supabase 초기화
+  try {
+      sb = window.supabase.createClient(DEFAULT_SUPA_URL, DEFAULT_SUPA_KEY);
+  } catch (e) {
+      showError();
+      return;
+  }
   // QR 토큰 검증 및 데이터 로드
   try {
     const { data, error } = await sb.rpc('validate_qr_token', {
