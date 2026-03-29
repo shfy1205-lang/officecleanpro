@@ -24,8 +24,8 @@ function getFreqLabel(freq) {
 
 // ─── 업체 계약금액 조회 ───
 function getCompanyContractAmount(companyId) {
-    const fin = (adminData.financials || []).find(f => f.company_id === companyId && f.month === selectedMonth);
-    return fin ? (fin.contract_amount || 0) : 0;
+    const company = adminData.companies.find(c => c.id === companyId);
+    return company ? (company.contract_amount || 0) : 0;
 }
 
 // ════════════════════════════════════════════════════
@@ -95,13 +95,6 @@ function renderAllClients(listOnly) {
     if (!_assignMap[a.company_id]) _assignMap[a.company_id] = [];
     _assignMap[a.company_id].push(a);
   });
-// selectedMonth 기준 계약금액 (카드와 상세 모달 금액 일치)
-    const _finMap = {};
-    adminData.financials.forEach(f => {
-        if (f.month === selectedMonth) {
-            _finMap[f.company_id] = f.contract_amount || 0;
-        }
-    });
 
   // 목록 HTML 생성
   const listHTML = `
@@ -119,7 +112,7 @@ function renderAllClients(listOnly) {
       const assigns = _assignMap[c.id] || [];
       const workers = assigns.map(a => getWorkerName(a.worker_id)).join(', ') || '미배정';
 
-      const contractAmt = _finMap[c.id] || 0;
+      const contractAmt = c.contract_amount || 0;
 
       const statusBadge = c.status === 'active'
         ? '<span class="badge badge-done">활성</span>'
@@ -266,7 +259,17 @@ function openCompanyForm(companyId) {
         <option value="에코광고비"${c.subcontract_from === '에코광고비' ? ' selected' : ''}>에코 광고비</option>
       </select>
     </div>
-    <div class="field">
+    <div class="admin-row-2">
+            <div class="field">
+                <label>계약금액 (원)</label>
+                <input id="fContractAmount" type="number" value="${c.contract_amount || 0}" placeholder="0">
+            </div>
+            <div class="field">
+                <label>청소 시작일</label>
+                <input id="fCleanStartDate" type="date" value="${c.clean_start_date || ''}">
+            </div>
+        </div>
+        <div class="field">
       <label>메모</label>
       <textarea id="fMemo" rows="2" placeholder="메모">${escapeHtml(c.memo || '')}</textarea>
     </div>
@@ -415,7 +418,7 @@ async function openCompanyDetail(companyId) {
 
   // 수수료 계산
   const fin = adminData.financials.find(f => f.company_id === companyId && f.month === selectedMonth);
-  const contractAmt = fin?.contract_amount || 0;
+  const contractAmt = c.contract_amount || 0;
   const ocpAmt = fin?.ocp_amount || 0;
   const ecoAmt = fin?.eco_amount || 0;
   const workerPay = assigns.reduce((s, a) => s + (a.pay_amount || 0), 0);
@@ -437,8 +440,7 @@ async function openCompanyDetail(companyId) {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px">
           <div style="font-size:11px;color:var(--text2);margin-bottom:4px">계약금액</div>
-          <input type="number" id="feeContract_${companyId}" value="${contractAmt}"
-                 style="width:100%;font-size:15px;font-weight:700;color:var(--primary);background:transparent;border:1px solid var(--border);border-radius:6px;padding:4px 8px;text-align:right">
+          <div style="font-size:15px;font-weight:700;color:var(--primary);padding:5px 8px;text-align:right">${fmt(contractAmt)}원</div>
         </div>
         <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px">
           <div style="font-size:11px;color:var(--text2);margin-bottom:4px">직원 지급 합계</div>
@@ -1029,9 +1031,10 @@ async function changeCompanyDetailMonth(month) {
 // ─── 수수료 저장 ───
 // ─── 계약금액 초과 검증 헬퍼 ───
 function getCompanyTotalCost(companyId, month) {
+    const company = adminData.companies.find(c => c.id === companyId);
   const fin = adminData.financials.find(f => f.company_id === companyId && f.month === month);
   const assigns = adminData.assignments.filter(a => a.company_id === companyId && a.month === month);
-  const contract = fin?.contract_amount || 0;
+  const contract = company?.contract_amount || 0;
   const ocp = fin?.ocp_amount || 0;
   const eco = fin?.eco_amount || 0;
   const workerPay = assigns.reduce((s, a) => s + (a.pay_amount || 0), 0);
@@ -1040,7 +1043,7 @@ function getCompanyTotalCost(companyId, month) {
 
 async function saveFeeInfo(companyId) {
   try {
-  const contractAmt = parseInt($(`feeContract_${companyId}`)?.value, 10) || 0;
+  const contractAmt = getCompanyContractAmount(companyId);
   const ocpAmt = parseInt($(`feeOcp_${companyId}`)?.value, 10) || 0;
   const ecoAmt = parseInt($(`feeEco_${companyId}`)?.value, 10) || 0;
 
