@@ -3,7 +3,12 @@
  * 업체 목록, 등록/수정/삭제, 상세 모달, 스케줄(빈도 포함), 배정, 주차/분리수거
  */
 
-let _openCompanyId = null; // 현재 열린 업체 상세 ID
+// ─── 업체관리 모듈 상태 (전역 오염 방지) ───
+const _comp = {
+  openId: null,
+  ecoFilter: 'all',
+  searchDebounce: null
+};
 
 // ─── 빈도 라벨 매핑 ───
 const FREQ_LABELS = {
@@ -16,8 +21,6 @@ function getFreqLabel(freq) {
 }
 
 // 에코 분류 필터 변수
-let clientEcoFilter = '';
-let _clientSearchDebounce = null; // 검색 debounce 타이머
 
 // ─── 업체 계약금액 조회 ───
 function getCompanyContractAmount(companyId) {
@@ -45,18 +48,18 @@ function renderAllClients(listOnly) {
     filtered = filtered.filter(c => c.area_name === clientAreaFilter);
   }
   // 해지/활성 분리
-  if (clientEcoFilter === 'terminated') {
+  if (_comp.ecoFilter === 'terminated') {
     filtered = filtered.filter(c => c.status === 'terminated');
   } else {
     // 해지 업체는 기본 목록에서 제외 (해지 탭에서만 표시)
     filtered = filtered.filter(c => c.status !== 'terminated');
 
     // 에코 분류 필터
-    if (clientEcoFilter === 'direct') {
+    if (_comp.ecoFilter === 'direct') {
       filtered = filtered.filter(c => !c.subcontract_from);
-    } else if (clientEcoFilter === 'eco_sub') {
+    } else if (_comp.ecoFilter === 'eco_sub') {
       filtered = filtered.filter(c => c.subcontract_from === '에코오피스클린');
-    } else if (clientEcoFilter === 'eco_ad') {
+    } else if (_comp.ecoFilter === 'eco_ad') {
       filtered = filtered.filter(c => c.subcontract_from === '에코광고비');
     }
   }
@@ -171,11 +174,11 @@ function renderAllClients(listOnly) {
 
     <!-- 에코 분류 탭 -->
     <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
-      <button class="btn-sm ${clientEcoFilter === '' ? 'btn-blue' : ''}" style="font-size:12px;padding:6px 14px;border-radius:20px;${clientEcoFilter === '' ? '' : 'background:var(--bg2);color:var(--text1);border:1px solid var(--border)'}" onclick="clientEcoFilter='';renderAllClients()">전체 (${activeCompanies.length})</button>
-      <button class="btn-sm ${clientEcoFilter === 'direct' ? 'btn-green' : ''}" style="font-size:12px;padding:6px 14px;border-radius:20px;${clientEcoFilter === 'direct' ? '' : 'background:var(--bg2);color:var(--text1);border:1px solid var(--border)'}" onclick="clientEcoFilter='direct';renderAllClients()">직영 (${directCount})</button>
-      <button class="btn-sm ${clientEcoFilter === 'eco_sub' ? '' : ''}" style="font-size:12px;padding:6px 14px;border-radius:20px;${clientEcoFilter === 'eco_sub' ? 'background:var(--orange);color:#fff' : 'background:var(--bg2);color:var(--text1);border:1px solid var(--border)'}" onclick="clientEcoFilter='eco_sub';renderAllClients()">에코 도급 (${ecoSubCount})</button>
-      <button class="btn-sm ${clientEcoFilter === 'eco_ad' ? '' : ''}" style="font-size:12px;padding:6px 14px;border-radius:20px;${clientEcoFilter === 'eco_ad' ? 'background:#8b5cf6;color:#fff' : 'background:var(--bg2);color:var(--text1);border:1px solid var(--border)'}" onclick="clientEcoFilter='eco_ad';renderAllClients()">에코 광고비 (${ecoAdCount})</button>
-      ${terminatedCount > 0 ? `<button class="btn-sm ${clientEcoFilter === 'terminated' ? '' : ''}" style="font-size:12px;padding:6px 14px;border-radius:20px;${clientEcoFilter === 'terminated' ? 'background:var(--red);color:#fff' : 'background:var(--bg2);color:var(--text1);border:1px solid var(--border)'}" onclick="clientEcoFilter='terminated';renderAllClients()">해지 (${terminatedCount})</button>` : ''}
+      <button class="btn-sm ${_comp.ecoFilter === '' ? 'btn-blue' : ''}" style="font-size:12px;padding:6px 14px;border-radius:20px;${_comp.ecoFilter === '' ? '' : 'background:var(--bg2);color:var(--text1);border:1px solid var(--border)'}" onclick="_comp.ecoFilter='';renderAllClients()">전체 (${activeCompanies.length})</button>
+      <button class="btn-sm ${_comp.ecoFilter === 'direct' ? 'btn-green' : ''}" style="font-size:12px;padding:6px 14px;border-radius:20px;${_comp.ecoFilter === 'direct' ? '' : 'background:var(--bg2);color:var(--text1);border:1px solid var(--border)'}" onclick="_comp.ecoFilter='direct';renderAllClients()">직영 (${directCount})</button>
+      <button class="btn-sm ${_comp.ecoFilter === 'eco_sub' ? '' : ''}" style="font-size:12px;padding:6px 14px;border-radius:20px;${_comp.ecoFilter === 'eco_sub' ? 'background:var(--orange);color:#fff' : 'background:var(--bg2);color:var(--text1);border:1px solid var(--border)'}" onclick="_comp.ecoFilter='eco_sub';renderAllClients()">에코 도급 (${ecoSubCount})</button>
+      <button class="btn-sm ${_comp.ecoFilter === 'eco_ad' ? '' : ''}" style="font-size:12px;padding:6px 14px;border-radius:20px;${_comp.ecoFilter === 'eco_ad' ? 'background:#8b5cf6;color:#fff' : 'background:var(--bg2);color:var(--text1);border:1px solid var(--border)'}" onclick="_comp.ecoFilter='eco_ad';renderAllClients()">에코 광고비 (${ecoAdCount})</button>
+      ${terminatedCount > 0 ? `<button class="btn-sm ${_comp.ecoFilter === 'terminated' ? '' : ''}" style="font-size:12px;padding:6px 14px;border-radius:20px;${_comp.ecoFilter === 'terminated' ? 'background:var(--red);color:#fff' : 'background:var(--bg2);color:var(--text1);border:1px solid var(--border)'}" onclick="_comp.ecoFilter='terminated';renderAllClients()">해지 (${terminatedCount})</button>` : ''}
     </div>
 
     <div class="admin-filter-bar">
@@ -193,8 +196,8 @@ function renderAllClients(listOnly) {
 
   // 한글 IME 조합 방지 검색 바인딩
   bindSearchInput('clientSearchInput', (val) => {
-    clearTimeout(_clientSearchDebounce);
-    _clientSearchDebounce = setTimeout(() => {
+    clearTimeout(_comp.searchDebounce);
+    _comp.searchDebounce = setTimeout(() => {
       clientSearch = val;
       renderAllClients(true);
     }, 200);
@@ -400,7 +403,7 @@ async function saveAdminNoteInfo(companyId, noteId) {
 async function openCompanyDetail(companyId) {
   const c = adminData.companies.find(x => x.id === companyId);
   if (!c) return;
-  _openCompanyId = companyId;
+  _comp.openId = companyId;
 
   const scheds = getCompanySchedules(companyId);
   const assigns = getCompanyAssignments(companyId, selectedMonth);
@@ -1018,7 +1021,7 @@ async function changeCompanyDetailMonth(month) {
   try {
   selectedMonth = month;
   await ensureMonthData(month);
-  if (_openCompanyId) openCompanyDetail(_openCompanyId);
+  if (_comp.openId) openCompanyDetail(_comp.openId);
 
   } catch (e) {
     console.error('changeCompanyDetailMonth error:', e);
