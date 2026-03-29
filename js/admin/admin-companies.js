@@ -24,8 +24,8 @@ function getFreqLabel(freq) {
 
 // ─── 업체 계약금액 조회 ───
 function getCompanyContractAmount(companyId) {
-  const fins = (adminData.financials || []).filter(f => f.company_id === companyId && f.contract_amount > 0);
-  return fins.length > 0 ? Math.max(...fins.map(f => f.contract_amount)) : 0;
+    const fin = (adminData.financials || []).find(f => f.company_id === companyId && f.month === selectedMonth);
+    return fin ? (fin.contract_amount || 0) : 0;
 }
 
 // ════════════════════════════════════════════════════
@@ -95,14 +95,13 @@ function renderAllClients(listOnly) {
     if (!_assignMap[a.company_id]) _assignMap[a.company_id] = [];
     _assignMap[a.company_id].push(a);
   });
-  const _finMaxMap = {};
-  adminData.financials.forEach(f => {
-    if (f.contract_amount > 0) {
-      if (!_finMaxMap[f.company_id] || f.contract_amount > _finMaxMap[f.company_id]) {
-        _finMaxMap[f.company_id] = f.contract_amount;
-      }
-    }
-  });
+// selectedMonth 기준 계약금액 (카드와 상세 모달 금액 일치)
+    const _finMap = {};
+    adminData.financials.forEach(f => {
+        if (f.month === selectedMonth) {
+            _finMap[f.company_id] = f.contract_amount || 0;
+        }
+    });
 
   // 목록 HTML 생성
   const listHTML = `
@@ -120,7 +119,7 @@ function renderAllClients(listOnly) {
       const assigns = _assignMap[c.id] || [];
       const workers = assigns.map(a => getWorkerName(a.worker_id)).join(', ') || '미배정';
 
-      const contractAmt = _finMaxMap[c.id] || 0;
+      const contractAmt = _finMap[c.id] || 0;
 
       const statusBadge = c.status === 'active'
         ? '<span class="badge badge-done">활성</span>'
