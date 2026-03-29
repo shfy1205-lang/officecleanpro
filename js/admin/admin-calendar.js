@@ -15,6 +15,7 @@ let calFilterStatus = '';
 // ─── 데이터 로드 ───
 
 async function loadCalendarTasks() {
+  try {
   const startDate = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-01`;
   const lastDay = new Date(calYear, calMonth + 1, 0).getDate();
   const endDate = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
@@ -31,7 +32,11 @@ async function loadCalendarTasks() {
     return;
   }
   calTasks = data || [];
-}
+
+  } catch (e) {
+    console.error('loadCalendarTasks error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 // ─── 상태 판별 ───
 
