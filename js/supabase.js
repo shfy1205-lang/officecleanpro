@@ -95,7 +95,7 @@ function isEcoUser() {
  */
 async function logout() {
   if (sb) {
-    try { await sb.auth.signOut(); } catch (e) { /* ignore */ }
+    try { await Promise.race([sb.auth.signOut(), new Promise(r => setTimeout(r, 3000))]); } catch (e) { /* ignore */ }
   }
   currentUser = null;
   currentWorker = null;
@@ -123,7 +123,7 @@ async function requireAuth(requiredRole) {
   const remember = localStorage.getItem('ocp_remember');
   const sessionActive = sessionStorage.getItem('ocp_session_active');
   if (remember !== 'true' && !sessionActive) {
-    try { await sb.auth.signOut(); } catch (e) { /* ignore */ }
+    try { await Promise.race([sb.auth.signOut(), new Promise(r => setTimeout(r, 3000))]); } catch (e) { /* ignore */ }
     location.href = 'index.html';
     return false;
   }
