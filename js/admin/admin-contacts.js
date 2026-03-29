@@ -417,6 +417,7 @@ function changeContactMonth(month) {
 // ════════════════════════════════════════════════════
 
 async function autoCreateBillings() {
+  try {
   const monthFin = adminData.financials.filter(f => f.month === contactMonth);
   const existingIds = new Set(
     adminData.billings.filter(b => b.month === contactMonth).map(b => b.company_id)
@@ -448,7 +449,11 @@ async function autoCreateBillings() {
   if (data) adminData.billings.push(...data);
   toast(`${data.length}건 정산 자동생성 완료`);
   renderContacts();
-}
+
+  } catch (e) {
+    console.error('autoCreateBillings error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 
 // ════════════════════════════════════════════════════
@@ -456,6 +461,7 @@ async function autoCreateBillings() {
 // ════════════════════════════════════════════════════
 
 async function toggleInvoice(companyId, checked) {
+  try {
   const b = adminData.billings.find(x => x.company_id === companyId && x.month === contactMonth);
   if (!b) return toast('정산 데이터가 없습니다', 'error');
 
@@ -488,7 +494,11 @@ async function toggleInvoice(companyId, checked) {
 
   toast(checked ? '계산서 발행 처리' : '계산서 발행 취소');
   renderContacts(true);
-}
+
+  } catch (e) {
+    console.error('toggleInvoice error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 
 // ════════════════════════════════════════════════════
@@ -496,6 +506,7 @@ async function toggleInvoice(companyId, checked) {
 // ════════════════════════════════════════════════════
 
 async function togglePayment(companyId, checked) {
+  try {
   const b = adminData.billings.find(x => x.company_id === companyId && x.month === contactMonth);
   if (!b) return toast('정산 데이터가 없습니다', 'error');
 
@@ -532,7 +543,11 @@ async function togglePayment(companyId, checked) {
 
   toast(checked ? '입금 완료 처리' : '입금 취소');
   renderContacts(true);
-}
+
+  } catch (e) {
+    console.error('togglePayment error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 
 // ════════════════════════════════════════════════════
@@ -540,6 +555,7 @@ async function togglePayment(companyId, checked) {
 // ════════════════════════════════════════════════════
 
 async function saveContact(companyId, isMobile) {
+  try {
   const prefix = isMobile ? '_m_' : '_';
   const contactName  = document.getElementById('ct_name' + prefix + companyId)?.value?.trim() || '';
   const contactPhone = document.getElementById('ct_phone' + prefix + companyId)?.value?.trim() || '';
@@ -570,7 +586,11 @@ async function saveContact(companyId, isMobile) {
   c.business_number = bizNumber;
 
   toast('저장 완료');
-}
+
+  } catch (e) {
+    console.error('saveContact error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 
 // ════════════════════════════════════════════════════
