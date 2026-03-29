@@ -4,13 +4,16 @@
  */
 
 /* ─── 설정값 ─── */
-const BILLING_CHECK_START_MONTH = '2026-03';
+// ─── 미발행/미납 알림 모듈 상태 (전역 오염 방지) ───
+const _alert = {
+  CHECK_START_MONTH: '2026-03',
+  month: '',
+  statusFilter: 'all',
+  companySearch: '',
+  cache: {}
+};
 
 /* ─── 경고 탭 상태 ─── */
-let alertMonth = '';        // '' = 전체
-let alertStatusFilter = ''; // '' | 'unissued' | 'unpaid' | 'partial' | 'overdue' | 'done'
-let alertCompanySearch = '';
-let alertCache = [];        // 가공된 경고 목록 캐시
 
 /* ─── 상태 판정 ─── */
 function getAlertStatus(b) {
@@ -53,10 +56,10 @@ const ALERT_STATUS_MAP = {
 
 /* ─── 데이터 가공 ─── */
 function buildAlertData() {
-  // BILLING_CHECK_START_MONTH 이후 데이터만 필터
-  const records = adminData.billings.filter(b => b.month >= BILLING_CHECK_START_MONTH);
+  // _alert.CHECK_START_MONTH 이후 데이터만 필터
+  const records = adminData.billings.filter(b => b.month >= _alert.CHECK_START_MONTH);
 
-  alertCache = records.map(b => {
+  _alert.cache = records.map(b => {
     const status = getAlertStatus(b);
     const billedAmt = b.billed_amount || 0;
     const paidAmt   = b.paid_amount || 0;
@@ -79,7 +82,7 @@ function buildAlertData() {
 
   // 정렬: 미발행/장기미수 우선, 그 다음 월 역순
   const order = { overdue: 0, unissued: 1, unpaid: 2, partial: 3, done: 4 };
-  alertCache.sort((a, b) => {
+  _alert.cache.sort((a, b) => {
     const diff = (order[a.alertStatus] ?? 9) - (order[b.alertStatus] ?? 9);
     if (diff !== 0) return diff;
     return b.month.localeCompare(a.month);
@@ -88,18 +91,18 @@ function buildAlertData() {
 
 /* ─── 필터 적용 ─── */
 function getFilteredAlerts() {
-  let list = alertCache;
+  let list = _alert.cache;
 
-  if (alertMonth) {
-    list = list.filter(d => d.month === alertMonth);
+  if (_alert.month) {
+    list = list.filter(d => d.month === _alert.month);
   }
 
-  if (alertStatusFilter) {
-    list = list.filter(d => d.alertStatus === alertStatusFilter);
+  if (_alert.statusFilter) {
+    list = list.filter(d => d.alertStatus === _alert.statusFilter);
   }
 
-  if (alertCompanySearch) {
-    const q = alertCompanySearch.toLowerCase();
+  if (_alert.companySearch) {
+    const q = _alert.companySearch.toLowerCase();
     list = list.filter(d => d.companyName.toLowerCase().includes(q));
   }
 
@@ -108,7 +111,7 @@ function getFilteredAlerts() {
 
 /* ─── 요약 통계 (필터 무시, 전체 기준) ─── */
 function getAlertSummary() {
-  const all = alertCache;
+  const all = _alert.cache;
   const unissued = all.filter(d => d.alertStatus === 'unissued').length;
   const unpaid = all.filter(d => d.alertStatus === 'unpaid' || d.alertStatus === 'partial').length;
   const totalOutstanding = all.filter(d => d.alertStatus !== 'done')
@@ -130,7 +133,7 @@ function renderBillingAlertHTML(listOnly) {
 
   // 결과 목록 HTML 생성
   const listHTML = `
-    <div class="ba-result-count">${filtered.length}건 ${alertMonth || alertStatusFilter || alertCompanySearch ? '(필터 적용됨)' : ''}</div>
+    <div class="ba-result-count">${filtered.length}건 ${_alert.month || _alert.statusFilter || _alert.companySearch ? '(필터 적용됨)' : ''}</div>
 
     ${filtered.length > 0 ? `
       <!-- PC 테이블 -->
@@ -220,7 +223,7 @@ function renderBillingAlertHTML(listOnly) {
     ` : `
       <div class="empty-state">
         <div class="empty-icon">✅</div>
-        <p>${alertMonth || alertStatusFilter || alertCompanySearch
+        <p>${_alert.month || _alert.statusFilter || _alert.companySearch
           ? '해당 조건의 경고가 없습니다'
           : '경고 대상 데이터가 없습니다'}</p>
       </div>
@@ -235,19 +238,19 @@ function renderBillingAlertHTML(listOnly) {
 
   // 전체 렌더
   const summary = getAlertSummary();
-  const months = [...new Set(alertCache.map(d => d.month))].sort().reverse();
+  const months = [...new Set(_alert.cache.map(d => d.month))].sort().reverse();
 
   mc.innerHTML = `
     <div class="section-title">미입금 / 미발행 경고</div>
 
     <!-- 요약 카드 4개 -->
     <div class="stats-grid-4 ba-cards">
-      <div class="stat-card ba-stat${alertStatusFilter === 'unissued' ? ' active' : ''}"
+      <div class="stat-card ba-stat${_alert.statusFilter === 'unissued' ? ' active' : ''}"
            onclick="filterAlertByCard('unissued')">
         <div class="stat-label">미발행 세금계산서</div>
         <div class="stat-value yellow">${summary.unissued}<span class="ba-unit">건</span></div>
       </div>
-      <div class="stat-card ba-stat${alertStatusFilter === 'unpaid' ? ' active' : ''}"
+      <div class="stat-card ba-stat${_alert.statusFilter === 'unpaid' ? ' active' : ''}"
            onclick="filterAlertByCard('unpaid')">
         <div class="stat-label">미입금 업체</div>
         <div class="stat-value red">${summary.unpaid}<span class="ba-unit">건</span></div>
@@ -256,7 +259,7 @@ function renderBillingAlertHTML(listOnly) {
         <div class="stat-label">미수금 합계</div>
         <div class="stat-value red">${fmt(summary.totalOutstanding)}<span class="ba-unit">원</span></div>
       </div>
-      <div class="stat-card ba-stat${alertStatusFilter === 'overdue' ? ' active' : ''}"
+      <div class="stat-card ba-stat${_alert.statusFilter === 'overdue' ? ' active' : ''}"
            onclick="filterAlertByCard('overdue')">
         <div class="stat-label">30일+ 장기미수</div>
         <div class="stat-value orange">${summary.overdue}<span class="ba-unit">건</span></div>
@@ -267,19 +270,19 @@ function renderBillingAlertHTML(listOnly) {
     <div class="ba-filter-bar">
       <select class="ba-filter-select" onchange="changeAlertMonth(this.value)">
         <option value="">전체 월</option>
-        ${months.map(m => `<option value="${m}"${m === alertMonth ? ' selected' : ''}>${m.split('-')[1]}월 (${m})</option>`).join('')}
+        ${months.map(m => `<option value="${m}"${m === _alert.month ? ' selected' : ''}>${m.split('-')[1]}월 (${m})</option>`).join('')}
       </select>
       <select class="ba-filter-select" onchange="changeAlertStatus(this.value)">
         <option value="">전체 상태</option>
-        <option value="unissued"${alertStatusFilter === 'unissued' ? ' selected' : ''}>미발행</option>
-        <option value="unpaid"${alertStatusFilter === 'unpaid' ? ' selected' : ''}>미입금</option>
-        <option value="partial"${alertStatusFilter === 'partial' ? ' selected' : ''}>부분입금</option>
-        <option value="overdue"${alertStatusFilter === 'overdue' ? ' selected' : ''}>장기미수</option>
-        <option value="done"${alertStatusFilter === 'done' ? ' selected' : ''}>완료</option>
+        <option value="unissued"${_alert.statusFilter === 'unissued' ? ' selected' : ''}>미발행</option>
+        <option value="unpaid"${_alert.statusFilter === 'unpaid' ? ' selected' : ''}>미입금</option>
+        <option value="partial"${_alert.statusFilter === 'partial' ? ' selected' : ''}>부분입금</option>
+        <option value="overdue"${_alert.statusFilter === 'overdue' ? ' selected' : ''}>장기미수</option>
+        <option value="done"${_alert.statusFilter === 'done' ? ' selected' : ''}>완료</option>
       </select>
       <div class="ba-search-wrap">
         <input id="alertSearchInput" class="ba-search-input" type="text" placeholder="업체명 검색"
-               value="${escapeHtml(alertCompanySearch)}">
+               value="${escapeHtml(_alert.companySearch)}">
       </div>
     </div>
 
@@ -288,28 +291,28 @@ function renderBillingAlertHTML(listOnly) {
 
   // 한글 IME 조합 방지 검색 바인딩
   bindSearchInput('alertSearchInput', (val) => {
-    alertCompanySearch = val.trim();
+    _alert.companySearch = val.trim();
     renderBillingAlertHTML(true);
   });
 }
 
 /* ─── 필터 핸들러 ─── */
 function filterAlertByCard(status) {
-  alertStatusFilter = (alertStatusFilter === status) ? '' : status;
+  _alert.statusFilter = (_alert.statusFilter === status) ? '' : status;
   renderBillingAlertHTML();
 }
 
 function changeAlertMonth(month) {
-  alertMonth = month;
+  _alert.month = month;
   renderBillingAlertHTML();
 }
 
 function changeAlertStatus(status) {
-  alertStatusFilter = status;
+  _alert.statusFilter = status;
   renderBillingAlertHTML();
 }
 
 function changeAlertSearch(query) {
-  alertCompanySearch = query.trim();
+  _alert.companySearch = query.trim();
   renderBillingAlertHTML();
 }
