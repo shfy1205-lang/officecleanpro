@@ -262,6 +262,7 @@ async function openCompanyDetail(companyId) {
 
 // ─── 전달사항 저장 ───
 async function saveStaffMessage(companyId, noteId) {
+  try {
   const message = $('edit_staffmsg_' + companyId)?.value?.trim() || '';
 
   if (noteId) {
@@ -277,9 +278,14 @@ async function saveStaffMessage(companyId, noteId) {
 
   toast('전달사항 저장 완료');
   await loadStaffData();
-}
+
+  } catch (e) {
+    console.error('saveStaffMessage error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 async function saveNoteInfo(companyId, noteId) {
+  try {
   const parking = $('edit_parking_' + companyId)?.value?.trim() || '';
   const recycling = $('edit_recycling_' + companyId)?.value?.trim() || '';
   const payload = { parking_info: parking, recycling_location: recycling };
@@ -294,7 +300,11 @@ async function saveNoteInfo(companyId, noteId) {
   }
   toast('저장 완료');
   await loadStaffData();
-}
+
+  } catch (e) {
+    console.error('saveNoteInfo error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 
 // ════════════════════════════════════════════════════
