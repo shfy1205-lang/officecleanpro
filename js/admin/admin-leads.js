@@ -3,9 +3,12 @@
  */
 
 // 작업내용 임시 저장 배열
-let leadWorkItems = [];
-let _leadSearchDebounce = null; // 검색 debounce 타이머
-let leadDisplayCount = 20; // 페이지네이션 표시 개수
+// ─── 리드관리 모듈 상태 (전역 오염 방지) ───
+const _lead = {
+  workItems: [],
+  searchDebounce: null,
+  displayCount: 20
+};
 
 function renderLeads(listOnly) {
   const mc = $('mainContent');
@@ -27,8 +30,8 @@ function renderLeads(listOnly) {
 
   // 페이지네이션
   const totalCount = list.length;
-  const displayList = list.slice(0, leadDisplayCount);
-  const hasMore = totalCount > leadDisplayCount;
+  const displayList = list.slice(0, _lead.displayCount);
+  const hasMore = totalCount > _lead.displayCount;
 
   // 목록 HTML 생성
   const listHTML = `
@@ -110,7 +113,7 @@ function renderLeads(listOnly) {
       <div class="search-box" style="flex:1;margin-bottom:0">
         <input id="leadSearchInput" placeholder="업체명, 담당자, 위치 검색" value="${escapeHtml(leadSearch)}">
       </div>
-      <select class="admin-area-select" onchange="leadFilter=this.value;leadDisplayCount=20;renderLeads()">
+      <select class="admin-area-select" onchange="leadFilter=this.value;_lead.displayCount=20;renderLeads()">
         <option value="all"${leadFilter === 'all' ? ' selected' : ''}>전체 상태</option>
         ${Object.entries(LEAD_STATUS_MAP).map(([k, v]) =>
           `<option value="${k}"${leadFilter === k ? ' selected' : ''}>${v.label} (${statusCounts[k] || 0})</option>`
@@ -123,17 +126,17 @@ function renderLeads(listOnly) {
 
   // 한글 IME 조합 방지 검색 바인딩
   bindSearchInput('leadSearchInput', (val) => {
-    clearTimeout(_leadSearchDebounce);
-    _leadSearchDebounce = setTimeout(() => {
+    clearTimeout(_lead.searchDebounce);
+    _lead.searchDebounce = setTimeout(() => {
       leadSearch = val;
-      leadDisplayCount = 20;
+      _lead.displayCount = 20;
       renderLeads(true);
     }, 200);
   });
 }
 
 function loadMoreLeads() {
-  leadDisplayCount += 20;
+  _lead.displayCount += 20;
   renderLeads(true);
 }
 
@@ -143,7 +146,7 @@ function openLeadForm(leadId) {
   const workers = getActiveWorkers();
 
   // 작업내용 초기화
-  leadWorkItems = (l.work_items && l.work_items.length > 0)
+  _lead.workItems = (l.work_items && l.work_items.length > 0)
     ? JSON.parse(JSON.stringify(l.work_items))
     : [];
 
@@ -210,7 +213,7 @@ function openLeadForm(leadId) {
 }
 
 function addLeadWorkItem() {
-  leadWorkItems.push({ description: '', amount: 0 });
+  _lead.workItems.push({ description: '', amount: 0 });
   renderLeadWorkItems();
   // 새로 추가된 항목의 작업내용 input에 포커스
   setTimeout(() => {
@@ -220,16 +223,16 @@ function addLeadWorkItem() {
 }
 
 function removeLeadWorkItem(idx) {
-  leadWorkItems.splice(idx, 1);
+  _lead.workItems.splice(idx, 1);
   renderLeadWorkItems();
 }
 
 function updateLeadWorkItem(idx, field, value) {
-  if (!leadWorkItems[idx]) return;
+  if (!_lead.workItems[idx]) return;
   if (field === 'amount') {
-    leadWorkItems[idx].amount = parseInt(value) || 0;
+    _lead.workItems[idx].amount = parseInt(value) || 0;
   } else {
-    leadWorkItems[idx].description = value;
+    _lead.workItems[idx].description = value;
   }
   updateLeadWorkItemsTotal();
 }
@@ -237,7 +240,7 @@ function updateLeadWorkItem(idx, field, value) {
 function updateLeadWorkItemsTotal() {
   const totalEl = document.getElementById('leadWorkItemsTotal');
   if (!totalEl) return;
-  const total = leadWorkItems.reduce((s, item) => s + (item.amount || 0), 0);
+  const total = _lead.workItems.reduce((s, item) => s + (item.amount || 0), 0);
   totalEl.textContent = total > 0 ? `합계: ${fmt(total)}원` : '';
 }
 
@@ -245,13 +248,13 @@ function renderLeadWorkItems() {
   const container = document.getElementById('leadWorkItemsList');
   if (!container) return;
 
-  if (leadWorkItems.length === 0) {
+  if (_lead.workItems.length === 0) {
     container.innerHTML = '<p class="text-muted" style="font-size:12px;text-align:center;padding:12px 0">항목 추가 버튼을 눌러 작업내용을 입력하세요</p>';
     updateLeadWorkItemsTotal();
     return;
   }
 
-  container.innerHTML = leadWorkItems.map((item, idx) => `
+  container.innerHTML = _lead.workItems.map((item, idx) => `
     <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px">
       <span style="font-size:11px;color:var(--text-muted);min-width:20px">${idx + 1}</span>
       <input class="lwi-desc" value="${escapeHtml(item.description || '')}" placeholder="작업내용"
@@ -274,7 +277,7 @@ async function saveLead(leadId) {
   if (!companyName) return toast('업체명을 입력하세요', 'error');
 
   // 작업내용에서 빈 항목 제거 후 합계 계산
-  const validWorkItems = leadWorkItems.filter(item => item.description.trim() || item.amount > 0);
+  const validWorkItems = _lead.workItems.filter(item => item.description.trim() || item.amount > 0);
   const wiTotal = validWorkItems.reduce((s, item) => s + (item.amount || 0), 0);
 
   const payload = {
