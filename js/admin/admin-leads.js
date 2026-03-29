@@ -269,6 +269,7 @@ function renderLeadWorkItems() {
 }
 
 async function saveLead(leadId) {
+  try {
   const companyName = $('lCompanyName').value.trim();
   if (!companyName) return toast('업체명을 입력하세요', 'error');
 
@@ -301,7 +302,11 @@ async function saveLead(leadId) {
   closeModal();
   await loadAdminData();
   renderLeads();
-}
+
+  } catch (e) {
+    console.error('saveLead error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 function openLeadDetail(leadId) {
   const l = adminData.leads.find(x => x.id === leadId);
@@ -436,6 +441,7 @@ function openLeadDetail(leadId) {
 }
 
 async function updateLeadStatus(leadId, status) {
+  try {
   const { error } = await sb.from('leads')
     .update({ status })
     .eq('id', leadId);
@@ -447,9 +453,14 @@ async function updateLeadStatus(leadId, status) {
 
   toast(`상태: ${LEAD_STATUS_MAP[status].label}`);
   openLeadDetail(leadId);
-}
+
+  } catch (e) {
+    console.error('updateLeadStatus error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 async function deleteLead(leadId) {
+  try {
   if (!confirm('이 견적을 삭제하시겠습니까?')) return;
 
   const { error } = await sb.from('leads').delete().eq('id', leadId);
@@ -459,7 +470,11 @@ async function deleteLead(leadId) {
   closeModal();
   await loadAdminData();
   renderLeads();
-}
+
+  } catch (e) {
+    console.error('deleteLead error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 // ═══ 견적관리 → 견적서 연동 ═══
 function goToQuoteFromLead(leadId) {
