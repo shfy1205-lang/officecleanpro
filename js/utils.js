@@ -250,7 +250,7 @@ async function viewOfficePassword(companyId, noteId) {
 
   // 이미 표시 중이면 토글 (숨기기)
   if (container.dataset.revealed === 'true') {
-    container.innerHTML = `<button class="btn-pw-view" onclick="viewOfficePassword('${companyId}', '${noteId}')">🔑 비밀번호 보기</button>`;
+    container.innerHTML = `<button class="btn-pw-view" onclick="viewOfficePassword('${escapeHtml(companyId)}', '${escapeHtml(noteId)}')">🔑 비밀번호 보기</button>`;
     container.dataset.revealed = 'false';
     return;
   }
@@ -281,7 +281,7 @@ async function viewOfficePassword(companyId, noteId) {
     // 비밀번호 표시 (HTML 이스케이프 적용)
     const escaped = escapeHtml(data.office_password);
     container.innerHTML = `
-      <div class="pw-revealed" onclick="viewOfficePassword('${companyId}', '${noteId}')">
+      <div class="pw-revealed" onclick="viewOfficePassword('${escapeHtml(companyId)}', '${escapeHtml(noteId)}')">
         <span class="pw-text-visible">${escaped}</span>
         <span class="pw-tap-hint">탭하여 숨기기</span>
       </div>
