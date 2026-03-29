@@ -189,7 +189,7 @@ function toggleSettings() {
 
   // 현재 저장된 값 표시
   $('supaUrl').value =
-    localStorage.getItem('supa_url') || 'https://gcbgzfrffekgcaktspyj.supabase.co';
+    localStorage.getItem('supa_url') || DEFAULT_SUPA_URL;
   $('supaKey').value =
     localStorage.getItem('supa_key') || '';
 }
