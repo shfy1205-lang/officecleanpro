@@ -885,8 +885,7 @@ async function updatePayAmount(assignId, value) {
 // ════════════════════════════════════════════════════
 
 function getQrUrl(companyId, token) {
-  const base = window.location.origin + window.location.pathname.replace('admin.html', '');
-  return `${base}site-company.html?company=${companyId}&token=${token}`;
+    return `https://officecleanpro.com/site-company.html?company=${companyId}&token=${token}`;
 }
 
 async function generateQrToken(companyId) {
