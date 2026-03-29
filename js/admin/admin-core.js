@@ -21,16 +21,27 @@ let pendingQuoteLead = null; // 견적관리 → 견적서 연동용
 // ─── 초기화 ───
 
 document.addEventListener('DOMContentLoaded', async () => {
+    const msgEl = document.getElementById('loadingMsg');
     try {
+        if (msgEl) msgEl.textContent = '인증 확인 중...';
         const ok = await requireAuth('admin');
         if (!ok) return;
+
+        if (msgEl) msgEl.textContent = '데이터 로딩 중...';
         selectedMonth = currentMonth();
         billingMonth = currentMonth();
         revenueMonth = currentMonth();
         $('userName').textContent = currentWorker.name;
+
+        // loadAdminData에 10초 타임아웃
+        await Promise.race([
+            loadAdminData(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('데이터 로딩 시간 초과')), 10000))
+        ]);
+
         $('loading').classList.add('hidden');
         $('app').style.display = 'block';
-        await loadAdminData();
+
         // 에코 사용자: 에코관리 탭만 표시
         if (isEcoUser()) {
             setupEcoOnlyView();
@@ -39,7 +50,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderDashboard();
     } catch (e) {
         console.error('Admin init error:', e);
-        var msgEl = document.getElementById('loadingMsg');
         if (msgEl) {
             msgEl.innerHTML = '초기화 오류: ' + (e.message || '알 수 없음') + '<br><a href="index.html" style="color:#60a5fa">로그인 페이지로 이동</a>';
         }
