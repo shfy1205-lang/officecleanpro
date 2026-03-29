@@ -290,6 +290,7 @@ async function saveCompany(companyId) {
 }
 
 async function _saveCompanyInner(companyId) {
+  try {
   const name = $('fName').value.trim();
   if (!name) return toast('업체명을 입력하세요', 'error');
 
@@ -335,9 +336,14 @@ async function _saveCompanyInner(companyId) {
   closeModal();
   await loadAdminData();
   renderAllClients();
-}
+
+  } catch (e) {
+    console.error('_saveCompanyInner error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 async function deleteCompany(companyId) {
+  try {
   if (!confirm('이 업체를 삭제하시겠습니까? 관련 데이터가 모두 삭제됩니다.')) return;
 
   // 관련 데이터 먼저 삭제 (FK cascade가 없을 수 있으므로)
@@ -354,7 +360,11 @@ async function deleteCompany(companyId) {
   closeModal();
   await loadAdminData();
   renderAllClients();
-}
+
+  } catch (e) {
+    console.error('deleteCompany error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 
 // ════════════════════════════════════════════════════
@@ -366,6 +376,7 @@ function getCompanyNote(companyId) {
 }
 
 async function saveAdminNoteInfo(companyId, noteId) {
+  try {
   const parking = document.getElementById('admin_parking_' + companyId)?.value?.trim() || '';
   const recycling = document.getElementById('admin_recycling_' + companyId)?.value?.trim() || '';
   const payload = { parking_info: parking, recycling_location: recycling };
@@ -380,7 +391,11 @@ async function saveAdminNoteInfo(companyId, noteId) {
   }
   toast('저장 완료');
   await loadAdminData();
-}
+
+  } catch (e) {
+    console.error('saveAdminNoteInfo error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 async function openCompanyDetail(companyId) {
   const c = adminData.companies.find(x => x.id === companyId);
@@ -612,6 +627,7 @@ function onFreqChange(companyId, freq) {
 // ════════════════════════════════════════════════════
 
 async function toggleWeekday(companyId, weekday, btn) {
+  try {
   const isActive = btn.classList.contains('active');
   const companyName = getCompanyName(companyId);
   const dayName = WEEKDAY_NAMES[weekday];
@@ -678,12 +694,17 @@ async function toggleWeekday(companyId, weekday, btn) {
   }
 
   toast('요일 변경됨');
-}
+
+  } catch (e) {
+    console.error('toggleWeekday error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 /**
  * 시간 + 빈도 + anchor_date를 모든 활성 스케줄에 일괄 저장
  */
 async function saveScheduleSettings(companyId) {
+  try {
   const startTime = $(`schedStart_${companyId}`).value || null;
   const endTime = $(`schedEnd_${companyId}`).value || null;
   const freqSelect = $(`freqSelect_${companyId}`);
@@ -732,7 +753,11 @@ async function saveScheduleSettings(companyId) {
   }
 
   toast('스케줄 설정 저장됨');
-}
+
+  } catch (e) {
+    console.error('saveScheduleSettings error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 // 기존 saveScheduleTimes는 saveScheduleSettings로 대체
 async function saveScheduleTimes(companyId) {
@@ -745,6 +770,7 @@ async function saveScheduleTimes(companyId) {
 // ════════════════════════════════════════════════════
 
 async function addAssignment(companyId) {
+  try {
   const workerId = $(`newWorker_${companyId}`).value;
   const payAmount = parseInt($(`newPay_${companyId}`).value, 10) || 0;
 
@@ -773,9 +799,14 @@ async function addAssignment(companyId) {
   adminData.assignments.push(data);
   toast('배정 완료');
   await openCompanyDetail(companyId);
-}
+
+  } catch (e) {
+    console.error('addAssignment error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 async function removeAssignment(assignId, companyId) {
+  try {
   if (!confirm('이 배정을 삭제하시겠습니까?')) return;
 
   // 변경 이력용 이전 데이터
@@ -795,9 +826,14 @@ async function removeAssignment(assignId, companyId) {
   adminData.assignments = adminData.assignments.filter(a => a.id !== assignId);
   toast('배정 삭제됨');
   await openCompanyDetail(companyId);
-}
+
+  } catch (e) {
+    console.error('removeAssignment error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 async function updatePayAmount(assignId, value) {
+  try {
   const payAmount = parseInt(value, 10) || 0;
   if (payAmount < 0) return toast('지급액은 0 이상이어야 합니다', 'error');
   if (payAmount > 99999999) return toast('지급액이 너무 큽니다', 'error');
@@ -834,7 +870,11 @@ async function updatePayAmount(assignId, value) {
   if (local) local.pay_amount = payAmount;
 
   toast('지급액 수정됨');
-}
+
+  } catch (e) {
+    console.error('updatePayAmount error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 
 // ════════════════════════════════════════════════════
@@ -847,6 +887,7 @@ function getQrUrl(companyId, token) {
 }
 
 async function generateQrToken(companyId) {
+  try {
   const token = crypto.randomUUID();
   const { error } = await sb.from('companies')
     .update({ qr_token: token })
@@ -859,12 +900,21 @@ async function generateQrToken(companyId) {
 
   toast('QR 토큰 생성 완료');
   await openCompanyDetail(companyId);
-}
+
+  } catch (e) {
+    console.error('generateQrToken error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 async function regenerateQrToken(companyId) {
+  try {
   if (!confirm('QR 토큰을 재생성하면 기존 QR 코드가 무효화됩니다. 계속하시겠습니까?')) return;
   await generateQrToken(companyId);
-}
+
+  } catch (e) {
+    console.error('regenerateQrToken error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 function copyQrUrl(companyId, token) {
   const url = getQrUrl(companyId, token);
@@ -965,10 +1015,15 @@ function downloadQrCode(companyId, token) {
 
 // ─── 업체 상세 월 전환 ───
 async function changeCompanyDetailMonth(month) {
+  try {
   selectedMonth = month;
   await ensureMonthData(month);
   if (_openCompanyId) openCompanyDetail(_openCompanyId);
-}
+
+  } catch (e) {
+    console.error('changeCompanyDetailMonth error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 // ─── 수수료 저장 ───
 // ─── 계약금액 초과 검증 헬퍼 ───
@@ -983,6 +1038,7 @@ function getCompanyTotalCost(companyId, month) {
 }
 
 async function saveFeeInfo(companyId) {
+  try {
   const contractAmt = parseInt($(`feeContract_${companyId}`)?.value, 10) || 0;
   const ocpAmt = parseInt($(`feeOcp_${companyId}`)?.value, 10) || 0;
   const ecoAmt = parseInt($(`feeEco_${companyId}`)?.value, 10) || 0;
@@ -1023,4 +1079,8 @@ async function saveFeeInfo(companyId) {
   toast('수수료 저장 완료');
   await loadAdminData();
   openCompanyDetail(companyId);
-}
+
+  } catch (e) {
+    console.error('saveFeeInfo error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
