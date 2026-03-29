@@ -330,6 +330,21 @@ window.addEventListener('resize', function() {
 /**
  * HTML 이스케이프 (XSS 방지)
  */
+// ════════════════════════════════════════════════════
+// 전역 비동기 에러 핸들러 (안전망)
+// ════════════════════════════════════════════════════
+/**
+ * 모든 미처리 Promise rejection을 잡아서 에러 토스트를 표시
+ * 개별 try/catch가 없는 async 함수에서 발생한 에러도 처리
+ */
+window.addEventListener('unhandledrejection', function(event) {
+  console.error('Unhandled async error:', event.reason);
+  if (typeof toast === 'function') {
+    toast('오류가 발생했습니다. 잠시 후 다시 시도해주세요.', 'error');
+  }
+  event.preventDefault();
+});
+
 function escapeHtml(text) {
   if (!text) return '';
   const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
