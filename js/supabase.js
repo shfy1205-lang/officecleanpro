@@ -53,30 +53,35 @@ function initFromStorage() {
  * @returns {Object|null} { user, worker } 또는 null
  */
 async function loadSession() {
-  if (!sb) return null;
+    if (!sb) return null;
+    try {
+        // 5초 타임아웃: getSession
+        const sessionResult = await Promise.race([
+            sb.auth.getSession(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('getSession timeout')), 5000))
+        ]);
+        const { data: { session }, error: sessionErr } = sessionResult;
+        if (sessionErr || !session) return null;
 
-  try {
-    const { data: { session }, error: sessionErr } = await sb.auth.getSession();
-    if (sessionErr || !session) return null;
+        currentUser = session.user;
 
-    currentUser = session.user;
+        // 5초 타임아웃: workers 쿼리
+        const workerResult = await Promise.race([
+            sb.from('workers').select('*').eq('auth_user_id', currentUser.id).single(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('worker query timeout')), 5000))
+        ]);
+        const { data: worker, error: workerErr } = workerResult;
+        if (workerErr || !worker) {
+            console.error('Worker profile not found:', workerErr?.message);
+            return null;
+        }
 
-    const { data: worker, error: workerErr } = await sb.from('workers')
-      .select('*')
-      .eq('auth_user_id', currentUser.id)
-      .single();
-
-    if (workerErr || !worker) {
-      console.error('Worker profile not found:', workerErr?.message);
-      return null;
+        currentWorker = worker;
+        return { user: currentUser, worker: currentWorker };
+    } catch (e) {
+        console.error('loadSession error:', e);
+        return null;
     }
-
-    currentWorker = worker;
-    return { user: currentUser, worker: currentWorker };
-  } catch (e) {
-    console.error('loadSession error:', e);
-    return null;
-  }
 }
 
 /**
