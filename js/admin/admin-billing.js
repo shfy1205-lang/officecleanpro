@@ -484,10 +484,15 @@ function renderBillingUnpaid(unpaidAll, totalUnpaid) {
    ═══════════════════════════════════════════════════ */
 
 async function changeBillingMonth(month) {
+  try {
   billingMonth = month;
   await ensureMonthData(month);
   renderBilling();
-}
+
+  } catch (e) {
+    console.error('changeBillingMonth error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 
 /* ═══════════════════════════════════════════════════
@@ -602,6 +607,7 @@ async function saveBilling(billingId) {
 }
 
 async function _saveBillingInner(billingId) {
+  try {
   const companyId = $('bCompany').value;
   const month = $('bMonth').value;
 
@@ -683,7 +689,11 @@ async function _saveBillingInner(billingId) {
   closeModal();
   await loadAdminData();
   renderBilling();
-}
+
+  } catch (e) {
+    console.error('_saveBillingInner error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 function openBillingDetail(billingId) {
   const b = adminData.billings.find(x => x.id === billingId);
@@ -777,6 +787,7 @@ function openBillingDetail(billingId) {
 }
 
 async function deleteBilling(billingId) {
+  try {
   if (!confirm('이 정산 기록을 삭제하시겠습니까?')) return;
 
   const oldBilling = adminData.billings.find(x => x.id === billingId);
@@ -797,4 +808,8 @@ async function deleteBilling(billingId) {
   closeModal();
   await loadAdminData();
   renderBilling();
-}
+
+  } catch (e) {
+    console.error('deleteBilling error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
