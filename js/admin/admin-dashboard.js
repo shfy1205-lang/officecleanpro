@@ -47,6 +47,7 @@ function isScheduleActiveOnDate(schedule, dateStr) {
 
 // ─── 오늘 청소 데이터 로드 ───
 async function loadTodayCleaning(dateStr) {
+  try {
   const { data: tasks, error } = await sb.from('tasks')
     .select('*')
     .eq('task_date', dateStr);
@@ -107,7 +108,11 @@ async function loadTodayCleaning(dateStr) {
 
   todayCleaningCache = result;
   return result;
-}
+
+  } catch (e) {
+    console.error('loadTodayCleaning error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 // ─── 최근 변경이력 로드 (대시보드용) ───
 async function loadDashRecentLogs() {
@@ -192,6 +197,7 @@ function getDashPendingRequests() {
 // ═══════════════════════════════════════════════════════
 
 async function generateTodayTasks() {
+  try {
   const dateStr = todayDate || today();
   const d = new Date(dateStr + 'T00:00:00');
   const weekday = d.getDay();
@@ -296,7 +302,11 @@ async function generateTodayTasks() {
   } else {
     toast('새로 생성할 일정이 없습니다', 'info');
   }
-}
+
+  } catch (e) {
+    console.error('generateTodayTasks error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 // ─── 일별 생성 결과 HTML ───
 function buildAutoGenResultHTML() {
@@ -397,6 +407,7 @@ async function generateMonthlyTasks() {
 }
 
 async function _doGenerateMonthlyTasks(month) {
+  try {
   const [year, mon] = month.split('-').map(Number);
   const daysInMonth = new Date(year, mon, 0).getDate();
   const allDates = [];
@@ -548,9 +559,14 @@ async function _doGenerateMonthlyTasks(month) {
   if (todayDate && todayDate.startsWith(month)) {
     await loadTodayCleaning(todayDate);
   }
-}
+
+  } catch (e) {
+    console.error('_doGenerateMonthlyTasks error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 async function _generateMonthlyBillings(month) {
+  try {
   const monthFin = adminData.financials.filter(f => f.month === month);
   if (monthFin.length === 0) return 0;
 
@@ -590,7 +606,11 @@ async function _generateMonthlyBillings(month) {
 
   if (data) adminData.billings.push(...data);
   return data?.length || 0;
-}
+
+  } catch (e) {
+    console.error('_generateMonthlyBillings error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 function buildMonthGenResultHTML() {
   if (!monthGenResult) return '';
@@ -660,6 +680,7 @@ function closeMonthGenResult() {
 // ═══════════════════════════════════════════════════════
 
 async function renderDashboard() {
+  try {
   if (!todayDate) todayDate = today();
   if (!monthGenMonth) monthGenMonth = currentMonth();
   await Promise.all([
@@ -670,7 +691,11 @@ async function renderDashboard() {
 
   // ── 자동 월 일정 생성 (백그라운드) ──
   autoGenerateMonthlyIfNeeded();
-}
+
+  } catch (e) {
+    console.error('renderDashboard error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 /**
  * 대시보드 로드 시 현재 월 + 다음 월 일정을 자동 생성 (중복 방지)
@@ -711,6 +736,7 @@ async function autoGenerateMonthlyIfNeeded() {
  * 자동 생성 전용 — UI 상태 변경 없이 조용히 생성
  */
 async function _doAutoGenerateMonth(month) {
+  try {
   const [year, mon] = month.split('-').map(Number);
   const daysInMonth = new Date(year, mon, 0).getDate();
   const allDates = [];
@@ -826,7 +852,11 @@ async function _doAutoGenerateMonth(month) {
   await _generateMonthlyBillings(month);
 
   return { created, duplicated, inactiveSkipped, noWorkerSkipped };
-}
+
+  } catch (e) {
+    console.error('_doAutoGenerateMonth error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 function renderDashboardHTML() {
   const mc = $('mainContent');
@@ -1138,13 +1168,18 @@ function buildTodayCards(data) {
 
 // ─── 필터 이벤트 핸들러 ───
 async function changeTodayDate(dateStr) {
+  try {
   todayDate = dateStr;
   todayWorkerFilter = '';
   todayStatusFilter = 'all';
   autoGenResult = null;
   await loadTodayCleaning(todayDate);
   renderDashboardHTML();
-}
+
+  } catch (e) {
+    console.error('changeTodayDate error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 function changeTodayWorker(workerId) {
   todayWorkerFilter = workerId;
@@ -1162,10 +1197,15 @@ function filterTodayStatus(status) {
 }
 
 async function changeDashMonth(month) {
+  try {
   selectedMonth = month;
   await ensureMonthData(month);
   renderDashboardHTML();
-}
+
+  } catch (e) {
+    console.error('changeDashMonth error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 
 // ═══════════════════════════════════════════════════════
@@ -1194,6 +1234,7 @@ async function saveGenerationLog(info) {
 }
 
 async function renderScheduleLog() {
+  try {
   const mc = $('mainContent');
   mc.innerHTML = '<div class="empty-state"><div class="spinner" style="width:30px;height:30px;border-width:3px"></div><p>로그를 불러오는 중...</p></div>';
 
@@ -1285,5 +1326,9 @@ async function renderScheduleLog() {
 
     <p class="text-muted" style="margin-top:8px;font-size:11px">최근 50건까지 표시됩니다.</p>
   `;
-}
+
+  } catch (e) {
+    console.error('renderScheduleLog error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 1
