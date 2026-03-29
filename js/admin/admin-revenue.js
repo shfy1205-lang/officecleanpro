@@ -215,10 +215,15 @@ function renderRevenue() {
 }
 
 async function changeRevenueMonth(month) {
+  try {
   revenueMonth = month;
   await ensureMonthData(month);
   renderRevenue();
-}
+
+  } catch (e) {
+    console.error('changeRevenueMonth error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 function openRevenueForm(companyId) {
   const c = adminData.companies.find(x => x.id === companyId);
@@ -405,6 +410,7 @@ async function saveRevenue(companyId) {
 }
 
 async function _saveRevenueInner(companyId) {
+  try {
   const contract = parseInt($('rvContract').value, 10) || 0;
   if (contract <= 0) return toast('계약 금액을 입력하세요', 'error');
   if (contract > 999999999) return toast('계약 금액이 너무 큽니다 (최대 9억)', 'error');
@@ -476,4 +482,8 @@ async function _saveRevenueInner(companyId) {
   closeModal();
   await loadAdminData();
   renderRevenue();
-}
+
+  } catch (e) {
+    console.error('_saveRevenueInner error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
