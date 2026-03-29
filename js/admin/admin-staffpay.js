@@ -266,6 +266,7 @@ function renderStaffPay() {
 
 /** 개별 직원 급여 확정/해제 토글 */
 async function togglePayConfirm(workerId) {
+  try {
   const month = selectedMonth;
   const current = isPayConfirmed(workerId, month);
 
@@ -306,10 +307,15 @@ async function togglePayConfirm(workerId) {
   }
 
   renderStaffPay();
-}
+
+  } catch (e) {
+    console.error('togglePayConfirm error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 /** 전체 확정 */
 async function confirmAllPay() {
+  try {
   const month = selectedMonth;
   const { rows } = calcStaffPayData(month);
   const unconfirmed = rows.filter(r => !isPayConfirmed(r.workerId, month));
@@ -341,10 +347,15 @@ async function confirmAllPay() {
 
   toast(`${unconfirmed.length}명 급여 전체 확정됨`);
   renderStaffPay();
-}
+
+  } catch (e) {
+    console.error('confirmAllPay error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 /** 전체 해제 */
 async function unconfirmAllPay() {
+  try {
   const month = selectedMonth;
   const { rows } = calcStaffPayData(month);
   const confirmedRows = rows.filter(r => isPayConfirmed(r.workerId, month));
@@ -369,7 +380,11 @@ async function unconfirmAllPay() {
 
   toast(`${confirmedRows.length}명 급여 확정 해제됨`);
   renderStaffPay();
-}
+
+  } catch (e) {
+    console.error('unconfirmAllPay error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 /** 직원별 상세 모달: 업체별 급여 내역 + 3.3% + 금액 수정 + 확정 상태 + 명세서 다운로드 */
 function openStaffPayDetail(workerId) {
@@ -485,6 +500,7 @@ function openStaffPayDetail(workerId) {
 
 /** 업체별 지급금액 저장 */
 async function savePayAmount(assignId, workerId) {
+  try {
   const input = $('editPay_' + assignId);
   if (!input) return;
   const newPay = parseInt(input.value, 10) || 0;
@@ -518,13 +534,22 @@ async function savePayAmount(assignId, workerId) {
 
   // 모달 갱신 (새 합계 반영)
   openStaffPayDetail(workerId);
-}
+
+  } catch (e) {
+    console.error('savePayAmount error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 async function changePayMonth(month) {
+  try {
   selectedMonth = month;
   await ensureMonthData(month);
   renderStaffPay();
-}
+
+  } catch (e) {
+    console.error('changePayMonth error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 
 // ════════════════════════════════════════════════════
