@@ -20,7 +20,7 @@ let pendingQuoteLead = null; // 견적관리 → 견적서 연동용
 
 // ─── 초기화 ───
 
-document.addEventListener('DOMContentLoaded', async () => {
+async function initAdmin() {
     const msgEl = document.getElementById('loadingMsg');
     try {
         if (msgEl) msgEl.textContent = '인증 확인 중...';
@@ -54,7 +54,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             msgEl.innerHTML = '초기화 오류: ' + (e.message || '알 수 없음') + '<br><a href="index.html" style="color:#60a5fa">로그인 페이지로 이동</a>';
         }
     }
-});
+}
+
+// DOMContentLoaded가 이미 지나갔을 수도 있으므로 readyState 체크
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initAdmin);
+} else {
+    initAdmin();
+}
 
 // ─── 데이터 로드 ───
 
