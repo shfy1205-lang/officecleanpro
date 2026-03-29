@@ -5,29 +5,32 @@
  * 빈도 지원: weekly(매주), biweekly(격주) — anchor_date 기반
  */
 
+// ─── 대시보드 모듈 상태 (전역 오염 방지) ───
+const _dash = {
+  todayDate: '',
+  todayWorkerFilter: '',
+  todayStatusFilter: 'all',
+  todayCleaningCache: null,
+  autoGenResult: null,
+  monthGenResult: null,
+  monthGenMonth: '',
+  monthGenBusy: false,
+  _autoGenDoneMonths: new Set(),
+  _recentLogs: [],
+  BILLING_START: '2026-03'
+};
 // ─── 오늘 청소 현황 상태 ───
-let todayDate = '';
-let todayWorkerFilter = '';
-let todayStatusFilter = 'all';
-let todayCleaningCache = null;
 
 // ─── 자동 일정 생성 상태 ───
-let autoGenResult = null;
-let monthGenResult = null;
-let monthGenMonth = '';
-let monthGenBusy = false;
 
 // ─── 자동 월 일정 생성 추적 (이미 생성된 월 기억) ───
-let _autoGenDoneMonths = new Set();
 
 // ─── 대시보드 추가 캐시 ───
-let _dashRecentLogs = [];
 
 // ─── 미입금/미발행 체크 시작월 ───
 // 성능 최적화: company lookup map 빌더
 function _dashCompanyMap() { const map = {}; adminData.companies.forEach(c => map[c.id] = c); return map; }
 
-const DASH_BILLING_START = '2026-03';
 
 // ═══════════════════════════════════════════════════════
 //  빈도 관련 유틸리티
@@ -106,7 +109,7 @@ async function loadTodayCleaning(dateStr) {
     };
   }).filter(Boolean);
 
-  todayCleaningCache = result;
+  _dash.todayCleaningCache = result;
   return result;
 
   } catch (e) {
@@ -121,7 +124,7 @@ async function loadDashRecentLogs() {
       .select('*')
       .order('changed_at', { ascending: false })
       .limit(5);
-    if (!error && data) _dashRecentLogs = data;
+    if (!error && data) _dash._recentLogs = data;
   } catch (e) {
     console.error('loadDashRecentLogs error:', e);
   }
@@ -129,18 +132,18 @@ async function loadDashRecentLogs() {
 
 // ─── 필터 적용 ───
 function getFilteredCleaning() {
-  if (!todayCleaningCache) return [];
-  let data = todayCleaningCache;
+  if (!_dash.todayCleaningCache) return [];
+  let data = _dash.todayCleaningCache;
 
-  if (todayWorkerFilter) {
-    data = data.filter(d => d.workerIds.includes(todayWorkerFilter));
+  if (_dash.todayWorkerFilter) {
+    data = data.filter(d => d.workerIds.includes(_dash.todayWorkerFilter));
   }
 
-  if (todayStatusFilter === 'completed') {
+  if (_dash.todayStatusFilter === 'completed') {
     data = data.filter(d => d.status === 'completed');
-  } else if (todayStatusFilter === 'incomplete') {
+  } else if (_dash.todayStatusFilter === 'incomplete') {
     data = data.filter(d => d.status === 'incomplete');
-  } else if (todayStatusFilter === 'problem') {
+  } else if (_dash.todayStatusFilter === 'problem') {
     data = data.filter(d => d.hasProblem);
   }
 
@@ -149,7 +152,7 @@ function getFilteredCleaning() {
 
 // ─── 미입금/미발행 데이터 집계 (3월~) ───
 function getDashBillingAlerts() {
-  const records = adminData.billings.filter(b => b.month >= DASH_BILLING_START);
+  const records = adminData.billings.filter(b => b.month >= _dash.BILLING_START);
 
   const unpaid = records.filter(b => !b.paid_at);
   const unissued = records.filter(b => !b.billed_at);
@@ -198,7 +201,7 @@ function getDashPendingRequests() {
 
 async function generateTodayTasks() {
   try {
-  const dateStr = todayDate || today();
+  const dateStr = _dash.todayDate || today();
   const d = new Date(dateStr + 'T00:00:00');
   const weekday = d.getDay();
   const month = dateStr.substring(0, 7);
@@ -214,7 +217,7 @@ async function generateTodayTasks() {
   const matchedSchedules = adminData.schedules.filter(s => isScheduleActiveOnDate(s, dateStr));
 
   if (matchedSchedules.length === 0) {
-    autoGenResult = { created: 0, duplicated: 0, inactiveSkipped: 0, noWorkerSkipped: 0, list: [], dateStr, dayName };
+    _dash.autoGenResult = { created: 0, duplicated: 0, inactiveSkipped: 0, noWorkerSkipped: 0, list: [], dateStr, dayName };
     renderDashboardHTML();
     toast(`${dayName}요일에 예정된 스케줄이 없습니다`, 'info');
     return;
@@ -292,7 +295,7 @@ async function generateTodayTasks() {
     excluded_no_worker: noWorkerSkipped,
   });
 
-  autoGenResult = { created, duplicated, inactiveSkipped, noWorkerSkipped, list: createdList, dateStr, dayName };
+  _dash.autoGenResult = { created, duplicated, inactiveSkipped, noWorkerSkipped, list: createdList, dateStr, dayName };
 
   await loadTodayCleaning(dateStr);
   renderDashboardHTML();
@@ -310,8 +313,8 @@ async function generateTodayTasks() {
 
 // ─── 일별 생성 결과 HTML ───
 function buildAutoGenResultHTML() {
-  if (!autoGenResult) return '';
-  const r = autoGenResult;
+  if (!_dash.autoGenResult) return '';
+  const r = _dash.autoGenResult;
   const hasResult = r.created > 0 || r.duplicated > 0 || r.inactiveSkipped > 0 || r.noWorkerSkipped > 0;
   if (!hasResult) return '';
 
@@ -365,7 +368,7 @@ function buildAutoGenResultHTML() {
 }
 
 function closeAutoGenResult() {
-  autoGenResult = null;
+  _dash.autoGenResult = null;
   renderDashboardHTML();
 }
 
@@ -375,7 +378,7 @@ function closeAutoGenResult() {
 // ═══════════════════════════════════════════════════════
 
 async function generateMonthlyTasks() {
-  if (monthGenBusy) return;
+  if (_dash.monthGenBusy) return;
 
   const monthInput = $('monthGenInput');
   if (!monthInput) return;
@@ -385,9 +388,9 @@ async function generateMonthlyTasks() {
     return;
   }
 
-  monthGenBusy = true;
-  monthGenMonth = month;
-  monthGenResult = null;
+  _dash.monthGenBusy = true;
+  _dash.monthGenMonth = month;
+  _dash.monthGenResult = null;
 
   const btn = $('monthGenBtn');
   if (btn) {
@@ -401,7 +404,7 @@ async function generateMonthlyTasks() {
     console.error('generateMonthlyTasks error:', e);
     toast('월 일정 생성 중 오류 발생', 'error');
   } finally {
-    monthGenBusy = false;
+    _dash.monthGenBusy = false;
     renderDashboardHTML();
   }
 }
@@ -419,7 +422,7 @@ async function _doGenerateMonthlyTasks(month) {
 
   const activeSchedules = adminData.schedules.filter(s => s.is_active);
   if (activeSchedules.length === 0) {
-    monthGenResult = { month, created: 0, duplicated: 0, inactiveSkipped: 0, noWorkerSkipped: 0, totalDates: daysInMonth, list: [] };
+    _dash.monthGenResult = { month, created: 0, duplicated: 0, inactiveSkipped: 0, noWorkerSkipped: 0, totalDates: daysInMonth, list: [] };
     toast('활성 스케줄이 없습니다', 'info');
     return;
   }
@@ -524,7 +527,7 @@ async function _doGenerateMonthlyTasks(month) {
     if (insertErr) {
       toast(`일정 생성 실패 (${i}~${i + batch.length}): ` + insertErr.message, 'error');
       created += i;
-      monthGenResult = { month, created, duplicated, inactiveSkipped, noWorkerSkipped, totalDates: daysInMonth, list: createdList, totalCreated: toInsert.length, error: true };
+      _dash.monthGenResult = { month, created, duplicated, inactiveSkipped, noWorkerSkipped, totalDates: daysInMonth, list: createdList, totalCreated: toInsert.length, error: true };
       return;
     }
   }
@@ -539,7 +542,7 @@ async function _doGenerateMonthlyTasks(month) {
     excluded_no_worker: noWorkerSkipped,
   });
 
-  monthGenResult = {
+  _dash.monthGenResult = {
     month, created, duplicated, inactiveSkipped, noWorkerSkipped,
     totalDates: daysInMonth, list: createdList, totalCreated: created, error: false,
   };
@@ -556,8 +559,8 @@ async function _doGenerateMonthlyTasks(month) {
     toast('새로 생성할 일정이 없습니다', 'info');
   }
 
-  if (todayDate && todayDate.startsWith(month)) {
-    await loadTodayCleaning(todayDate);
+  if (_dash.todayDate && _dash.todayDate.startsWith(month)) {
+    await loadTodayCleaning(_dash.todayDate);
   }
 
   } catch (e) {
@@ -613,8 +616,8 @@ async function _generateMonthlyBillings(month) {
   }}
 
 function buildMonthGenResultHTML() {
-  if (!monthGenResult) return '';
-  const r = monthGenResult;
+  if (!_dash.monthGenResult) return '';
+  const r = _dash.monthGenResult;
   const hasResult = r.created > 0 || r.duplicated > 0 || r.inactiveSkipped > 0 || r.noWorkerSkipped > 0;
   if (!hasResult) return '';
 
@@ -670,7 +673,7 @@ function buildMonthGenResultHTML() {
 }
 
 function closeMonthGenResult() {
-  monthGenResult = null;
+  _dash.monthGenResult = null;
   renderDashboardHTML();
 }
 
@@ -681,10 +684,10 @@ function closeMonthGenResult() {
 
 async function renderDashboard() {
   try {
-  if (!todayDate) todayDate = today();
-  if (!monthGenMonth) monthGenMonth = currentMonth();
+  if (!_dash.todayDate) _dash.todayDate = today();
+  if (!_dash.monthGenMonth) _dash.monthGenMonth = currentMonth();
   await Promise.all([
-    loadTodayCleaning(todayDate),
+    loadTodayCleaning(_dash.todayDate),
     loadDashRecentLogs(),
   ]);
   renderDashboardHTML();
@@ -712,8 +715,8 @@ async function autoGenerateMonthlyIfNeeded() {
   const targets = [cur, next];
 
   for (const month of targets) {
-    if (_autoGenDoneMonths.has(month)) continue;
-    _autoGenDoneMonths.add(month);
+    if (_dash._autoGenDoneMonths.has(month)) continue;
+    _dash._autoGenDoneMonths.add(month);
 
     try {
       await ensureMonthData(month);
@@ -721,8 +724,8 @@ async function autoGenerateMonthlyIfNeeded() {
       if (result && result.created > 0) {
         toast(`${month} 일정 ${result.created}건 자동 생성`, 'info');
         // 오늘 날짜가 해당 월이면 새로고침
-        if (todayDate && todayDate.startsWith(month)) {
-          await loadTodayCleaning(todayDate);
+        if (_dash.todayDate && _dash.todayDate.startsWith(month)) {
+          await loadTodayCleaning(_dash.todayDate);
           renderDashboardHTML();
         }
       }
@@ -861,7 +864,7 @@ async function _doAutoGenerateMonth(month) {
 function renderDashboardHTML() {
   const mc = $('mainContent');
   const filtered = getFilteredCleaning();
-  const all = todayCleaningCache || [];
+  const all = _dash.todayCleaningCache || [];
 
   // ── 오늘 청소 통계 ──
   const cntTotal = all.length;
@@ -872,15 +875,15 @@ function renderDashboardHTML() {
   const pendingReqs = getDashPendingRequests();
 
   // ── 날짜 레이블 ──
-  const dateObj = new Date(todayDate + 'T00:00:00');
+  const dateObj = new Date(_dash.todayDate + 'T00:00:00');
   const dayName = WEEKDAY_NAMES[dateObj.getDay()];
-  const isToday = todayDate === today();
-  const dateLabel = isToday ? `오늘 (${dayName})` : `${todayDate.substring(5).replace('-','/')} (${dayName})`;
+  const isToday = _dash.todayDate === today();
+  const dateLabel = isToday ? `오늘 (${dayName})` : `${_dash.todayDate.substring(5).replace('-','/')} (${dayName})`;
 
   // ── 직원 필터 옵션 ──
   const staffList = getActiveWorkers();
   const workerOpts = staffList.map(w =>
-    `<option value="${w.id}" ${todayWorkerFilter === w.id ? 'selected' : ''}>${escapeHtml(w.name)}</option>`
+    `<option value="${w.id}" ${_dash.todayWorkerFilter === w.id ? 'selected' : ''}>${escapeHtml(w.name)}</option>`
   ).join('');
 
   // ── 월간 금액 통계 (계약기간 필터링 적용) ──
@@ -927,15 +930,15 @@ function renderDashboardHTML() {
 
     <!-- ═══ 1) 상단 요약 카드 6개 ═══ -->
     <div class="stats-grid dash-summary-grid">
-      <div class="stat-card today-stat${todayStatusFilter === 'all' ? ' active' : ''}" onclick="filterTodayStatus('all')">
+      <div class="stat-card today-stat${_dash.todayStatusFilter === 'all' ? ' active' : ''}" onclick="filterTodayStatus('all')">
         <div class="stat-label">청소 예정</div>
         <div class="stat-value blue">${cntTotal}</div>
       </div>
-      <div class="stat-card today-stat${todayStatusFilter === 'completed' ? ' active' : ''}" onclick="filterTodayStatus('completed')">
+      <div class="stat-card today-stat${_dash.todayStatusFilter === 'completed' ? ' active' : ''}" onclick="filterTodayStatus('completed')">
         <div class="stat-label">완료</div>
         <div class="stat-value green">${cntDone}</div>
       </div>
-      <div class="stat-card today-stat${todayStatusFilter === 'incomplete' ? ' active' : ''}" onclick="filterTodayStatus('incomplete')">
+      <div class="stat-card today-stat${_dash.todayStatusFilter === 'incomplete' ? ' active' : ''}" onclick="filterTodayStatus('incomplete')">
         <div class="stat-label">미완료</div>
         <div class="stat-value yellow">${cntTodo}</div>
       </div>
@@ -953,16 +956,16 @@ function renderDashboardHTML() {
       </div>
 
       <div class="today-filter-bar">
-        <input type="date" class="today-date-input" value="${todayDate}" onchange="changeTodayDate(this.value)">
+        <input type="date" class="today-date-input" value="${_dash.todayDate}" onchange="changeTodayDate(this.value)">
         <select class="today-filter-select" onchange="changeTodayWorker(this.value)">
           <option value="">전체 직원</option>
           ${workerOpts}
         </select>
         <select class="today-filter-select" id="todayStatusSelect" onchange="changeTodayStatusSelect(this.value)">
-          <option value="all"${todayStatusFilter === 'all' ? ' selected' : ''}>전체 상태</option>
-          <option value="completed"${todayStatusFilter === 'completed' ? ' selected' : ''}>완료</option>
-          <option value="incomplete"${todayStatusFilter === 'incomplete' ? ' selected' : ''}>미완료</option>
-          <option value="problem"${todayStatusFilter === 'problem' ? ' selected' : ''}>문제발생</option>
+          <option value="all"${_dash.todayStatusFilter === 'all' ? ' selected' : ''}>전체 상태</option>
+          <option value="completed"${_dash.todayStatusFilter === 'completed' ? ' selected' : ''}>완료</option>
+          <option value="incomplete"${_dash.todayStatusFilter === 'incomplete' ? ' selected' : ''}>미완료</option>
+          <option value="problem"${_dash.todayStatusFilter === 'problem' ? ' selected' : ''}>문제발생</option>
         </select>
         <button class="btn-sm btn-green ag-gen-btn" onclick="generateTodayTasks()">
           <span class="ag-gen-icon">⚡</span> 오늘 일정 생성
@@ -974,7 +977,7 @@ function renderDashboardHTML() {
       ${filtered.length > 0 ? buildTodayTable(filtered) + buildTodayCards(filtered) : `
         <div class="empty-state" style="padding:32px 20px">
           <div class="empty-icon">📋</div>
-          <p>${todayStatusFilter !== 'all' ? '해당 조건의 업체가 없습니다.' : '이 날짜에 예정된 청소가 없습니다.'}</p>
+          <p>${_dash.todayStatusFilter !== 'all' ? '해당 조건의 업체가 없습니다.' : '이 날짜에 예정된 청소가 없습니다.'}</p>
         </div>
       `}
     </div>
@@ -1169,11 +1172,11 @@ function buildTodayCards(data) {
 // ─── 필터 이벤트 핸들러 ───
 async function changeTodayDate(dateStr) {
   try {
-  todayDate = dateStr;
-  todayWorkerFilter = '';
-  todayStatusFilter = 'all';
-  autoGenResult = null;
-  await loadTodayCleaning(todayDate);
+  _dash.todayDate = dateStr;
+  _dash.todayWorkerFilter = '';
+  _dash.todayStatusFilter = 'all';
+  _dash.autoGenResult = null;
+  await loadTodayCleaning(_dash.todayDate);
   renderDashboardHTML();
 
   } catch (e) {
@@ -1182,17 +1185,17 @@ async function changeTodayDate(dateStr) {
   }}
 
 function changeTodayWorker(workerId) {
-  todayWorkerFilter = workerId;
+  _dash.todayWorkerFilter = workerId;
   renderDashboardHTML();
 }
 
 function changeTodayStatusSelect(status) {
-  todayStatusFilter = status;
+  _dash.todayStatusFilter = status;
   renderDashboardHTML();
 }
 
 function filterTodayStatus(status) {
-  todayStatusFilter = (todayStatusFilter === status && status !== 'all') ? 'all' : status;
+  _dash.todayStatusFilter = (_dash.todayStatusFilter === status && status !== 'all') ? 'all' : status;
   renderDashboardHTML();
 }
 
