@@ -319,7 +319,13 @@
   </div>
 
 <script>
-// ─── 설정 ───
+// ─── 유틸 ───
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+    }
+
+    // ─── 설정 ───
 const SUPA_URL = DEFAULT_SUPA_URL;
 const SUPA_KEY = DEFAULT_SUPA_KEY;
 
@@ -440,7 +446,7 @@ function renderPage(data) {
   // 직원 전달사항
   const msgEl = document.getElementById('staffMessage');
   if (data.staff_message && data.staff_message.trim()) {
-    msgEl.innerHTML = `<div class="message-box">${data.staff_message.replace(/\n/g, '<br>')}</div>`;
+    msgEl.innerHTML = `<div class="message-box">${escapeHtml(data.staff_message).replace(/\n/g, '<br>')}</div>`;
   } else {
     msgEl.innerHTML = `<div class="message-empty">등록된 전달사항이 없습니다</div>`;
   }
