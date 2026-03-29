@@ -185,6 +185,7 @@ function openRequestDetail(requestId) {
 }
 
 async function resolveRequest(requestId) {
+  try {
   const { error } = await sb.from('requests')
     .update({ is_resolved: true })
     .eq('id', requestId);
@@ -197,9 +198,14 @@ async function resolveRequest(requestId) {
   toast('처리 완료');
   closeModal();
   renderRequests();
-}
+
+  } catch (e) {
+    console.error('resolveRequest error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
 
 async function unresolveRequest(requestId) {
+  try {
   const { error } = await sb.from('requests')
     .update({ is_resolved: false })
     .eq('id', requestId);
@@ -212,4 +218,8 @@ async function unresolveRequest(requestId) {
   toast('미처리로 변경됨');
   closeModal();
   renderRequests();
-}
+
+  } catch (e) {
+    console.error('unresolveRequest error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
