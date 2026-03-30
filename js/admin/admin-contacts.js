@@ -106,7 +106,7 @@ function renderBillingCheckList(filtered) {
   subCompanies.forEach(c => {
     const f = finMap[c.id];
     if (f) {
-      ecoContractTotal += (f.contract_amount || 0);
+      ecoContractTotal += (c.contract_amount || 0);
       ecoFeeTotal += (f.eco_amount || 0);
     }
   });
@@ -212,7 +212,7 @@ function renderBillingCheckList(filtered) {
           </td></tr>
           ${subCompanies.map(c => {
             const f = finMap[c.id];
-            const amount = f ? (f.contract_amount || 0) : 0;
+            const amount = c.contract_amount || 0;
             const fee = f ? (f.eco_amount || 0) : 0;
             const receive = amount - fee;
             return `
@@ -277,7 +277,7 @@ function renderBillingCheckList(filtered) {
       </div>
       ${subCompanies.map(c => {
         const f = finMap[c.id];
-        const amount = f ? (f.contract_amount || 0) : 0;
+        const amount = c.contract_amount || 0;
         const fee = f ? (f.eco_amount || 0) : 0;
         const receive = amount - fee;
         return `
@@ -432,7 +432,7 @@ async function autoCreateBillings() {
     toInsert.push({
       company_id: f.company_id,
       month: contactMonth,
-      billed_amount: f.contract_amount || 0,
+      billed_amount: c.contract_amount || 0,
       paid_amount: 0,
       status: 'pending',
     });
@@ -615,7 +615,7 @@ function exportContacts() {
       const b = billingMap[c.id];
       const f = finMap[c.id];
       if (isSub) {
-        const amount = f ? (f.contract_amount || 0) : 0;
+        const amount = c.contract_amount || 0;
         const fee = f ? (f.eco_amount || 0) : 0;
         return {
           '업체명': c.name,
@@ -637,7 +637,7 @@ function exportContacts() {
         '구역': c.area_name || '',
         '담당자': c.contact_name || '',
         '전화번호': c.contact_phone || '',
-        '계약금액': f ? f.contract_amount : '',
+        '계약금액': c.contract_amount || 0,
         '에코수수료': '',
         '받는금액': b ? b.billed_amount : '',
         '계산서발행': b?.billed_at ? '발행(' + b.billed_at + ')' : '미발행',
