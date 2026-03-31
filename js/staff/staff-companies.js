@@ -161,12 +161,12 @@ async function openCompanyDetail(companyId) {
       <div class="info-mini-card">
         <div class="info-mini-icon">🅿️</div>
         <div class="info-mini-title">주차 정보</div>
-        <textarea id="edit_parking_${companyId}" class="info-edit-textarea" placeholder="주차 정보 입력">${escapeHtml(note?.parking_info || ''}</textarea>
+        <textarea id="edit_parking_${companyId}" class="info-edit-textarea" placeholder="주차 정보 입력">${escapeHtml(note?.parking_info || '')}</textarea>
       </div>
       <div class="info-mini-card">
         <div class="info-mini-icon">♻️</div>
         <div class="info-mini-title">분리수거장</div>
-        <textarea id="edit_recycling_${companyId}" class="info-edit-textarea" placeholder="분리수거장 위치 입력">${escapeHtml(note?.recycling_location || ''}</textarea>
+        <textarea id="edit_recycling_${companyId}" class="info-edit-textarea" placeholder="분리수거장 위치 입력">${escapeHtml(note?.recycling_location || '')}</textarea>
       </div>
     </div>
     <button class="btn btn-blue" style="width:100%;margin-bottom:16px" onclick="saveNoteInfo('${companyId}', '${note?.id || ''}')">주차/분리수거 정보 저장</button>
@@ -176,7 +176,7 @@ async function openCompanyDetail(companyId) {
       <div class="detail-section-title">📢 업체 전달사항 <span class="text-muted" style="font-size:11px;font-weight:400">(QR 페이지에 표시)</span></div>
       <textarea id="edit_staffmsg_${companyId}" class="info-edit-textarea" rows="3"
                 placeholder="업체측에 전달할 사항을 입력하세요.&#10;(QR 페이지에서 업체가 확인할 수 있습니다)"
-                style="width:100%;margin-bottom:8px">${escapeHtml(note?.staff_message || ''}</textarea>
+                style="width:100%;margin-bottom:8px">${escapeHtml(note?.staff_message || '')}</textarea>
       <button class="btn-sm btn-blue" style="width:100%" onclick="saveStaffMessage('${companyId}', '${note?.id || ''}')">전달사항 저장</button>
     </div>
 
