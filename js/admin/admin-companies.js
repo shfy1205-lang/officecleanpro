@@ -310,6 +310,8 @@ async function _saveCompanyInner(companyId) {
     status,
     terminated_at:   status === 'terminated' ? ($('fTerminatedAt').value || null) : null,
     subcontract_from: $('fSubcontract').value || null,
+    contract_amount: parseInt($('fContractAmount').value) || 0,
+    clean_start_date: $('fCleanStartDate').value || null,
     memo:            $('fMemo').value.trim(),
   };
 
