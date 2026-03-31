@@ -256,29 +256,36 @@ function updateQuotePreview() {
         </div>
         <!-- 오른쪽: 공급자 -->
         <div style="flex:1">
-          <table style="width:100%;border-collapse:collapse;font-size:11px">
-            <tr style="border:1px solid #333">
-              <td rowspan="4" style="border:1px solid #333;text-align:center;padding:4px 8px;font-size:11px;writing-mode:vertical-lr;letter-spacing:8px;background:#f8f8f8;width:28px">공급자</td>
-              <td style="border:1px solid #333;padding:4px 8px;background:#f8f8f8;width:60px">등록번호</td>
-              <td colspan="3" style="border:1px solid #333;padding:4px 8px">${SUPPLIER_INFO.bizNum}</td>
+          <table style="width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed">
+            <colgroup>
+              <col style="width:28px">
+              <col style="width:52px">
+              <col style="width:auto">
+              <col style="width:42px">
+              <col style="width:90px">
+            </colgroup>
+            <tr>
+              <td rowspan="4" style="border:1px solid #333;text-align:center;padding:4px 2px;font-size:11px;background:#f8f8f8;vertical-align:middle;letter-spacing:6px;word-break:keep-all">공<br>급<br>자</td>
+              <td style="border:1px solid #333;padding:4px 6px;background:#f8f8f8;white-space:nowrap">등록번호</td>
+              <td colspan="3" style="border:1px solid #333;padding:4px 6px">${SUPPLIER_INFO.bizNum}</td>
             </tr>
-            <tr style="border:1px solid #333">
-              <td style="border:1px solid #333;padding:4px 8px;background:#f8f8f8">상호</td>
-              <td style="border:1px solid #333;padding:4px 8px">${SUPPLIER_INFO.companyName}</td>
-              <td style="border:1px solid #333;padding:4px 8px;background:#f8f8f8;width:40px">성명</td>
-              <td style="border:1px solid #333;padding:4px 8px;position:relative;white-space:nowrap">${SUPPLIER_INFO.ceo} ${getStampHTML()}</td>
+            <tr>
+              <td style="border:1px solid #333;padding:4px 6px;background:#f8f8f8;white-space:nowrap">상호</td>
+              <td style="border:1px solid #333;padding:4px 6px;white-space:nowrap">${SUPPLIER_INFO.companyName}</td>
+              <td style="border:1px solid #333;padding:4px 6px;background:#f8f8f8;white-space:nowrap">성명</td>
+              <td style="border:1px solid #333;padding:4px 6px;white-space:nowrap;position:relative">${SUPPLIER_INFO.ceo} ${getStampHTML()}</td>
             </tr>
-            <tr style="border:1px solid #333">
-              <td style="border:1px solid #333;padding:4px 8px;background:#f8f8f8">업태</td>
-              <td style="border:1px solid #333;padding:4px 8px">${SUPPLIER_INFO.bizType}</td>
-              <td style="border:1px solid #333;padding:4px 8px;background:#f8f8f8">종목</td>
-              <td style="border:1px solid #333;padding:4px 8px;font-size:9px">${SUPPLIER_INFO.bizItem}</td>
+            <tr>
+              <td style="border:1px solid #333;padding:4px 6px;background:#f8f8f8;white-space:nowrap">업태</td>
+              <td style="border:1px solid #333;padding:4px 6px;font-size:10px">${SUPPLIER_INFO.bizType}</td>
+              <td style="border:1px solid #333;padding:4px 6px;background:#f8f8f8;white-space:nowrap">종목</td>
+              <td style="border:1px solid #333;padding:4px 6px;font-size:10px">${SUPPLIER_INFO.bizItem}</td>
             </tr>
-            <tr style="border:1px solid #333">
-              <td style="border:1px solid #333;padding:4px 8px;background:#f8f8f8">연락처</td>
-              <td style="border:1px solid #333;padding:4px 8px">${SUPPLIER_INFO.phone}</td>
-              <td style="border:1px solid #333;padding:4px 8px;background:#f8f8f8">담당자</td>
-              <td style="border:1px solid #333;padding:4px 8px">${SUPPLIER_INFO.manager}</td>
+            <tr>
+              <td style="border:1px solid #333;padding:4px 6px;background:#f8f8f8;white-space:nowrap">연락처</td>
+              <td style="border:1px solid #333;padding:4px 6px;white-space:nowrap">${SUPPLIER_INFO.phone}</td>
+              <td style="border:1px solid #333;padding:4px 6px;background:#f8f8f8;white-space:nowrap">담당자</td>
+              <td style="border:1px solid #333;padding:4px 6px">${SUPPLIER_INFO.manager}</td>
             </tr>
           </table>
         </div>
@@ -345,7 +352,7 @@ ${workContent ? workContent.split('\n').map(l => escapeHtml(l)).join('\n') : '(�
 // ════════════════════════════════════════════════════
 
 function getStampHTML() {
-  return `<img src="assets/stamp.png" alt="인감" style="width:48px;height:48px;opacity:0.85;vertical-align:middle;position:relative;top:2px;margin-left:-28px">`;
+  return `<img src="assets/stamp.png" alt="인감" style="width:40px;height:40px;opacity:0.85;vertical-align:middle;position:absolute;top:50%;right:2px;transform:translateY(-50%)">`;
 }
 
 // ════════════════════════════════════════════════════
