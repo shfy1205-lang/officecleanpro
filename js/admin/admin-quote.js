@@ -245,7 +245,7 @@ function updateQuotePreview() {
       <!-- 상단: 날짜+수신 / 공급자 -->
       <div style="display:flex;gap:16px;margin-bottom:16px">
         <!-- 왼쪽: 수신 -->
-        <div style="flex:1">
+        <div style="flex:0.8">
           <div style="font-size:12px;color:#666;margin-bottom:8px">${escapeHtml(d.date)}</div>
           <div style="font-size:16px;font-weight:700;margin-bottom:2px">
             ${escapeHtml(d.clientName || '(업체명)')}
@@ -255,37 +255,30 @@ function updateQuotePreview() {
           <div style="font-size:12px;margin-top:12px">아래와 같이 견적합니다.</div>
         </div>
         <!-- 오른쪽: 공급자 -->
-        <div style="flex:1">
-          <table style="width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed">
-            <colgroup>
-              <col style="width:28px">
-              <col style="width:52px">
-              <col style="width:auto">
-              <col style="width:42px">
-              <col style="width:90px">
-            </colgroup>
+        <div style="flex:1.2">
+          <table style="width:100%;border-collapse:collapse;font-size:11px">
             <tr>
-              <td rowspan="4" style="border:1px solid #333;text-align:center;padding:4px 2px;font-size:11px;background:#f8f8f8;vertical-align:middle;letter-spacing:6px;word-break:keep-all">공<br>급<br>자</td>
-              <td style="border:1px solid #333;padding:4px 6px;background:#f8f8f8;white-space:nowrap">등록번호</td>
+              <td rowspan="4" style="border:1px solid #333;text-align:center;padding:4px 4px;font-size:12px;background:#f8f8f8;vertical-align:middle;width:24px;line-height:1.8">공<br>급<br>자</td>
+              <td style="border:1px solid #333;padding:4px 6px;background:#f8f8f8;white-space:nowrap;width:56px">등록번호</td>
               <td colspan="3" style="border:1px solid #333;padding:4px 6px">${SUPPLIER_INFO.bizNum}</td>
             </tr>
             <tr>
               <td style="border:1px solid #333;padding:4px 6px;background:#f8f8f8;white-space:nowrap">상호</td>
               <td style="border:1px solid #333;padding:4px 6px;white-space:nowrap">${SUPPLIER_INFO.companyName}</td>
-              <td style="border:1px solid #333;padding:4px 6px;background:#f8f8f8;white-space:nowrap">성명</td>
-              <td style="border:1px solid #333;padding:4px 6px;white-space:nowrap;position:relative">${SUPPLIER_INFO.ceo} ${getStampHTML()}</td>
+              <td style="border:1px solid #333;padding:4px 6px;background:#f8f8f8;white-space:nowrap;width:36px">성명</td>
+              <td style="border:1px solid #333;padding:4px 6px;white-space:nowrap;min-width:80px">${SUPPLIER_INFO.ceo} ${getStampHTML()}</td>
             </tr>
             <tr>
               <td style="border:1px solid #333;padding:4px 6px;background:#f8f8f8;white-space:nowrap">업태</td>
-              <td style="border:1px solid #333;padding:4px 6px;font-size:10px">${SUPPLIER_INFO.bizType}</td>
+              <td style="border:1px solid #333;padding:4px 6px;white-space:nowrap;font-size:10px">${SUPPLIER_INFO.bizType}</td>
               <td style="border:1px solid #333;padding:4px 6px;background:#f8f8f8;white-space:nowrap">종목</td>
-              <td style="border:1px solid #333;padding:4px 6px;font-size:10px">${SUPPLIER_INFO.bizItem}</td>
+              <td style="border:1px solid #333;padding:4px 6px;white-space:nowrap;font-size:10px">${SUPPLIER_INFO.bizItem}</td>
             </tr>
             <tr>
               <td style="border:1px solid #333;padding:4px 6px;background:#f8f8f8;white-space:nowrap">연락처</td>
               <td style="border:1px solid #333;padding:4px 6px;white-space:nowrap">${SUPPLIER_INFO.phone}</td>
               <td style="border:1px solid #333;padding:4px 6px;background:#f8f8f8;white-space:nowrap">담당자</td>
-              <td style="border:1px solid #333;padding:4px 6px">${SUPPLIER_INFO.manager}</td>
+              <td style="border:1px solid #333;padding:4px 6px;white-space:nowrap">${SUPPLIER_INFO.manager}</td>
             </tr>
           </table>
         </div>
@@ -352,7 +345,7 @@ ${workContent ? workContent.split('\n').map(l => escapeHtml(l)).join('\n') : '(�
 // ════════════════════════════════════════════════════
 
 function getStampHTML() {
-  return `<img src="assets/stamp.png" alt="인감" style="width:40px;height:40px;opacity:0.85;vertical-align:middle;position:absolute;top:50%;right:2px;transform:translateY(-50%)">`;
+  return `<img src="assets/stamp.png" alt="인감" style="width:36px;height:36px;opacity:0.85;vertical-align:middle;margin-left:2px">`;
 }
 
 // ════════════════════════════════════════════════════
