@@ -63,23 +63,23 @@ function renderQuote() {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div>
           <label style="font-size:12px;color:var(--text-muted)">수신 업체명 (님 귀하)</label>
-          <input id="qClientName" class="input" placeholder="예: 법무법인 마스트" style="margin-top:4px">
+          <input id="qClientName" class="input" placeholder="예: 법무법인 마스트" style="margin-top:4px" oninput="debouncedQuotePreview()">
         </div>
         <div>
           <label style="font-size:12px;color:var(--text-muted)">주소</label>
-          <input id="qAddress" class="input" placeholder="업체 주소" style="margin-top:4px">
+          <input id="qAddress" class="input" placeholder="업체 주소" style="margin-top:4px" oninput="debouncedQuotePreview()">
         </div>
         <div>
           <label style="font-size:12px;color:var(--text-muted)">견적 날짜</label>
-          <input id="qDate" type="date" class="input" value="${today()}" style="margin-top:4px">
+          <input id="qDate" type="date" class="input" value="${today()}" style="margin-top:4px" onchange="debouncedQuotePreview()">
         </div>
         <div>
           <label style="font-size:12px;color:var(--text-muted)">횟수</label>
-          <input id="qFrequency" class="input" placeholder="예: 주1회" value="주1회" style="margin-top:4px">
+          <input id="qFrequency" class="input" placeholder="예: 주1회" value="주1회" style="margin-top:4px" oninput="debouncedQuotePreview()">
         </div>
         <div>
           <label style="font-size:12px;color:var(--text-muted)">규격</label>
-          <input id="qSpec" class="input" placeholder="예: 사무실전체" value="사무실전체" style="margin-top:4px">
+          <input id="qSpec" class="input" placeholder="예: 사무실전체" value="사무실전체" style="margin-top:4px" oninput="debouncedQuotePreview()">
         </div>
         <div>
           <label style="font-size:12px;color:var(--text-muted)">공급가액 (VAT 별도)</label>
@@ -87,11 +87,11 @@ function renderQuote() {
         </div>
         <div>
           <label style="font-size:12px;color:var(--text-muted)">견적유효기간 (일)</label>
-          <input id="qValidDays" class="input" placeholder="예: 30" value="30" style="margin-top:4px">
+          <input id="qValidDays" class="input" placeholder="예: 30" value="30" style="margin-top:4px" oninput="debouncedQuotePreview()">
         </div>
         <div>
           <label style="font-size:12px;color:var(--text-muted)">기타사항</label>
-          <input id="qEtcNote" class="input" placeholder="기타사항 입력" style="margin-top:4px">
+          <input id="qEtcNote" class="input" placeholder="기타사항 입력" style="margin-top:4px" oninput="debouncedQuotePreview()">
         </div>
       </div>
     </div>
@@ -102,21 +102,21 @@ function renderQuote() {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px" id="qWorkItems">
         ${QUOTE_WORK_ITEMS.map((item, i) => `
           <label style="display:flex;align-items:flex-start;gap:6px;font-size:12px;cursor:pointer;padding:4px 0">
-            <input type="checkbox" class="qWorkCheck" data-index="${i}" checked style="margin-top:2px">
+            <input type="checkbox" class="qWorkCheck" data-index="${i}" checked style="margin-top:2px" onchange="debouncedQuotePreview()">
             <span>${i + 1}. ${escapeHtml(item)}</span>
           </label>
         `).join('')}
         <div style="grid-column:1/-1;display:flex;align-items:center;gap:6px;margin-top:4px">
           <span style="font-size:12px;white-space:nowrap">13. 기타:</span>
-          <input id="qWorkEtc1" class="input" placeholder="직접 입력" style="font-size:12px;flex:1">
+          <input id="qWorkEtc1" class="input" placeholder="직접 입력" style="font-size:12px;flex:1" oninput="debouncedQuotePreview()">
         </div>
         <div style="grid-column:1/-1;display:flex;align-items:center;gap:6px">
           <span style="font-size:12px;white-space:nowrap">14. 기타:</span>
-          <input id="qWorkEtc2" class="input" placeholder="직접 입력" style="font-size:12px;flex:1">
+          <input id="qWorkEtc2" class="input" placeholder="직접 입력" style="font-size:12px;flex:1" oninput="debouncedQuotePreview()">
         </div>
         <div style="grid-column:1/-1;display:flex;align-items:center;gap:6px">
           <span style="font-size:12px;white-space:nowrap">15. 기타:</span>
-          <input id="qWorkEtc3" class="input" placeholder="직접 입력" style="font-size:12px;flex:1">
+          <input id="qWorkEtc3" class="input" placeholder="직접 입력" style="font-size:12px;flex:1" oninput="debouncedQuotePreview()">
         </div>
       </div>
     </div>
