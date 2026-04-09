@@ -89,6 +89,7 @@ function parseNoticeTarget(title) {
 /** 모달 닫기 (공통) */
 function closeModal() {
   $('detailModal').classList.remove('show');
+  $('modalBody').classList.remove('modal-wide');
 }
 
 /**
