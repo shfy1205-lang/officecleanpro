@@ -6,17 +6,13 @@
   <title>오피스클린프로 | 사무실 전문 청소 서비스</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
-      --primary: #1a73e8;
-      --primary-dark: #1557b0;
-      --text: #1a1a1a;
-      --text2: #666;
-      --text3: #999;
-      --bg: #fff;
-      --bg2: #f8f9fa;
-      --border: #e8e8e8;
+      --primary: #1a73e8; --primary-dark: #1557b0;
+      --text: #1a1a1a; --text2: #666; --text3: #999;
+      --bg: #fff; --bg2: #f8f9fa; --border: #e8e8e8;
     }
     html { scroll-behavior: smooth; }
     body {
@@ -24,40 +20,27 @@
       color: var(--text); line-height: 1.7; background: var(--bg);
       -webkit-font-smoothing: antialiased;
     }
-
-    /* NAV */
     nav {
       position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-      background: rgba(255,255,255,0.95);
-      backdrop-filter: blur(10px);
-      border-bottom: 1px solid var(--border);
-      transition: box-shadow 0.3s;
+      background: rgba(255,255,255,0.95); backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border); transition: box-shadow 0.3s;
     }
     nav.scrolled { box-shadow: 0 1px 12px rgba(0,0,0,0.06); }
     .nav-inner {
       max-width: 1100px; margin: 0 auto; padding: 0 24px;
       height: 64px; display: flex; align-items: center; justify-content: space-between;
     }
-    .nav-logo {
-      font-size: 18px; font-weight: 700; color: var(--text);
-      text-decoration: none; letter-spacing: -0.5px;
-    }
+    .nav-logo { font-size: 18px; font-weight: 700; color: var(--text); text-decoration: none; letter-spacing: -0.5px; }
     .nav-logo span { color: var(--primary); }
     .nav-links { display: flex; align-items: center; gap: 32px; }
-    .nav-links a {
-      font-size: 14px; color: var(--text2); text-decoration: none;
-      font-weight: 400; transition: color 0.2s;
-    }
+    .nav-links a { font-size: 14px; color: var(--text2); text-decoration: none; font-weight: 400; transition: color 0.2s; }
     .nav-links a:hover { color: var(--text); }
     .nav-login {
-      font-size: 13px !important; color: var(--primary) !important;
-      font-weight: 500 !important;
-      border: 1px solid var(--primary);
-      padding: 6px 16px; border-radius: 6px; transition: all 0.2s;
+      font-size: 13px !important; color: var(--primary) !important; font-weight: 500 !important;
+      border: 1px solid var(--primary); padding: 6px 16px; border-radius: 6px; transition: all 0.2s;
     }
     .nav-login:hover { background: var(--primary); color: #fff !important; }
 
-    /* HERO */
     .hero {
       padding: 160px 24px 120px; text-align: center;
       background: linear-gradient(180deg, #f0f6ff 0%, #fff 100%);
@@ -67,139 +50,127 @@
       color: var(--primary); background: rgba(26,115,232,0.08);
       padding: 6px 16px; border-radius: 20px; margin-bottom: 24px;
     }
-    .hero h1 {
-      font-size: 44px; font-weight: 700; line-height: 1.3;
-      letter-spacing: -1px; margin-bottom: 20px;
-    }
-    .hero p {
-      font-size: 17px; color: var(--text2);
-      max-width: 520px; margin: 0 auto 40px; line-height: 1.8;
-    }
+    .hero h1 { font-size: 44px; font-weight: 700; line-height: 1.3; letter-spacing: -1px; margin-bottom: 20px; }
+    .hero p { font-size: 17px; color: var(--text2); max-width: 520px; margin: 0 auto 40px; line-height: 1.8; }
     .hero-cta {
       display: inline-flex; align-items: center; gap: 8px;
-      background: var(--primary); color: #fff;
-      font-size: 15px; font-weight: 500;
-      padding: 14px 32px; border-radius: 8px;
-      text-decoration: none; transition: background 0.2s, transform 0.2s;
+      background: var(--primary); color: #fff; font-size: 15px; font-weight: 500;
+      padding: 14px 32px; border-radius: 8px; text-decoration: none;
+      transition: background 0.2s, transform 0.2s;
     }
     .hero-cta:hover { background: var(--primary-dark); transform: translateY(-1px); }
 
-    /* SECTION */
     section { padding: 100px 24px; }
     .section-inner { max-width: 1100px; margin: 0 auto; }
-    .section-label {
-      font-size: 13px; font-weight: 600; color: var(--primary);
-      letter-spacing: 1px; text-transform: uppercase; margin-bottom: 12px;
-    }
-    .section-title {
-      font-size: 32px; font-weight: 700; line-height: 1.3;
-      letter-spacing: -0.5px; margin-bottom: 16px;
-    }
-    .section-desc {
-      font-size: 16px; color: var(--text2); max-width: 500px;
-      line-height: 1.8; margin-bottom: 48px;
-    }
+    .section-label { font-size: 13px; font-weight: 600; color: var(--primary); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 12px; }
+    .section-title { font-size: 32px; font-weight: 700; line-height: 1.3; letter-spacing: -0.5px; margin-bottom: 16px; }
+    .section-desc { font-size: 16px; color: var(--text2); max-width: 500px; line-height: 1.8; margin-bottom: 48px; }
 
-    /* SERVICES */
     #services { background: var(--bg); }
     .service-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
     .service-card {
-      padding: 36px 28px; border: 1px solid var(--border);
-      border-radius: 12px; transition: border-color 0.2s, box-shadow 0.2s;
+      padding: 36px 28px; border: 1px solid var(--border); border-radius: 12px;
+      transition: border-color 0.2s, box-shadow 0.2s;
     }
-    .service-card:hover {
-      border-color: var(--primary);
-      box-shadow: 0 4px 20px rgba(26,115,232,0.08);
-    }
+    .service-card:hover { border-color: var(--primary); box-shadow: 0 4px 20px rgba(26,115,232,0.08); }
     .service-icon {
-      width: 48px; height: 48px; background: rgba(26,115,232,0.08);
-      border-radius: 10px; display: flex; align-items: center;
-      justify-content: center; font-size: 22px; margin-bottom: 20px;
+      width: 48px; height: 48px; background: rgba(26,115,232,0.08); border-radius: 10px;
+      display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 20px;
     }
     .service-card h3 { font-size: 18px; font-weight: 600; margin-bottom: 10px; }
     .service-card p { font-size: 14px; color: var(--text2); line-height: 1.7; }
 
-    /* STATS */
-    #stats { background: var(--bg2); }
-    .stats-grid {
-      display: grid; grid-template-columns: repeat(4, 1fr);
-      gap: 24px; text-align: center;
-    }
-    .stat-item h3 { font-size: 40px; font-weight: 700; color: var(--primary); margin-bottom: 8px; }
-    .stat-item p { font-size: 14px; color: var(--text2); }
-
-    /* WHY */
-    #why { background: var(--bg); }
+    #why { background: var(--bg2); }
     .why-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
-    .why-item { display: flex; gap: 16px; padding: 24px; border-radius: 10px; background: var(--bg2); }
+    .why-item { display: flex; gap: 16px; padding: 24px; border-radius: 10px; background: #fff; }
     .why-num {
-      flex-shrink: 0; width: 36px; height: 36px; background: var(--primary);
-      color: #fff; border-radius: 8px; display: flex; align-items: center;
-      justify-content: center; font-size: 14px; font-weight: 700;
+      flex-shrink: 0; width: 36px; height: 36px; background: var(--primary); color: #fff;
+      border-radius: 8px; display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700;
     }
     .why-item h4 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
     .why-item p { font-size: 13px; color: var(--text2); line-height: 1.6; }
 
-    /* CTA */
-    #contact {
-      background: linear-gradient(135deg, #1a73e8 0%, #1557b0 100%);
-      text-align: center; color: #fff;
+    #inquiry { background: var(--bg); }
+    .inquiry-wrap {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: start;
     }
-    #contact .section-label { color: rgba(255,255,255,0.7); }
-    #contact .section-title { color: #fff; }
-    #contact .section-desc { color: rgba(255,255,255,0.8); margin: 0 auto 40px; }
-    .contact-info { display: flex; justify-content: center; gap: 48px; flex-wrap: wrap; }
-    .contact-item { text-align: center; }
-    .contact-item .label { font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 6px; }
-    .contact-item .value { font-size: 20px; font-weight: 600; }
-    .contact-item a { color: #fff; text-decoration: none; }
+    .inquiry-form { width: 100%; }
+    .inquiry-form .field { margin-bottom: 16px; }
+    .inquiry-form label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; color: var(--text); }
+    .inquiry-form input, .inquiry-form textarea {
+      width: 100%; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px;
+      font-size: 14px; font-family: inherit; background: var(--bg2); transition: border-color 0.2s;
+      color: var(--text);
+    }
+    .inquiry-form input:focus, .inquiry-form textarea:focus {
+      outline: none; border-color: var(--primary); background: #fff;
+    }
+    .inquiry-form textarea { resize: vertical; min-height: 80px; }
+    .inquiry-submit {
+      width: 100%; padding: 14px; border: none; border-radius: 8px;
+      background: var(--primary); color: #fff; font-size: 15px; font-weight: 600;
+      cursor: pointer; font-family: inherit; transition: background 0.2s;
+      margin-top: 8px;
+    }
+    .inquiry-submit:hover { background: var(--primary-dark); }
+    .inquiry-submit:disabled { background: #aaa; cursor: not-allowed; }
+    .inquiry-msg {
+      margin-top: 12px; padding: 12px 16px; border-radius: 8px;
+      font-size: 14px; display: none;
+    }
+    .inquiry-msg.success { display: block; background: #e8f5e9; color: #2e7d32; }
+    .inquiry-msg.error { display: block; background: #fce4ec; color: #c62828; }
+    .contact-side h3 { font-size: 20px; font-weight: 600; margin-bottom: 24px; }
+    .contact-row { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 20px; }
+    .contact-row .icon {
+      width: 40px; height: 40px; background: rgba(26,115,232,0.08); border-radius: 10px;
+      display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;
+    }
+    .contact-row .info-label { font-size: 12px; color: var(--text3); margin-bottom: 2px; }
+    .contact-row .info-value { font-size: 15px; font-weight: 500; }
+    .contact-row a { color: var(--text); text-decoration: none; }
+    .contact-row a:hover { color: var(--primary); }
 
-    /* FOOTER */
     footer { padding: 48px 24px; background: #111; color: #888; font-size: 13px; }
     .footer-inner {
-      max-width: 1100px; margin: 0 auto;
-      display: flex; justify-content: space-between; align-items: center;
-      flex-wrap: wrap; gap: 16px;
+      max-width: 1100px; margin: 0 auto; display: flex;
+      justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;
     }
     .footer-logo { color: #fff; font-weight: 600; font-size: 15px; }
 
-    /* RESPONSIVE */
     @media (max-width: 768px) {
       .hero h1 { font-size: 30px; }
       .hero { padding: 130px 20px 80px; }
       .service-grid { grid-template-columns: 1fr; }
-      .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 32px; }
       .why-grid { grid-template-columns: 1fr; }
+      .inquiry-wrap { grid-template-columns: 1fr; gap: 40px; }
       .nav-links a:not(.nav-login) { display: none; }
-      .contact-info { gap: 32px; }
       section { padding: 72px 20px; }
     }
   </style>
 </head>
 <body>
 
-  <!-- NAV -->
   <nav id="navbar">
     <div class="nav-inner">
       <a href="#" class="nav-logo">오피스클린<span>프로</span></a>
       <div class="nav-links">
         <a href="#services">서비스</a>
         <a href="#why">강점</a>
-        <a href="#contact">문의</a>
+        <a href="#inquiry">견적문의</a>
         <a href="login.html" class="nav-login">관리자</a>
       </div>
     </div>
   </nav>
 
-  <!-- HERO -->
   <div class="hero">
     <div class="hero-tag">서울 전 지역 출장 청소 서비스</div>
     <h1>깨끗한 사무 공간,<br>프로페셔널한 관리</h1>
     <p>정기 사무실 청소부터 입주 청소까지.<br>체계적인 관리 시스템으로 항상 쾌적한 업무 환경을 만들어 드립니다.</p>
-    <a href="#contact" class="hero-cta">견적 문의하기 →</a>
+    <a href="#inquiry" class="hero-cta">견적 문의하기</a>
   </div>
 
-  <!-- SERVICES -->
   <section id="services">
     <div class="section-inner">
       <div class="section-label">Services</div>
@@ -225,31 +196,6 @@
     </div>
   </section>
 
-  <!-- STATS -->
-  <section id="stats">
-    <div class="section-inner">
-      <div class="stats-grid">
-        <div class="stat-item">
-          <h3>60+</h3>
-          <p>관리 업체 수</p>
-        </div>
-        <div class="stat-item">
-          <h3>9</h3>
-          <p>전문 관리 인력</p>
-        </div>
-        <div class="stat-item">
-          <h3>99%</h3>
-          <p>고객 만족도</p>
-        </div>
-        <div class="stat-item">
-          <h3>24h</h3>
-          <p>빠른 견적 응답</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- WHY US -->
   <section id="why">
     <div class="section-inner">
       <div class="section-label">Why us</div>
@@ -288,30 +234,74 @@
     </div>
   </section>
 
-  <!-- CONTACT -->
-  <section id="contact">
+  <section id="inquiry">
     <div class="section-inner">
       <div class="section-label">Contact</div>
       <div class="section-title">견적 문의</div>
-      <div class="section-desc">무료 견적 상담을 받아보세요. 24시간 내 회신 드립니다.</div>
-      <div class="contact-info">
-        <div class="contact-item">
-          <div class="label">전화</div>
-          <div class="value"><a href="tel:010-0000-0000">010-0000-0000</a></div>
+      <div class="section-desc">아래 양식을 작성해 주시면 빠르게 견적을 보내드립니다.</div>
+      <div class="inquiry-wrap">
+        <div class="inquiry-form">
+          <form id="quoteForm" onsubmit="submitQuote(event)">
+            <div class="field">
+              <label for="qCompany">업체명 *</label>
+              <input type="text" id="qCompany" placeholder="예: 주식회사 OO" required>
+            </div>
+            <div class="field">
+              <label for="qAddress">주소 *</label>
+              <input type="text" id="qAddress" placeholder="예: 서울시 강남구 테헤란로 123, 5층" required>
+            </div>
+            <div class="field">
+              <label for="qArea">평수 *</label>
+              <input type="text" id="qArea" placeholder="예: 30평" required>
+            </div>
+            <div class="field">
+              <label for="qStaff">상주 인원</label>
+              <input type="text" id="qStaff" placeholder="예: 15명">
+            </div>
+            <div class="field">
+              <label for="qPhone">연락처</label>
+              <input type="tel" id="qPhone" placeholder="예: 010-1234-5678">
+            </div>
+            <div class="field">
+              <label for="qMemo">추가 요청사항</label>
+              <textarea id="qMemo" placeholder="청소 주기, 특별 요청 등을 자유롭게 적어주세요."></textarea>
+            </div>
+            <button type="submit" class="inquiry-submit" id="submitBtn">견적 문의 보내기</button>
+          </form>
+          <div id="quoteMsg" class="inquiry-msg"></div>
         </div>
-        <div class="contact-item">
-          <div class="label">이메일</div>
-          <div class="value"><a href="mailto:info@officecleanpro.com">info@officecleanpro.com</a></div>
-        </div>
-        <div class="contact-item">
-          <div class="label">카카오톡</div>
-          <div class="value">오피스클린프로</div>
+        <div class="contact-side">
+          <h3>연락처</h3>
+          <div class="contact-row">
+            <div class="icon">&#128222;</div>
+            <div>
+              <div class="info-label">전화</div>
+              <div class="info-value"><a href="tel:010-8158-7873">010-8158-7873</a></div>
+            </div>
+          </div>
+          <div class="contact-row">
+            <div class="icon">&#9993;</div>
+            <div>
+              <div class="info-label">이메일</div>
+              <div class="info-value"><a href="mailto:officeclean85@naver.com">officeclean85@naver.com</a></div>
+            </div>
+          </div>
+          <div class="contact-row">
+            <div class="icon">&#128172;</div>
+            <div>
+              <div class="info-label">카카오톡</div>
+              <div class="info-value">오피스클린프로</div>
+            </div>
+          </div>
+          <p style="margin-top:32px;font-size:13px;color:var(--text3);line-height:1.7">
+            문의 주시면 24시간 내 회신 드립니다.<br>
+            평일 09:00 ~ 18:00 전화 상담 가능합니다.
+          </p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- FOOTER -->
   <footer>
     <div class="footer-inner">
       <div class="footer-logo">오피스클린프로</div>
@@ -323,6 +313,52 @@
     window.addEventListener('scroll', function() {
       document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 10);
     });
+
+    var SUPA_URL = 'https://gcbgzfrffekgcaktspyj.supabase.co';
+    var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjYmd6ZnJmZmVrZ2Nha3RzcHlqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NDU2MjMsImV4cCI6MjA4OTAyMTYyM30.sdWUgFWhUXcumkfAYBF6sShkd9xICe77U-D2mEedCWM';
+    var supa = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+    async function submitQuote(e) {
+      e.preventDefault();
+      var btn = document.getElementById('submitBtn');
+      var msg = document.getElementById('quoteMsg');
+      btn.disabled = true;
+      btn.textContent = '전송 중...';
+      msg.className = 'inquiry-msg';
+      msg.style.display = 'none';
+
+      var company = document.getElementById('qCompany').value.trim();
+      var address = document.getElementById('qAddress').value.trim();
+      var area = document.getElementById('qArea').value.trim();
+      var staff = document.getElementById('qStaff').value.trim();
+      var phone = document.getElementById('qPhone').value.trim();
+      var memo = document.getElementById('qMemo').value.trim();
+
+      var notes = '';
+      if (area) notes += '평수: ' + area;
+      if (staff) notes += (notes ? ' / ' : '') + '상주인원: ' + staff;
+      if (memo) notes += (notes ? '\n' : '') + memo;
+
+      try {
+        var res = await supa.from('leads').insert({
+          company_name: company,
+          location: address,
+          contact_phone: phone || null,
+          quote_spec: area,
+          notes: notes,
+          status: 'new'
+        });
+        if (res.error) throw res.error;
+        msg.textContent = '견적 문의가 접수되었습니다. 빠른 시일 내 연락드리겠습니다.';
+        msg.className = 'inquiry-msg success';
+        document.getElementById('quoteForm').reset();
+      } catch(err) {
+        msg.textContent = '전송에 실패했습니다. 전화나 이메일로 문의해 주세요.';
+        msg.className = 'inquiry-msg error';
+      }
+      btn.disabled = false;
+      btn.textContent = '견적 문의 보내기';
+    }
   </script>
 
 </body>
