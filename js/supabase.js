@@ -106,11 +106,11 @@ async function logout() {
   currentWorker = null;
   localStorage.removeItem('ocp_remember');
   sessionStorage.removeItem('ocp_session_active');
-  location.href = 'index.html';
+  location.href = 'login.html';
 }
 
 /**
- * 인증 가드 — 로그인 안 되어 있으면 index.html로 리다이렉트
+ * 인증 가드 — 로그인 안 되어 있으면 login.html로 리다이렉트
  * @param {string} [requiredRole] - 'admin' 또는 'staff' (선택)
  * @returns {Promise<boolean>}
  */
@@ -119,7 +119,7 @@ async function requireAuth(requiredRole) {
   if (!sb) {
     const ok = initFromStorage();
     if (!ok) {
-      location.href = 'index.html';
+      location.href = 'login.html';
       return false;
     }
   }
@@ -129,14 +129,14 @@ async function requireAuth(requiredRole) {
   const sessionActive = sessionStorage.getItem('ocp_session_active');
   if (remember !== 'true' && !sessionActive) {
     try { await Promise.race([sb.auth.signOut(), new Promise(r => setTimeout(r, 3000))]); } catch (e) { /* ignore */ }
-    location.href = 'index.html';
+    location.href = 'login.html';
     return false;
   }
 
   // 2) 세션 + worker 프로필 로드
   const session = await loadSession();
   if (!session) {
-    location.href = 'index.html';
+    location.href = 'login.html';
     return false;
   }
 
