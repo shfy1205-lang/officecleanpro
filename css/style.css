@@ -250,6 +250,9 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   border-radius: 16px; max-width: 500px;
   margin: 20px auto; padding: 24px;
 }
+.modal.modal-wide {
+  max-width: 780px;
+}
 .modal-close {
   float: right; background: none; border: none;
   color: var(--text2); font-size: 20px;
