@@ -51,7 +51,7 @@ async function initAdmin() {
     } catch (e) {
         console.error('Admin init error:', e);
         if (msgEl) {
-            msgEl.innerHTML = '초기화 오류: ' + (e.message || '알 수 없음') + '<br><a href="index.html" style="color:#60a5fa">로그인 페이지로 이동</a>';
+            msgEl.innerHTML = '초기화 오류: ' + (e.message || '알 수 없음') + '<br><a href="login.html" style="color:#60a5fa">로그인 페이지로 이동</a>';
         }
     }
 }
