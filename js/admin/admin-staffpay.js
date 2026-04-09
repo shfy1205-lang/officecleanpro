@@ -196,7 +196,7 @@ function renderStaffPay() {
                 const { deduction, netPay } = calcDeduction(r.totalPay);
                 const confirmed = isPayConfirmed(r.workerId, month);
                 return `<tr class="sp-row">
-                  <td style="font-weight:600">${escapeHtml(r.name)}</td>
+                  <td style="font-weight:600;text-align:left;padding-left:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.name)}</td>
                   <td>${r.companies.length}개</td>
                   <td class="admin-pay-cell">${fmt(r.totalPay)}원</td>
                   <td style="color:var(--red)">${fmt(deduction)}원</td>
@@ -433,11 +433,19 @@ function openStaffPayDetail(workerId) {
 
     <!-- 업체별 내역 (확정 시 수정 불가) -->
     <div class="section-title" style="font-size:14px;margin:16px 0 8px">업체별 지급금액</div>
-    <div class="table-wrap">
-      <table>
+    <div class="table-wrap" style="overflow-x:auto">
+      <table style="width:100%;table-layout:fixed;min-width:600px">
+        <colgroup>
+          <col style="width:28%">
+          <col style="width:15%">
+          <col style="width:13%">
+          <col style="width:10%">
+          <col style="width:16%">
+          ${!confirmed ? '<col style="width:18%">' : ''}
+        </colgroup>
         <thead>
           <tr>
-            <th>업체명</th>
+            <th style="text-align:left;padding-left:10px">업체명</th>
             <th>계약금액</th>
             <th>수수료</th>
             <th>배분율</th>
@@ -495,6 +503,7 @@ function openStaffPayDetail(workerId) {
   `;
 
   $('modalBody').innerHTML = html;
+  $('modalBody').classList.add('modal-wide');
   $('detailModal').classList.add('show');
 }
 
