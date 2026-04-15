@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>업체 QR 관리 - 오피스클린프로</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *,*::before,*::after { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family:'Noto Sans KR',sans-serif;
+      background:#f5f7fa; color:#1a1a2e;
+      min-height:100vh; line-height:1.6;
+    }
+    .container { max-width:900px; margin:0 auto; padding:24px 16px 48px; }
+
+    /* 헤더 */
+    .ext-header {
+      background:linear-gradient(135deg,#3b82f6,#2563eb);
+      color:#fff; padding:24px 20px;
+      border-radius:14px; margin-bottom:20px;
+      display:flex; justify-content:space-between; align-items:center;
+      flex-wrap:wrap; gap:12px;
+    }
+    .ext-header h1 { font-size:20px; font-weight:700; }
+    .ext-header .sub { font-size:12px; opacity:0.85; margin-top:2px; }
+    .logout-mini {
+      background:rgba(255,255,255,0.2); color:#fff;
+      border:none; padding:8px 16px; border-radius:8px;
+      font-size:13px; cursor:pointer;
+      font-family:inherit;
+    }
+    .logout-mini:hover { background:rgba(255,255,255,0.3); }
+
+    /* 로그인 카드 */
+    .login-card {
+      max-width:380px; margin:60px auto 0;
+      background:#fff; padding:32px 28px;
+      border-radius:16px; box-shadow:0 4px 20px rgba(0,0,0,0.08);
+    }
+    .login-card h2 {
+      font-size:20px; margin-bottom:6px; text-align:center;
+    }
+    .login-card .login-desc {
+      font-size:13px; color:#666; text-align:center; margin-bottom:24px;
+    }
+    .login-card label {
+      display:block; font-size:13px; color:#555;
+      margin-bottom:6px; font-weight:500;
+    }
+    .login-card input {
+      width:100%; padding:12px 14px;
+      border:1.5px solid #e0e4ea;
+      border-radius:10px; font-size:14px;
+      font-family:inherit; margin-bottom:14px;
+      outline:none; transition:border-color 0.2s;
+    }
+    .login-card input:focus { border-color:#3b82f6; }
+    .login-card button {
+      width:100%; padding:13px;
+      background:linear-gradient(135deg,#3b82f6,#2563eb);
+      color:#fff; border:none; border-radius:10px;
+      font-size:15px; font-weight:600;
+      font-family:inherit; cursor:pointer;
+      margin-top:4px;
+    }
+    .login-card button:disabled { opacity:0.6; cursor:not-allowed; }
+    .login-error {
+      color:#ef4444; font-size:13px;
+      text-align:center; margin-top:12px; min-height:18px;
+    }
+
+    /* 회사 카드 그리드 */
+    .company-grid {
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
+      gap:16px;
+    }
+    .company-card {
+      background:#fff; border-radius:14px; padding:20px;
+      box-shadow:0 2px 8px rgba(0,0,0,0.05);
+    }
+    .company-name {
+      font-size:16px; font-weight:700; margin-bottom:4px;
+    }
+    .company-sub {
+      font-size:12px; color:#888; margin-bottom:14px;
+    }
+    .qr-wrap {
+      text-align:center; padding:12px;
+      background:#fafbfc; border-radius:10px;
+      margin-bottom:12px;
+    }
+    .qr-wrap img {
+      display:block; margin:0 auto;
+      width:180px; height:180px;
+    }
+    .qr-link {
+      font-size:11px; color:#3b82f6;
+      word-break:break-all; margin-top:8px;
+      line-height:1.4;
+    }
+    .btn-row {
+      display:flex; gap:8px; margin-top:12px;
+    }
+    .btn-row button {
+      flex:1; padding:10px; border:none; border-radius:8px;
+      font-size:13px; font-weight:500;
+      font-family:inherit; cursor:pointer;
+    }
+    .btn-copy { background:#e0e7ff; color:#3b3dbf; }
+    .btn-copy:hover { background:#c7d2fe; }
+    .btn-sticker { background:#10b981; color:#fff; }
+    .btn-sticker:hover { background:#059669; }
+    .btn-none {
+      background:#fef3c7; color:#b45309; font-size:13px;
+      padding:16px; border-radius:8px; text-align:center;
+    }
+
+    /* 로딩 / 빈상태 */
+    .loading { text-align:center; padding:80px 20px; color:#888; }
+    .spinner {
+      width:40px; height:40px;
+      border:3px solid #e0e0e0; border-top-color:#3b82f6;
+      border-radius:50%; animation:spin 0.8s linear infinite;
+      margin:0 auto 14px;
+    }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .empty {
+      background:#fff; border-radius:14px; padding:60px 20px;
+      text-align:center; color:#888;
+    }
+    .empty .icon { font-size:40px; margin-bottom:12px; }
+
+    /* 토스트 */
+    .toast {
+      position:fixed; top:20px; left:50%; transform:translateX(-50%);
+      padding:12px 22px; border-radius:10px; color:#fff;
+      font-size:14px; font-weight:500; z-index:9999;
+      animation:slideIn 0.3s;
+    }
+    .toast-success { background:#22c55e; }
+    .toast-error { background:#ef4444; }
+    @keyframes slideIn { from { transform:translateX(-50%) translateY(-20px); opacity:0; } }
+
+    .hint-box {
+      background:#f0f9ff; border-left:3px solid #3b82f6;
+      padding:12px 14px; border-radius:8px;
+      font-size:13px; color:#0c4a6e;
+      margin-bottom:20px; line-height:1.6;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container" id="container">
+
+  <!-- 로그인 화면 -->
+  <div id="loginScreen" style="display:none">
+    <div class="login-card">
+      <h2>업체 QR 관리</h2>
+      <div class="login-desc">본인 담당 업체의 QR 코드를 관리합니다</div>
+      <label>이메일</label>
+      <input type="email" id="loginEmail" placeholder="name@example.com" autocomplete="username">
+      <label>비밀번호</label>
+      <input type="password" id="loginPw" placeholder="비밀번호" autocomplete="current-password">
+      <button id="loginBtn" onclick="doLogin()">로그인</button>
+      <div class="login-error" id="loginErr"></div>
+    </div>
+  </div>
+
+  <!-- 로딩 -->
+  <div id="loadingScreen" class="loading">
+    <div class="spinner"></div>
+    <div>불러오는 중...</div>
+  </div>
+
+  <!-- 앱 -->
+  <div id="appScreen" style="display:none">
+    <div class="ext-header">
+      <div>
+        <h1 id="userNameLabel">업체 QR 관리</h1>
+        <div class="sub" id="userSubLabel"></div>
+      </div>
+      <button class="logout-mini" onclick="doLogout()">로그아웃</button>
+    </div>
+
+    <div class="hint-box">
+      💡 담당하는 업체의 QR 코드입니다. 링크를 복사해 전달하거나, 스티커 이미지를 저장해 현장에 부착하세요.
+    </div>
+
+    <div id="companyList" class="company-grid"></div>
+  </div>
+
+</div>
+
+<script>
+const SUPA_URL = 'https://gcbgzfrffekgcaktspyj.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjYmd6ZnJmZmVrZ2Nha3RzcHlqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NDU2MjMsImV4cCI6MjA4OTAyMTYyM30.sdWUgFWhUXcumkfAYBF6sShkd9xICe77U-D2mEedCWM';
+const sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+let currentWorker = null;
+
+// ─── 토스트 ───
+function showToast(msg, type='success') {
+  document.querySelectorAll('.toast').forEach(el => el.remove());
+  const el = document.createElement('div');
+  el.className = 'toast toast-' + type;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2500);
+}
+
+function escapeHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function getQrUrl(companyId, token) {
+  return `https://officecleanpro.com/site-company.html?company=${companyId}&token=${token}`;
+}
+
+// ─── 인증 체크 ───
+async function init() {
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) {
+      showLogin();
+      return;
+    }
+    const { data: worker, error } = await sb.from('workers')
+      .select('*').eq('auth_user_id', session.user.id).single();
+    if (error || !worker) {
+      await sb.auth.signOut();
+      showLogin();
+      return;
+    }
+    currentWorker = worker;
+    await showApp();
+  } catch (e) {
+    console.error(e);
+    showLogin();
+  }
+}
+
+function showLogin() {
+  document.getElementById('loadingScreen').style.display = 'none';
+  document.getElementById('appScreen').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'block';
+}
+
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pw = document.getElementById('loginPw').value;
+  const errEl = document.getElementById('loginErr');
+  const btn = document.getElementById('loginBtn');
+  errEl.textContent = '';
+
+  if (!email || !pw) {
+    errEl.textContent = '이메일과 비밀번호를 입력하세요.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '로그인 중...';
+
+  try {
+    const { data, error } = await sb.auth.signInWithPassword({ email, password: pw });
+    if (error || !data?.user) {
+      errEl.textContent = '로그인 실패. 이메일/비밀번호를 확인하세요.';
+      btn.disabled = false;
+      btn.textContent = '로그인';
+      return;
+    }
+    // worker 프로필 로드
+    const { data: worker, error: wErr } = await sb.from('workers')
+      .select('*').eq('auth_user_id', data.user.id).single();
+    if (wErr || !worker) {
+      errEl.textContent = '직원 프로필을 찾을 수 없습니다.';
+      await sb.auth.signOut();
+      btn.disabled = false;
+      btn.textContent = '로그인';
+      return;
+    }
+    currentWorker = worker;
+    document.getElementById('loginScreen').style.display = 'none';
+    await showApp();
+  } catch (e) {
+    console.error(e);
+    errEl.textContent = '오류가 발생했습니다.';
+    btn.disabled = false;
+    btn.textContent = '로그인';
+  }
+}
+
+async function doLogout() {
+  try { await sb.auth.signOut(); } catch (e) {}
+  currentWorker = null;
+  location.reload();
+}
+
+// ─── 메인 앱 ───
+async function showApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('loadingScreen').style.display = 'block';
+  document.getElementById('appScreen').style.display = 'none';
+
+  document.getElementById('userNameLabel').textContent =
+    `${currentWorker.name}님의 업체 QR`;
+  document.getElementById('userSubLabel').textContent = '담당 업체 전용 QR 관리 페이지';
+
+  // 담당 업체 로드
+  try {
+    // company_workers: 본인 assignment만 RLS가 반환
+    const { data: assignments } = await sb.from('company_workers').select('company_id');
+    const companyIds = [...new Set((assignments || []).map(a => a.company_id))];
+
+    let companies = [];
+    if (companyIds.length > 0) {
+      const { data: comps } = await sb.from('companies').select('*').in('id', companyIds);
+      companies = comps || [];
+    }
+
+    // 정렬
+    companies.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko'));
+
+    renderCompanies(companies);
+    document.getElementById('loadingScreen').style.display = 'none';
+    document.getElementById('appScreen').style.display = 'block';
+  } catch (e) {
+    console.error(e);
+    showToast('데이터 로드 실패', 'error');
+  }
+}
+
+function renderCompanies(companies) {
+  const list = document.getElementById('companyList');
+  if (!companies.length) {
+    list.outerHTML = `<div class="empty" id="companyList"><div class="icon">📭</div>담당 업체가 없습니다.</div>`;
+    return;
+  }
+
+  list.innerHTML = companies.map(c => {
+    if (!c.qr_token) {
+      return `
+        <div class="company-card">
+          <div class="company-name">${escapeHtml(c.name)}</div>
+          <div class="company-sub">${escapeHtml(c.address || '')}</div>
+          <div class="btn-none">⚠️ QR 토큰이 아직 생성되지 않았습니다.<br>관리자에게 요청하세요.</div>
+        </div>
+      `;
+    }
+    const url = getQrUrl(c.id, c.qr_token);
+    const qrImg = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
+    return `
+      <div class="company-card">
+        <div class="company-name">${escapeHtml(c.name)}</div>
+        <div class="company-sub">${escapeHtml(c.address || '-')}</div>
+        <div class="qr-wrap">
+          <img src="${qrImg}" alt="QR 코드">
+          <div class="qr-link">${escapeHtml(url)}</div>
+        </div>
+        <div class="btn-row">
+          <button class="btn-copy" onclick="copyLink('${c.id}', '${c.qr_token}')">📋 링크 복사</button>
+          <button class="btn-sticker" onclick="downloadSticker('${c.id}', '${c.qr_token}', ${JSON.stringify(c.name).replace(/"/g,'&quot;')})">📥 스티커 저장</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ─── 링크 복사 ───
+async function copyLink(companyId, token) {
+  const url = getQrUrl(companyId, token);
+  try {
+    await navigator.clipboard.writeText(url);
+    showToast('QR 링크가 복사되었습니다');
+  } catch (e) {
+    const ta = document.createElement('textarea');
+    ta.value = url;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('QR 링크가 복사되었습니다');
+  }
+}
+
+// ─── 스티커 다운로드 ───
+function downloadSticker(companyId, token, companyName) {
+  const url = getQrUrl(companyId, token);
+  const qrImg = new Image();
+  qrImg.crossOrigin = 'anonymous';
+  qrImg.onload = function() {
+    const W = 600, H = 780;
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, W, H);
+    const grad = ctx.createLinearGradient(0, 0, W, 80);
+    grad.addColorStop(0, '#3b82f6');
+    grad.addColorStop(1, '#2563eb');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, 80);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 26px "Noto Sans KR", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('오피스클린프로', W/2, 52);
+    const qrSize = 360;
+    const qrX = (W - qrSize) / 2;
+    const qrY = 130;
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = '#e5e7eb';
+    ctx.lineWidth = 2;
+    ctx.fillRect(qrX - 15, qrY - 15, qrSize + 30, qrSize + 30);
+    ctx.strokeRect(qrX - 15, qrY - 15, qrSize + 30, qrSize + 30);
+    ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+    ctx.fillStyle = '#1a1a2e';
+    ctx.font = 'bold 28px "Noto Sans KR", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(companyName, W/2, qrY + qrSize + 55, W - 60);
+    ctx.fillStyle = '#555';
+    ctx.font = '16px "Noto Sans KR", sans-serif';
+    ctx.fillText('QR코드를 스캔하여 요청사항을 남겨주세요', W/2, qrY + qrSize + 90);
+    ctx.fillStyle = '#999';
+    ctx.font = '13px "Noto Sans KR", sans-serif';
+    ctx.fillText('officecleanpro.com', W/2, H - 30);
+    const link = document.createElement('a');
+    const safeName = companyName.replace(/[<>:"/\\|?*]/g, '_');
+    link.download = `QR스티커_${safeName}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    showToast('QR 스티커 저장 완료');
+  };
+  qrImg.onerror = function() {
+    showToast('QR 이미지 로드 실패', 'error');
+  };
+  qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(url)}`;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  ['loginEmail', 'loginPw'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('keypress', e => {
+      if (e.key === 'Enter') doLogin();
+    });
+  });
+  init();
+});
+</script>
+
+</body>
+</html>
