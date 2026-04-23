@@ -40,7 +40,7 @@ function renderLeads(listOnly) {
       const st = LEAD_STATUS_MAP[l.status] || LEAD_STATUS_MAP.new;
       const wi = l.work_items || [];
       const wiTotal = wi.reduce((s, item) => s + (item.amount || 0), 0);
-      const displayAmount = wiTotal > 0 ? wiTotal : l.estimated_amount;
+      const displayAmount = wiTotal > 0 ? wiTotal : (l.estimated_amount || l.quote_amount || 0);
       return `
         <div class="card lead-card" onclick="openLeadDetail('${l.id}')">
           <div class="card-header">
@@ -86,7 +86,7 @@ function renderLeads(listOnly) {
     .reduce((s, l) => {
       const wi = l.work_items || [];
       const wiTotal = wi.reduce((sum, item) => sum + (item.amount || 0), 0);
-      return s + (wiTotal > 0 ? wiTotal : (l.estimated_amount || 0));
+      return s + (wiTotal > 0 ? wiTotal : (l.estimated_amount || l.quote_amount || 0));
     }, 0);
 
   mc.innerHTML = `
@@ -318,7 +318,7 @@ function openLeadDetail(leadId) {
   const st = LEAD_STATUS_MAP[l.status] || LEAD_STATUS_MAP.new;
   const wi = l.work_items || [];
   const wiTotal = wi.reduce((s, item) => s + (item.amount || 0), 0);
-  const displayAmount = wiTotal > 0 ? wiTotal : l.estimated_amount;
+  const displayAmount = wiTotal > 0 ? wiTotal : (l.estimated_amount || l.quote_amount || 0);
 
   // 작업내용 테이블
   const workItemsHTML = wi.length > 0 ? `
