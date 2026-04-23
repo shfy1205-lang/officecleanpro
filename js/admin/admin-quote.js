@@ -559,6 +559,7 @@ async function saveQuoteToLead() {
   const payload = {
     quote_date:       d.date,
     quote_amount:     d.total,
+    estimated_amount: d.total,   // 예상 총액에도 반영
     quote_spec:       d.spec,
     quote_frequency:  d.frequency,
     quote_work_items: d.workItems,
