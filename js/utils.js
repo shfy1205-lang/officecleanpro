@@ -131,7 +131,8 @@ function calcAssignmentFinalPay(a, finMap) {
     calcPay = a.pay_amount || 0;
   }
 
-  return a.pay_amount || calcPay;
+  // pay_amount가 명시적으로 설정된 경우(0 포함) 수동값 우선, 미설정(null/undefined)이면 자동 계산값
+  return (a.pay_amount != null) ? a.pay_amount : calcPay;
 }
 
 /**
