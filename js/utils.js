@@ -352,3 +352,178 @@ function escapeHtml(text) {
   const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
   return String(text).replace(/[&<>"']/g, m => map[m]);
 }
+
+// ════════════════════════════════════════════════════
+// 급여 이미지 생성 (Canvas 기반)
+// ════════════════════════════════════════════════════
+
+/**
+ * 직원별 급여 명세 이미지를 Canvas로 생성하여 PNG 다운로드
+ * 현장별 지급금액 + 3.3% 공제 내역을 깔끔한 이미지로 표시
+ *
+ * @param {Object} params
+ * @param {string} params.workerName - 직원명
+ * @param {string} params.month - 'YYYY-MM'
+ * @param {Array}  params.companies - [{companyName, finalPay}]
+ * @param {number} params.totalPay - 총급여
+ */
+function generatePayImage(params) {
+  const { workerName, month, companies, totalPay } = params;
+  const { deduction, netPay } = calcDeduction(totalPay);
+  const monthLabel = month.replace('-', '년 ') + '월';
+
+  // 캔버스 크기 계산
+  const padding = 40;
+  const headerH = 100;
+  const rowH = 44;
+  const summaryH = 140;
+  const footerH = 30;
+  const width = 600;
+  const height = headerH + (companies.length * rowH) + summaryH + footerH + padding * 2;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width * 2;  // Retina 대응
+  canvas.height = height * 2;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(2, 2);
+
+  // 배경
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, width, height);
+
+  // 상단 헤더 배경
+  const grad = ctx.createLinearGradient(0, 0, width, 0);
+  grad.addColorStop(0, '#1a73e8');
+  grad.addColorStop(1, '#4285f4');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, width, headerH);
+
+  // 헤더 텍스트
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 22px -apple-system, BlinkMacSystemFont, sans-serif';
+  ctx.fillText(`${workerName} 급여명세서`, padding, 42);
+  ctx.font = '14px -apple-system, BlinkMacSystemFont, sans-serif';
+  ctx.fillText(`${monthLabel} | 오피스클린프로`, padding, 70);
+
+  let y = headerH + padding;
+
+  // 업체별 내역 헤더
+  ctx.fillStyle = '#f8f9fa';
+  ctx.fillRect(padding - 10, y - 10, width - (padding - 10) * 2, 32);
+  ctx.fillStyle = '#5f6368';
+  ctx.font = 'bold 12px -apple-system, BlinkMacSystemFont, sans-serif';
+  ctx.fillText('현장명', padding, y + 10);
+  ctx.textAlign = 'right';
+  ctx.fillText('지급금액', width - padding, y + 10);
+  ctx.textAlign = 'left';
+  y += 36;
+
+  // 업체별 행
+  companies.forEach((c, i) => {
+    // 짝수 행 배경
+    if (i % 2 === 0) {
+      ctx.fillStyle = '#fafbfc';
+      ctx.fillRect(padding - 10, y - 10, width - (padding - 10) * 2, rowH);
+    }
+
+    ctx.fillStyle = '#202124';
+    ctx.font = '14px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillText(c.companyName, padding, y + 14);
+
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#1a73e8';
+    ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillText(fmt(c.finalPay) + '원', width - padding, y + 14);
+    ctx.textAlign = 'left';
+
+    // 구분선
+    ctx.strokeStyle = '#e8eaed';
+    ctx.beginPath();
+    ctx.moveTo(padding - 10, y + rowH - 12);
+    ctx.lineTo(width - padding + 10, y + rowH - 12);
+    ctx.stroke();
+
+    y += rowH;
+  });
+
+  y += 10;
+
+  // 요약 박스
+  const boxY = y;
+  const boxH = summaryH - 20;
+  ctx.fillStyle = '#f1f8ff';
+  ctx.strokeStyle = '#1a73e8';
+  ctx.lineWidth = 1.5;
+  roundRect(ctx, padding - 10, boxY, width - (padding - 10) * 2, boxH, 10);
+  ctx.fill();
+  ctx.stroke();
+
+  y = boxY + 28;
+  const col2X = width - padding;
+
+  // 총급여
+  ctx.fillStyle = '#5f6368';
+  ctx.font = '13px -apple-system, BlinkMacSystemFont, sans-serif';
+  ctx.fillText('총급여', padding + 10, y);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#202124';
+  ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, sans-serif';
+  ctx.fillText(fmt(totalPay) + '원', col2X - 10, y);
+  ctx.textAlign = 'left';
+  y += 30;
+
+  // 3.3% 공제
+  ctx.fillStyle = '#5f6368';
+  ctx.font = '13px -apple-system, BlinkMacSystemFont, sans-serif';
+  ctx.fillText('3.3% 공제액', padding + 10, y);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#d93025';
+  ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, sans-serif';
+  ctx.fillText('-' + fmt(deduction) + '원', col2X - 10, y);
+  ctx.textAlign = 'left';
+  y += 30;
+
+  // 실지급액 (강조)
+  ctx.fillStyle = '#1a73e8';
+  ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, sans-serif';
+  ctx.fillText('실지급액', padding + 10, y);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#1a73e8';
+  ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, sans-serif';
+  ctx.fillText(fmt(netPay) + '원', col2X - 10, y);
+  ctx.textAlign = 'left';
+
+  // 하단 워터마크
+  y = height - footerH;
+  ctx.fillStyle = '#9aa0a6';
+  ctx.font = '10px -apple-system, BlinkMacSystemFont, sans-serif';
+  ctx.fillText('officecleanpro.com', padding, y);
+  ctx.textAlign = 'right';
+  ctx.fillText(new Date().toLocaleDateString('ko-KR'), width - padding, y);
+  ctx.textAlign = 'left';
+
+  // PNG 다운로드
+  const link = document.createElement('a');
+  link.download = `급여명세_${workerName}_${month}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+
+  if (typeof toast === 'function') {
+    toast(`급여명세_${workerName}_${month}.png 저장됨`);
+  }
+}
+
+/** Canvas 라운드 사각형 헬퍼 */
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
