@@ -43,12 +43,13 @@ function renderMyPay() {
   let html = `
     <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
       내 급여
-      ${confirmed ? `
-        <div style="display:flex;gap:6px;align-items:center">
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="btn-sm" onclick="downloadMyPayImage()" style="font-size:11px;padding:6px 10px;background:#e8f5e9;color:#2e7d32">🖼️ 이미지</button>
+        ${confirmed ? `
           <button class="btn-sm btn-blue" onclick="downloadMyPayslipExcel()" style="font-size:11px;padding:6px 10px">📥 엑셀</button>
           <button class="btn-sm" onclick="downloadMyPayslipPDF()" style="font-size:11px;padding:6px 10px;background:var(--bg3);color:var(--text)">📄 PDF</button>
-        </div>
-      ` : ''}
+        ` : ''}
+      </div>
     </div>
     ${monthSelectorHTML(selectedMonth, 'changePayMonth')}
 
@@ -131,6 +132,28 @@ function changePayMonth(month) {
   renderMyPay();
 }
 
+
+// ════════════════════════════════════════════════════
+// 급여 이미지 다운로드 (직원용)
+// ════════════════════════════════════════════════════
+
+function downloadMyPayImage() {
+  const month = selectedMonth;
+  const payList = calcMyPayList(month);
+  const totalPay = payList.reduce((sum, a) => sum + a.finalPay, 0);
+
+  const companies = payList.map(a => {
+    const comp = getCompanyById(a.company_id);
+    return { companyName: comp?.name || '-', finalPay: a.finalPay };
+  }).sort((a, b) => b.finalPay - a.finalPay);
+
+  generatePayImage({
+    workerName: currentWorker.name,
+    month: month,
+    companies: companies,
+    totalPay: totalPay,
+  });
+}
 
 // ════════════════════════════════════════════════════
 // 직원 급여명세서 다운로드
