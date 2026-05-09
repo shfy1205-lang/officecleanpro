@@ -114,50 +114,65 @@ async function ensureMonthData(month) {
 
   let inserted = false;
 
-  // 1) company_financials 복사
-  if (!hasFinancials) {
-    const prevFins = adminData.financials.filter(f => f.month === prevMonth);
-    if (prevFins.length > 0) {
-      const newFins = prevFins.map(f => ({
-        company_id:      f.company_id,
-        month:           month,
-        ocp_amount:      f.ocp_amount,
-        eco_amount:      f.eco_amount,
-        worker_pay_total: f.worker_pay_total,
-        memo:            f.memo,
-      }));
+  // 해지/중지된 업체 ID (해당 월 이전에 해지된 건만 제외)
+    const excludeCompanyIds = new Set(
+        adminData.companies
+            .filter(c => {
+                if (c.status === 'paused') return true;
+                if (c.status === 'terminated' && c.terminated_at) {
+                    const termMonth = c.terminated_at.substring(0, 7);
+                    return month > termMonth; // 해지월 이후만 제외
+                }
+                return false;
+            })
+            .map(c => c.id)
+    );
 
-      const { error } = await sb.from('company_financials').insert(newFins);
-      if (error && error.code !== '23505') {
-        console.error('ensureMonthData financials error:', error);
-      } else {
-        inserted = true;
-      }
+    // 1) company_financials 복사 (contract_amount 포함)
+    if (!hasFinancials) {
+        const prevFins = adminData.financials.filter(f => f.month === prevMonth && !excludeCompanyIds.has(f.company_id));
+        if (prevFins.length > 0) {
+            const newFins = prevFins.map(f => ({
+                company_id:      f.company_id,
+                month:           month,
+                contract_amount: f.contract_amount,
+                ocp_amount:      f.ocp_amount,
+                eco_amount:      f.eco_amount,
+                worker_pay_total: f.worker_pay_total,
+                memo:            f.memo,
+            }));
+
+            const { error } = await sb.from('company_financials').insert(newFins);
+            if (error && error.code !== '23505') {
+                console.error('ensureMonthData financials error:', error);
+            } else {
+                inserted = true;
+            }
+        }
     }
-  }
 
-  // 2) company_workers 복사
-  if (!hasAssignments) {
-    const prevAssigns = adminData.assignments.filter(a => a.month === prevMonth);
-    if (prevAssigns.length > 0) {
-      const newAssigns = prevAssigns.map(a => ({
-        company_id: a.company_id,
-        worker_id:  a.worker_id,
-        month:      month,
-        pay_amount: a.pay_amount,
-        share:      a.share,
-      }));
+    // 2) company_workers 복사 (해지 업체 제외)
+    if (!hasAssignments) {
+        const prevAssigns = adminData.assignments.filter(a => a.month === prevMonth && !excludeCompanyIds.has(a.company_id));
+        if (prevAssigns.length > 0) {
+            const newAssigns = prevAssigns.map(a => ({
+                company_id: a.company_id,
+                worker_id:  a.worker_id,
+                month:      month,
+                pay_amount: a.pay_amount,
+                share:      a.share,
+            }));
 
-      const { error } = await sb.from('company_workers').insert(newAssigns);
-      if (error && error.code !== '23505') {
-        console.error('ensureMonthData assignments error:', error);
-      } else {
-        inserted = true;
-      }
+            const { error } = await sb.from('company_workers').insert(newAssigns);
+            if (error && error.code !== '23505') {
+                console.error('ensureMonthData assignments error:', error);
+            } else {
+                inserted = true;
+            }
+        }
     }
-  }
 
-  // 데이터 새로고침
+    // 데이터 새로고침
   if (inserted) {
     await loadAdminData();
   }
