@@ -1,4 +1,3 @@
-1
 /**
  * admin-dashboard.js - 운영 대시보드
  * 오늘 청소 현황 + 미확인 요청 + 미입금/미발행 + 최근 변경 + 월간 요약 + 자동 일정 생성
@@ -1334,4 +1333,3 @@ async function renderScheduleLog() {
     console.error('renderScheduleLog error:', e);
     toast('오류가 발생했습니다', 'error');
   }}
-1
