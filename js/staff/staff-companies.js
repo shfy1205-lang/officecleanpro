@@ -278,6 +278,7 @@ async function saveStaffMessage(companyId, noteId) {
 
   toast('전달사항 저장 완료');
   await loadStaffData();
+  openCompanyDetail(companyId);
 
   } catch (e) {
     console.error('saveStaffMessage error:', e);
@@ -300,6 +301,7 @@ async function saveNoteInfo(companyId, noteId) {
   }
   toast('저장 완료');
   await loadStaffData();
+  openCompanyDetail(companyId);
 
   } catch (e) {
     console.error('saveNoteInfo error:', e);
