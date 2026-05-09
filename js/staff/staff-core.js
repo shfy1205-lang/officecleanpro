@@ -29,11 +29,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ─── 데이터 로드 (RLS가 자동으로 본인 데이터만 반환) ───
 
 async function loadStaffData() {
-  const [assignments, companies, schedules, notes, photos, tasks, requests, payConfirmations, financials] = await Promise.all([
+  const results = await Promise.allSettled([
     sb.from('company_workers').select('*'),
     sb.from('companies').select('*'),
     sb.from('company_schedule').select('*'),
-    sb.from('company_notes').select('id, company_id, special_notes, parking_info, recycling_location'),
+    sb.from('company_notes').select('id, company_id, special_notes, parking_info, recycling_location, staff_message, office_password'),
     sb.from('company_note_photos').select('*'),
     sb.from('tasks').select('*'),
     sb.from('requests').select('*'),
@@ -41,15 +41,22 @@ async function loadStaffData() {
     sb.from('company_financials').select('*'),
   ]);
 
-  staffData.assignments      = assignments.data || [];
-  staffData.companies        = companies.data || [];
-  staffData.schedules        = schedules.data || [];
-  staffData.notes            = notes.data || [];
-  staffData.photos           = photos.data || [];
-  staffData.tasks            = tasks.data || [];
-  staffData.requests         = requests.data || [];
-  staffData.payConfirmations = payConfirmations?.data || [];
-  staffData.financials       = financials?.data || [];
+  const get = (i) => results[i].status === 'fulfilled' ? (results[i].value.data || []) : [];
+
+  staffData.assignments      = get(0);
+  staffData.companies        = get(1);
+  staffData.schedules        = get(2);
+  staffData.notes            = get(3);
+  staffData.photos           = get(4);
+  staffData.tasks            = get(5);
+  staffData.requests         = get(6);
+  staffData.payConfirmations = get(7);
+  staffData.financials       = get(8);
+
+  // 실패한 쿼리 로그
+  results.forEach((r, i) => {
+    if (r.status === 'rejected') console.error(`loadStaffData query[${i}] failed:`, r.reason);
+  });
 }
 
 // ─── 탭 전환 ───
