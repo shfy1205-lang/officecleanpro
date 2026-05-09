@@ -44,7 +44,7 @@ function renderNotices(listOnly) {
             </div>
             ${targetBadge}
           </div>
-          <div class="notice-content">${n.content.length > 80 ? n.content.slice(0, 80) + '...' : n.content}</div>
+          <div class="notice-content">${escapeHtml(n.content.length > 80 ? n.content.slice(0, 80) + '...' : n.content)}</div>
         </div>
       `;
     }).join('') : `
