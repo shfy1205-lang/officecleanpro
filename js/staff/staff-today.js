@@ -172,7 +172,7 @@ function buildTodayTaskCard(item, dateStr) {
     html += `
       <div class="sttoday-done-bar">
         <span><span class="check-icon">✓</span> 완료됨</span>
-        ${todayTask?.memo ? `<span class="sttoday-memo-text">${todayTask.memo}</span>` : ''}
+        ${todayTask?.memo ? `<span class="sttoday-memo-text">${escapeHtml(todayTask.memo)}</span>` : ''}
       </div>
     `;
   } else if (isPastOrToday) {
