@@ -236,7 +236,7 @@ function buildTaskList(monthTasks) {
               <div class="task-list-name">${comp?.name || '알 수 없는 업체'}</div>
               <div class="task-list-sub">${comp?.area_name || ''} ${comp?.location || ''}</div>
             </div>
-            ${t.memo ? `<div class="task-list-memo">${t.memo}</div>` : ''}
+            ${t.memo ? `<div class="task-list-memo">${escapeHtml(t.memo)}</div>` : ''}
           </div>`;
         }).join('')}
       </div>
