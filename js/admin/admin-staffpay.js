@@ -408,10 +408,14 @@ function openStaffPayDetail(workerId) {
            <div style="display:flex;gap:6px;align-items:center">
              <button class="btn-sm btn-blue" style="font-size:11px;padding:4px 10px" onclick="downloadPayslipExcel('${workerId}')">📥 엑셀</button>
              <button class="btn-sm" style="font-size:11px;padding:4px 10px;background:var(--bg3);color:var(--text)" onclick="downloadPayslipPDF('${workerId}')">📄 PDF</button>
+             <button class="btn-sm" style="font-size:11px;padding:4px 10px;background:#e8f5e9;color:#2e7d32" onclick="downloadPayImage('${workerId}')">🖼️ 이미지</button>
              <button class="btn-sm btn-red" style="font-size:11px;padding:4px 10px" onclick="togglePayConfirm('${workerId}');closeModal();">확정 해제</button>
            </div>`
         : `<span class="sp-confirm-badge sp-pending">⏳ 미확정</span>
-           <button class="btn-sm btn-green" style="font-size:11px;padding:4px 10px" onclick="togglePayConfirm('${workerId}');closeModal();">급여 확정</button>`
+           <div style="display:flex;gap:6px;align-items:center">
+             <button class="btn-sm" style="font-size:11px;padding:4px 10px;background:#e8f5e9;color:#2e7d32" onclick="downloadPayImage('${workerId}')">🖼️ 이미지</button>
+             <button class="btn-sm btn-green" style="font-size:11px;padding:4px 10px" onclick="togglePayConfirm('${workerId}');closeModal();">급여 확정</button>
+           </div>`
       }
     </div>
 
@@ -686,6 +690,21 @@ function downloadPayslipPDF(workerId) {
 
   doc.save(`급여명세_${worker.name}_${month}.pdf`);
   toast(`급여명세_${worker.name}_${month}.pdf 다운로드 완료`);
+}
+
+/** 개별 직원 급여 이미지 다운로드 (관리자용) */
+function downloadPayImage(workerId) {
+  const month = selectedMonth;
+  const { rows } = calcStaffPayData(month);
+  const worker = rows.find(r => r.workerId === workerId);
+  if (!worker) return toast('급여 데이터를 찾을 수 없습니다', 'error');
+
+  generatePayImage({
+    workerName: worker.name,
+    month: month,
+    companies: worker.companies.map(c => ({ companyName: c.companyName, finalPay: c.finalPay })),
+    totalPay: worker.totalPay,
+  });
 }
 
 /** 전체 직원 급여명세서 일괄 엑셀 다운로드 (확정된 직원만) */
