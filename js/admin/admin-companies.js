@@ -357,8 +357,12 @@ async function deleteCompany(companyId) {
   await sb.from('company_financials').delete().eq('company_id', companyId);
   await sb.from('company_workers').delete().eq('company_id', companyId);
   await sb.from('company_schedule').delete().eq('company_id', companyId);
+  await sb.from('company_note_photos').delete().eq('company_id', companyId);
   await sb.from('company_notes').delete().eq('company_id', companyId);
   await sb.from('billing_records').delete().eq('company_id', companyId);
+  await sb.from('tasks').delete().eq('company_id', companyId);
+  await sb.from('requests').delete().eq('company_id', companyId);
+  await sb.from('change_logs').delete().eq('company_id', companyId);
 
   const { error } = await sb.from('companies').delete().eq('id', companyId);
   if (error) return toast(error.message, 'error');
