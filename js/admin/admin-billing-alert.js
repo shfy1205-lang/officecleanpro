@@ -25,16 +25,15 @@ function getAlertStatus(b) {
   // 완료: 발행 + 입금 완료 + 전액 입금
   if (issued && paid && paidAmt >= billedAmt) return 'done';
 
+  // 장기미수: 대상월 말일로부터 30일 이상 경과 + 미입금 또는 부분입금
+  const monthEnd = new Date(b.month + '-01');
+  monthEnd.setMonth(monthEnd.getMonth() + 1);
+  monthEnd.setDate(0); // 해당 월 말일
+  const daysSince = (new Date() - monthEnd) / (1000 * 60 * 60 * 24);
+  if (daysSince >= 30 && paidAmt < billedAmt) return 'overdue';
+
   // 부분입금: 입금됐지만 금액이 부족
   if (paid && paidAmt > 0 && paidAmt < billedAmt) return 'partial';
-
-  // 장기미수: 대상월 말일로부터 30일 이상 경과 + 미입금
-  if (!paid) {
-    const monthEnd = new Date(b.month + '-01');
-    monthEnd.setMonth(monthEnd.getMonth() + 1);
-    monthEnd.setDate(0); // 해당 월 말일
-    const daysSince = (new Date() - monthEnd) / (1000 * 60 * 60 * 24);
-    if (daysSince >= 30) return 'overdue';
   }
 
   // 미발행: 세금계산서 미발행
