@@ -527,3 +527,15 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.quadraticCurveTo(x, y, x + r, y);
   ctx.closePath();
 }
+
+
+/** 금액 입력 필드 실시간 콤마 포맷터 */
+function fmtInput(el) {
+  const raw = el.value.replace(/[^0-9]/g, '');
+  el.value = raw ? parseInt(raw).toLocaleString('ko-KR') : '';
+}
+
+/** 콤마 제거 후 숫자 반환 (금액 입력값 파싱용) */
+function parseMoney(val) {
+  return parseInt((val || '0').replace(/,/g, ''), 10) || 0;
+}
