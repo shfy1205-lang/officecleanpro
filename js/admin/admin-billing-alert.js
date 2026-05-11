@@ -34,7 +34,6 @@ function getAlertStatus(b) {
 
   // 부분입금: 입금됐지만 금액이 부족
   if (paid && paidAmt > 0 && paidAmt < billedAmt) return 'partial';
-  }
 
   // 미발행: 세금계산서 미발행
   if (!issued) return 'unissued';
