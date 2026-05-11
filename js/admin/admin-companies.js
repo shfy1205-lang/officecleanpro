@@ -262,7 +262,7 @@ function openCompanyForm(companyId) {
     <div class="admin-row-2">
             <div class="field">
                 <label>계약금액 (원)</label>
-                <input id="fContractAmount" type="number" value="${c.contract_amount || 0}" placeholder="0">
+                <input id="fContractAmount" type="text" value="${(c.contract_amount||0).toLocaleString()}" placeholder="0" oninput="fmtInput(this)">
             </div>
             <div class="field">
                 <label>청소 시작일</label>
@@ -310,7 +310,7 @@ async function _saveCompanyInner(companyId) {
     status,
     terminated_at:   status === 'terminated' ? ($('fTerminatedAt').value || null) : null,
     subcontract_from: $('fSubcontract').value || null,
-    contract_amount: parseInt($('fContractAmount').value) || 0,
+    contract_amount: parseInt(($('fContractAmount').value||'0').replace(/,/g,'')) || 0,
     clean_start_date: $('fCleanStartDate').value || null,
     memo:            $('fMemo').value.trim(),
   };
@@ -454,12 +454,12 @@ async function openCompanyDetail(companyId) {
         </div>
         <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px">
           <div style="font-size:11px;color:var(--text2);margin-bottom:4px">OCP 수수료</div>
-          <input type="number" id="feeOcp_${companyId}" value="${ocpAmt}"
+          <input type="text" id="feeOcp_${companyId}" value="${ocpAmt.toLocaleString()}" oninput="fmtInput(this)"
                  style="width:100%;font-size:15px;font-weight:700;color:var(--green);background:transparent;border:1px solid var(--border);border-radius:6px;padding:4px 8px;text-align:right">
         </div>
         <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px">
           <div style="font-size:11px;color:var(--text2);margin-bottom:4px">에코 수수료</div>
-          <input type="number" id="feeEco_${companyId}" value="${ecoAmt}"
+          <input type="text" id="feeEco_${companyId}" value="${ecoAmt.toLocaleString()}" oninput="fmtInput(this)"
                  style="width:100%;font-size:15px;font-weight:700;color:var(--orange);background:transparent;border:1px solid var(--border);border-radius:6px;padding:4px 8px;text-align:right">
         </div>
       </div>
@@ -544,7 +544,7 @@ async function openCompanyDetail(companyId) {
               ${a.is_primary ? '<span class="badge badge-area">주담당</span>' : ''}
             </div>
             <div class="assign-actions">
-              <input type="number" class="assign-pay-input" value="${a.pay_amount || 0}"
+              <input type="text" class="assign-pay-input" value="${(a.pay_amount||0).toLocaleString()}" oninput="fmtInput(this)"
                      onchange="updatePayAmount('${a.id}', this.value)" placeholder="지급액">
               <span class="assign-pay-unit">원</span>
               <button class="btn-sm btn-red" style="padding:4px 10px;font-size:11px"
@@ -561,7 +561,7 @@ async function openCompanyDetail(companyId) {
             `<option value="${w.id}">${escapeHtml(w.name)}</option>`
           ).join('')}
         </select>
-        <input type="number" id="newPay_${companyId}" class="assign-pay-input" placeholder="지급액" value="0">
+        <input type="text" id="newPay_${companyId}" class="assign-pay-input" placeholder="지급액" value="0">
         <button class="btn-sm btn-green" onclick="addAssignment('${companyId}')">배정</button>
       </div>
     </div>
@@ -782,7 +782,7 @@ async function saveScheduleTimes(companyId) {
 async function addAssignment(companyId) {
   try {
   const workerId = $(`newWorker_${companyId}`).value;
-  const payAmount = parseInt($(`newPay_${companyId}`).value, 10) || 0;
+  const payAmount = parseInt(($(`newPay_${companyId}`).value||'0').replace(/,/g,''), 10) || 0;
 
   if (!workerId) return toast('직원을 선택하세요', 'error');
   if (payAmount < 0) return toast('지급액은 0 이상이어야 합니다', 'error');
@@ -844,7 +844,7 @@ async function removeAssignment(assignId, companyId) {
 
 async function updatePayAmount(assignId, value) {
   try {
-  const payAmount = parseInt(value, 10) || 0;
+  const payAmount = parseInt((value||'0').replace(/,/g,''), 10) || 0;
   if (payAmount < 0) return toast('지급액은 0 이상이어야 합니다', 'error');
   if (payAmount > 99999999) return toast('지급액이 너무 큽니다', 'error');
 
@@ -1050,8 +1050,8 @@ function getCompanyTotalCost(companyId, month) {
 async function saveFeeInfo(companyId) {
   try {
   const contractAmt = getCompanyContractAmount(companyId);
-  const ocpAmt = parseInt($(`feeOcp_${companyId}`)?.value, 10) || 0;
-  const ecoAmt = parseInt($(`feeEco_${companyId}`)?.value, 10) || 0;
+  const ocpAmt = parseInt(($(`feeOcp_${companyId}`)?.value||'0').replace(/,/g,''), 10) || 0;
+  const ecoAmt = parseInt(($(`feeEco_${companyId}`)?.value||'0').replace(/,/g,''), 10) || 0;
 
   if (contractAmt < 0 || ocpAmt < 0 || ecoAmt < 0) return toast('금액은 0 이상이어야 합니다', 'error');
 
