@@ -83,7 +83,7 @@ function renderQuote() {
         </div>
         <div>
           <label style="font-size:12px;color:var(--text-muted)">공급가액 (VAT 별도)</label>
-          <input id="qAmount" type="number" class="input" placeholder="예: 272727" style="margin-top:4px" oninput="debouncedQuotePreview()">
+          <input id="qAmount" type="text" oninput="fmtInput(this)" class="input" placeholder="예: 272727" style="margin-top:4px" oninput="debouncedQuotePreview()">
         </div>
         <div>
           <label style="font-size:12px;color:var(--text-muted)">견적유효기간 (일)</label>
@@ -139,7 +139,7 @@ function renderQuote() {
       if ($('qAddress')) $('qAddress').value = lead.address || '';
       if ($('qFrequency')) $('qFrequency').value = lead.frequency || '주1회';
       if ($('qSpec')) $('qSpec').value = lead.spec || '사무실전체';
-      if ($('qAmount') && lead.amount) $('qAmount').value = lead.amount;
+      if ($('qAmount') && lead.amount) $('qAmount').value = (lead.amount||0).toLocaleString();
 
       // 작업내용 체크박스 매칭
       if (lead.quoteWorkItems && lead.quoteWorkItems.length > 0) {
@@ -160,7 +160,7 @@ function renderQuote() {
 }
 
 function getQuoteFormData() {
-  const amount = parseInt($('qAmount')?.value) || 0;
+  const amount = parseInt(($('qAmount')?.value||'0').replace(/,/g,'')) || 0;
   const tax = Math.ceil(amount * 0.1);
   const total = amount + tax;
 
