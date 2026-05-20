@@ -83,7 +83,7 @@ function renderQuote() {
         </div>
         <div>
           <label style="font-size:12px;color:var(--text-muted)">공급가액 (VAT 별도)</label>
-          <input id="qAmount" type="text" oninput="fmtInput(this)" class="input" placeholder="예: 272727" style="margin-top:4px" oninput="debouncedQuotePreview()">
+          <input id="qAmount" type="text" oninput="fmtInput(this);debouncedQuotePreview()" class="input" placeholder="예: 272727" style="margin-top:4px">
         </div>
         <div>
           <label style="font-size:12px;color:var(--text-muted)">견적유효기간 (일)</label>
