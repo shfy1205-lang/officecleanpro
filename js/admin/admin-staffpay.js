@@ -127,6 +127,7 @@ function renderStaffPay() {
     <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
       담당자급여
       <div style="display:flex;gap:6px;align-items:center">
+        <button class="btn-sm" onclick="generateNextMonth()" style="font-size:11px;padding:6px 10px;background:#7c3aed;color:#fff;border:none;border-radius:6px;cursor:pointer">📋 다음달 생성</button>
         ${allConfirmed ? `<button class="btn-sm btn-green" onclick="downloadAllPayslips()" style="font-size:11px;padding:6px 10px">📄 전체명세서</button>` : ''}
         <button class="btn-sm btn-blue" onclick="exportStaffPay()" style="font-size:11px;padding:6px 10px">📥 엑셀</button>
       </div>
@@ -563,6 +564,107 @@ async function changePayMonth(month) {
     console.error('changePayMonth error:', e);
     toast('오류가 발생했습니다', 'error');
   }}
+
+
+/**
+ * 다음달 데이터 생성 (현재 월 금액 기준)
+ * - company_financials: 현재 월 → 다음달 복사
+ * - company_workers: 현재 월 → 다음달 복사
+ * - 해지/중지 업체 제외
+ * - 이미 존재하면 삭제 후 재생성
+ */
+async function generateNextMonth() {
+  const curMonth = selectedMonth;
+  const [y, m] = curMonth.split('-').map(Number);
+  const nextMonth = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
+  const nextLabel = nextMonth.replace('-', '년 ') + '월';
+
+  const curFins = adminData.financials.filter(f => f.month === curMonth);
+  const curAssigns = adminData.assignments.filter(a => a.month === curMonth);
+
+  if (curFins.length === 0 && curAssigns.length === 0) {
+    toast('현재 월에 데이터가 없습니다', 'error');
+    return;
+  }
+
+  const existFins = adminData.financials.filter(f => f.month === nextMonth);
+  const existAssigns = adminData.assignments.filter(a => a.month === nextMonth);
+
+  let msg = `${nextLabel} 데이터를 현재(${curMonth}) 금액 기준으로 생성합니다.\n\n`;
+  msg += `복사 대상: 정산 ${curFins.length}건, 급여배정 ${curAssigns.length}건`;
+
+  if (existFins.length > 0 || existAssigns.length > 0) {
+    msg += `\n\n⚠️ ${nextLabel}에 이미 데이터가 있습니다 (정산 ${existFins.length}건, 급여 ${existAssigns.length}건).\n기존 데이터를 삭제하고 새로 생성합니다.`;
+  }
+
+  if (!confirm(msg)) return;
+
+  try {
+    const excludeIds = new Set(
+      adminData.companies
+        .filter(c => {
+          if (c.status === 'paused') return true;
+          if (c.status === 'terminated' && c.terminated_at) {
+            return nextMonth > c.terminated_at.substring(0, 7);
+          }
+          return false;
+        })
+        .map(c => c.id)
+    );
+
+    if (existFins.length > 0) {
+      await sb.from('company_financials').delete().eq('month', nextMonth);
+    }
+    if (existAssigns.length > 0) {
+      await sb.from('company_workers').delete().eq('month', nextMonth);
+    }
+
+    let finCount = 0, assignCount = 0;
+
+    const newFins = curFins
+      .filter(f => !excludeIds.has(f.company_id))
+      .map(f => ({
+        company_id:      f.company_id,
+        month:           nextMonth,
+        contract_amount: f.contract_amount,
+        ocp_amount:      f.ocp_amount,
+        eco_amount:      f.eco_amount,
+        worker_pay_total: f.worker_pay_total,
+        memo:            f.memo,
+      }));
+
+    if (newFins.length > 0) {
+      const { error } = await sb.from('company_financials').insert(newFins);
+      if (error) throw error;
+      finCount = newFins.length;
+    }
+
+    const newAssigns = curAssigns
+      .filter(a => !excludeIds.has(a.company_id))
+      .map(a => ({
+        company_id: a.company_id,
+        worker_id:  a.worker_id,
+        month:      nextMonth,
+        pay_amount: a.pay_amount,
+        share:      a.share,
+      }));
+
+    if (newAssigns.length > 0) {
+      const { error } = await sb.from('company_workers').insert(newAssigns);
+      if (error) throw error;
+      assignCount = newAssigns.length;
+    }
+
+    await loadAdminData();
+    selectedMonth = nextMonth;
+    renderStaffPay();
+
+    toast(`${nextLabel} 생성 완료! (정산 ${finCount}건, 급여 ${assignCount}건)`, 'success');
+  } catch (e) {
+    console.error('generateNextMonth error:', e);
+    toast('다음달 생성 실패: ' + (e.message || ''), 'error');
+  }
+}
 
 
 // ════════════════════════════════════════════════════
