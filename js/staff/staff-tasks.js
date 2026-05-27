@@ -3,6 +3,70 @@
  */
 
 // ════════════════════════════════════════════════════
+// 공통 완료 처리 코어 (toggleTask, completeTodayTask 공용)
+// ════════════════════════════════════════════════════
+
+/**
+ * 청소 완료 처리 공통 로직
+ * @param {string} companyId
+ * @param {string} dateStr - 'YYYY-MM-DD'
+ * @param {Object} opts
+ *   - memo: 메모 문자열 (선택)
+ *   - selectReturn: .select().single() 사용 여부
+ * @returns {{ success: boolean, error?: Object }}
+ */
+async function _completeTaskCore(companyId, dateStr, opts = {}) {
+  const { memo = null, selectReturn = false } = opts;
+
+  const existing = staffData.tasks.find(
+    t => t.company_id === companyId && t.task_date === dateStr
+  );
+
+  let data, error;
+
+  if (existing && existing.status === 'scheduled') {
+    const updatePayload = { status: 'completed', worker_id: currentWorker.id };
+    if (memo !== undefined) updatePayload.memo = memo || null;
+
+    let q = sb.from('tasks').update(updatePayload).eq('id', existing.id);
+    if (selectReturn) q = q.select().single();
+    const res = await q;
+    data = res.data;
+    error = res.error;
+    if (!error) {
+      Object.assign(existing, updatePayload, { updated_at: new Date().toISOString() });
+    }
+  } else if (existing && existing.status === 'completed') {
+    return { success: false, duplicate: true };
+  } else {
+    const insertPayload = {
+      company_id: companyId,
+      worker_id: currentWorker.id,
+      task_date: dateStr,
+      status: 'completed',
+      task_source: 'manual',
+      memo: memo || null,
+    };
+    let q = sb.from('tasks').insert(insertPayload);
+    if (selectReturn) q = q.select().single();
+    const res = await q;
+    data = res.data;
+    error = res.error;
+    if (!error) {
+      const localEntry = data || {
+        ...insertPayload,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      staffData.tasks.push(localEntry);
+    }
+  }
+
+  if (error) return { success: false, error };
+  return { success: true };
+}
+
+// ════════════════════════════════════════════════════
 // 청소 완료 체크 (업체 상세 모달에서 사용)
 // ════════════════════════════════════════════════════
 
@@ -11,55 +75,19 @@ async function toggleTask(companyId, targetDate) {
   if (btn) { btn.disabled = true; btn.textContent = '처리 중...'; }
 
   const dateStr = targetDate || today();
+  const result = await _completeTaskCore(companyId, dateStr);
 
-  // 기존 scheduled task가 있는지 확인
-  const existing = staffData.tasks.find(
-    t => t.company_id === companyId && t.task_date === dateStr
-  );
-
-  let error;
-
-  if (existing && existing.status === 'scheduled') {
-    // 기존 예정 task → completed로 UPDATE
-    const res = await sb.from('tasks')
-      .update({ status: 'completed', worker_id: currentWorker.id })
-      .eq('id', existing.id);
-    error = res.error;
-    if (!error) {
-      existing.status = 'completed';
-      existing.worker_id = currentWorker.id;
-    }
-  } else if (existing && existing.status === 'completed') {
+  if (result.duplicate) {
     if (btn) { btn.disabled = false; btn.textContent = '청소 완료 체크'; }
     toast('이미 완료 처리되었습니다', 'error');
     return;
-  } else {
-    // task가 없으면 새로 INSERT
-    const res = await sb.from('tasks').insert({
-      company_id: companyId,
-      worker_id:  currentWorker.id,
-      task_date:  dateStr,
-      status:     'completed',
-      task_source: 'manual',
-    });
-    error = res.error;
-    if (!error) {
-      staffData.tasks.push({
-        company_id: companyId,
-        worker_id: currentWorker.id,
-        task_date: dateStr,
-        status: 'completed',
-        created_at: new Date().toISOString(),
-      });
-    }
   }
-
-  if (error) {
+  if (!result.success) {
     if (btn) { btn.disabled = false; btn.textContent = '청소 완료 체크'; }
-    if (error.code === '23505') {
+    if (result.error?.code === '23505') {
       toast('이미 완료 처리되었습니다', 'error');
     } else {
-      toast(error.message, 'error');
+      toast(result.error?.message || '오류가 발생했습니다', 'error');
     }
     return;
   }
