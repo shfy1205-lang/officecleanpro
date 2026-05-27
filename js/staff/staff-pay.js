@@ -127,8 +127,9 @@ function renderMyPay() {
   mc.innerHTML = html;
 }
 
-function changePayMonth(month) {
+async function changePayMonth(month) {
   selectedMonth = month;
+  await loadStaffData();
   renderMyPay();
 }
 
