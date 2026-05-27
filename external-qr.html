@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase.js"></script>
   <style>
     *,*::before,*::after { margin:0; padding:0; box-sizing:border-box; }
     body {
@@ -197,11 +198,8 @@
 </div>
 
 <script>
-const SUPA_URL = 'https://gcbgzfrffekgcaktspyj.supabase.co';
-const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjYmd6ZnJmZmVrZ2Nha3RzcHlqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NDU2MjMsImV4cCI6MjA4OTAyMTYyM30.sdWUgFWhUXcumkfAYBF6sShkd9xICe77U-D2mEedCWM';
-const sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
-
-let currentWorker = null;
+// Supabase 초기화 (js/supabase.js의 공유 설정 사용)
+initFromStorage();
 
 // ─── 토스트 ───
 function showToast(msg, type='success') {
@@ -424,7 +422,7 @@ function downloadSticker(companyId, token, companyName) {
     ctx.fillText(companyName, W/2, qrY + qrSize + 55, W - 60);
     ctx.fillStyle = '#555';
     ctx.font = '16px "Noto Sans KR", sans-serif';
-    ctx.fillText('QR코드를 스캔하여 요청사항을 남겨주세요', W/2, qrY + qrSize + 90);
+    ctx.fillText('QR코드를 스캐하여 요청사항을 남겨주세요', W/2, qrY + qrSize + 90);
     ctx.fillStyle = '#999';
     ctx.font = '13px "Noto Sans KR", sans-serif';
     ctx.fillText('officecleanpro.com', W/2, H - 30);
