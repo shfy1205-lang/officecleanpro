@@ -544,6 +544,9 @@ async function openCompanyDetail(companyId) {
               ${a.is_primary ? '<span class="badge badge-area">주담당</span>' : ''}
             </div>
             <div class="assign-actions">
+              <input type="number" class="assign-share-input" value="${a.share||''}" min="0" max="100" step="1"
+                     onchange="updateShare('${a.id}', this.value)" placeholder="%" style="width:52px;text-align:center">
+              <span class="assign-pay-unit" style="margin-right:4px">%</span>
               <input type="text" class="assign-pay-input" value="${(a.pay_amount||0).toLocaleString()}" oninput="fmtInput(this)"
                      onchange="updatePayAmount('${a.id}', this.value)" placeholder="지급액">
               <span class="assign-pay-unit">원</span>
@@ -561,6 +564,7 @@ async function openCompanyDetail(companyId) {
             `<option value="${w.id}">${escapeHtml(w.name)}</option>`
           ).join('')}
         </select>
+        <input type="number" id="newShare_${companyId}" class="assign-share-input" placeholder="%" min="0" max="100" step="1" style="width:52px;text-align:center">
         <input type="text" id="newPay_${companyId}" class="assign-pay-input" placeholder="지급액" value="0">
         <button class="btn-sm btn-green" onclick="addAssignment('${companyId}')">배정</button>
       </div>
@@ -783,10 +787,13 @@ async function addAssignment(companyId) {
   try {
   const workerId = $(`newWorker_${companyId}`).value;
   const payAmount = parseInt(($(`newPay_${companyId}`).value||'0').replace(/,/g,''), 10) || 0;
+  const shareEl = $(`newShare_${companyId}`);
+  const share = shareEl ? (parseInt(shareEl.value, 10) || 0) : 0;
 
   if (!workerId) return toast('직원을 선택하세요', 'error');
   if (payAmount < 0) return toast('지급액은 0 이상이어야 합니다', 'error');
   if (payAmount > 99999999) return toast('지급액이 너무 큽니다', 'error');
+  if (share < 0 || share > 100) return toast('share 비율은 0~100 사이여야 합니다', 'error');
 
   // 계약금액 초과 검증
   const cost = getCompanyTotalCost(companyId, selectedMonth);
@@ -794,12 +801,15 @@ async function addAssignment(companyId) {
     return toast(`배정 시 합계(${fmt(cost.total + payAmount)}원)가 계약금액(${fmt(cost.contract)}원)을 초과합니다`, 'error');
   }
 
-  const { data, error } = await sb.from('company_workers').insert({
+  const insertData = {
     company_id: companyId,
     worker_id:  workerId,
     month:      selectedMonth,
     pay_amount: payAmount,
-  }).select().single();
+  };
+  if (share > 0) insertData.share = share;
+
+  const { data, error } = await sb.from('company_workers').insert(insertData).select().single();
 
   if (error) {
     if (error.code === '23505') return toast('이미 배정된 직원입니다', 'error');
@@ -885,6 +895,38 @@ async function updatePayAmount(assignId, value) {
     console.error('updatePayAmount error:', e);
     toast('오류가 발생했습니다', 'error');
   }}
+
+async function updateShare(assignId, value) {
+  try {
+  const share = parseInt(value, 10) || 0;
+  if (share < 0 || share > 100) return toast('share 비율은 0~100 사이여야 합니다', 'error');
+
+  const local = adminData.assignments.find(a => a.id === assignId);
+  const oldShare = local ? (local.share || 0) : 0;
+
+  const { error } = await sb.from('company_workers')
+    .update({ share: share || null })
+    .eq('id', assignId);
+
+  if (error) return toast(error.message, 'error');
+
+  if (oldShare !== share && local) {
+    const companyName = getCompanyName(local.company_id);
+    const workerName = getWorkerName(local.worker_id);
+    await logChange('company_workers', assignId, 'update',
+      [{ field: 'share', oldVal: oldShare, newVal: share }],
+      `${workerName} - ${companyName} (${selectedMonth}) share 비율 수정`
+    );
+  }
+
+  if (local) local.share = share || null;
+  toast('share 비율 수정됨');
+
+  } catch (e) {
+    console.error('updateShare error:', e);
+    toast('오류가 발생했습니다', 'error');
+  }}
+
 
 
 // ════════════════════════════════════════════════════
