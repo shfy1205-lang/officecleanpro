@@ -408,22 +408,26 @@ async function generateMonthlyTasks() {
   }
 }
 
-async function _doGenerateMonthlyTasks(month) {
-  try {
+/**
+ * 공통 헬퍼: 월별 일정 생성용 데이터 수집 및 toInsert 배열 구축
+ * @param {string} month - 'YYYY-MM'
+ * @param {Object} opts
+ *   - checkContract: 계약기간 체크 여부 (auto 전용)
+ *   - trackList: UI용 createdList 수집 여부
+ * @returns {Object} { toInsert, duplicated, inactiveSkipped, noWorkerSkipped, daysInMonth, list, empty?, error? }
+ */
+async function _collectMonthlyTaskInserts(month, opts = {}) {
+  const { checkContract = false, trackList = false } = opts;
   const [year, mon] = month.split('-').map(Number);
   const daysInMonth = new Date(year, mon, 0).getDate();
   const allDates = [];
   for (let day = 1; day <= daysInMonth; day++) {
-    const dd = String(day).padStart(2, '0');
-    const mm = String(mon).padStart(2, '0');
-    allDates.push(`${year}-${mm}-${dd}`);
+    allDates.push(`${year}-${String(mon).padStart(2,'0')}-${String(day).padStart(2,'0')}`);
   }
 
   const activeSchedules = adminData.schedules.filter(s => s.is_active);
   if (activeSchedules.length === 0) {
-    _dash.monthGenResult = { month, created: 0, duplicated: 0, inactiveSkipped: 0, noWorkerSkipped: 0, totalDates: daysInMonth, list: [] };
-    toast('활성 스케줄이 없습니다', 'info');
-    return;
+    return { toInsert: [], duplicated: 0, inactiveSkipped: 0, noWorkerSkipped: 0, daysInMonth, list: [], empty: true };
   }
 
   const schedByWeekday = {};
@@ -432,9 +436,7 @@ async function _doGenerateMonthlyTasks(month) {
     schedByWeekday[s.weekday].push(s);
   }
 
-  await ensureMonthData(month);
   const monthAssigns = adminData.assignments.filter(a => a.month === month);
-
   const assignMap = {};
   for (const a of monthAssigns) {
     if (!assignMap[a.company_id]) assignMap[a.company_id] = [];
@@ -442,28 +444,21 @@ async function _doGenerateMonthlyTasks(month) {
   }
 
   const firstDay = `${month}-01`;
-  const lastDay = `${month}-${String(daysInMonth).padStart(2, '0')}`;
-  // 업체+날짜 기준으로 중복 체크
+  const lastDay = `${month}-${String(daysInMonth).padStart(2,'0')}`;
   const { data: existingTasks, error: taskErr } = await sb.from('tasks')
     .select('company_id, task_date')
     .gte('task_date', firstDay)
     .lte('task_date', lastDay);
 
-  if (taskErr) {
-    toast('기존 일정 조회 실패: ' + taskErr.message, 'error');
-    return;
-  }
+  if (taskErr) return { error: taskErr };
 
   const existingSet = new Set(
     (existingTasks || []).map(t => `${t.company_id}|${t.task_date}`)
   );
 
-  let created = 0;
-  let duplicated = 0;
-  let inactiveSkipped = 0;
-  let noWorkerSkipped = 0;
+  let duplicated = 0, inactiveSkipped = 0, noWorkerSkipped = 0;
   const toInsert = [];
-  const createdList = [];
+  const list = [];
   const inactiveChecked = new Set();
   const noWorkerChecked = new Set();
   const _fnMap = _dashCompanyMap();
@@ -486,7 +481,11 @@ async function _doGenerateMonthlyTasks(month) {
         continue;
       }
 
-      // 업체+날짜에 이미 task가 있으면 스킵
+      if (checkContract) {
+        if (company.contract_start_date && dateStr < company.contract_start_date) continue;
+        if (company.contract_end_date && dateStr > company.contract_end_date) continue;
+      }
+
       const key = `${companyId}|${dateStr}`;
       if (existingSet.has(key)) { duplicated++; continue; }
 
@@ -496,9 +495,7 @@ async function _doGenerateMonthlyTasks(month) {
         continue;
       }
 
-      // 메인 담당자 (첫 번째 배정자)로 task 1개만 생성
       const mainAssign = assigns[0];
-
       toInsert.push({
         company_id: companyId,
         worker_id: mainAssign.worker_id,
@@ -508,8 +505,8 @@ async function _doGenerateMonthlyTasks(month) {
         memo: null,
       });
 
-      if (createdList.length < 50) {
-        createdList.push({
+      if (trackList && list.length < 50) {
+        list.push({
           companyName: company.name,
           workerName: getWorkerName(mainAssign.worker_id),
           date: dateStr,
@@ -519,53 +516,84 @@ async function _doGenerateMonthlyTasks(month) {
     }
   }
 
+  return { toInsert, duplicated, inactiveSkipped, noWorkerSkipped, daysInMonth, list };
+}
+
+/**
+ * 공통 여퍼: toInsert 배열을 BATCH_SIZE 단위로 DB에 삽입
+ * @returns {Object} { error?, insertedUpTo?, inserted? }
+ */
+async function _batchInsertTasks(toInsert) {
   const BATCH_SIZE = 200;
   for (let i = 0; i < toInsert.length; i += BATCH_SIZE) {
     const batch = toInsert.slice(i, i + BATCH_SIZE);
-    const { error: insertErr } = await sb.from('tasks').insert(batch);
-    if (insertErr) {
-      toast(`일정 생성 실패 (${i}~${i + batch.length}): ` + insertErr.message, 'error');
-      created += i;
-      _dash.monthGenResult = { month, created, duplicated, inactiveSkipped, noWorkerSkipped, totalDates: daysInMonth, list: createdList, totalCreated: toInsert.length, error: true };
+    const { error } = await sb.from('tasks').insert(batch);
+    if (error) return { error, insertedUpTo: i };
+  }
+  return { inserted: toInsert.length };
+}
+
+async function _doGenerateMonthlyTasks(month) {
+  try {
+    await ensureMonthData(month);
+    const r = await _collectMonthlyTaskInserts(month, { trackList: true });
+
+    if (r.error) {
+      toast('기존 일정 조회 실패: ' + r.error.message, 'error');
       return;
     }
-  }
-  created = toInsert.length;
+    if (r.empty) {
+      _dash.monthGenResult = { month, created: 0, duplicated: 0, inactiveSkipped: 0, noWorkerSkipped: 0, totalDates: r.daysInMonth, list: [] };
+      toast('활성 스케줄이 없습니다', 'info');
+      return;
+    }
 
-  await saveGenerationLog({
-    action_type: 'month_generate',
-    target_month: month,
-    created_count: created,
-    skipped_count: duplicated,
-    excluded_inactive: inactiveSkipped,
-    excluded_no_worker: noWorkerSkipped,
-  });
+    const { toInsert, duplicated, inactiveSkipped, noWorkerSkipped, daysInMonth, list } = r;
+    let created = 0;
 
-  _dash.monthGenResult = {
-    month, created, duplicated, inactiveSkipped, noWorkerSkipped,
-    totalDates: daysInMonth, list: createdList, totalCreated: created, error: false,
-  };
+    const batch = await _batchInsertTasks(toInsert);
+    if (batch.error) {
+      created = batch.insertedUpTo;
+      toast(`일정 생성 실패 (${created}~${created + BATCH_SIZE}): ` + batch.error.message, 'error');
+      _dash.monthGenResult = { month, created, duplicated, inactiveSkipped, noWorkerSkipped, totalDates: daysInMonth, list, totalCreated: toInsert.length, error: true };
+      return;
+    }
+    created = batch.inserted;
 
-  // ── billing_records 자동 생성 (financials 기반) ──
-  const billingCreated = await _generateMonthlyBillings(month);
+    await saveGenerationLog({
+      action_type: 'month_generate',
+      target_month: month,
+      created_count: created,
+      skipped_count: duplicated,
+      excluded_inactive: inactiveSkipped,
+      excluded_no_worker: noWorkerSkipped,
+    });
 
-  if (created > 0 || billingCreated > 0) {
-    const parts = [];
-    if (created > 0) parts.push(`일정 ${created}건`);
-    if (billingCreated > 0) parts.push(`정산 ${billingCreated}건`);
-    toast(`${month} 월 ${parts.join(', ')} 생성 완료!`);
-  } else {
-    toast('새로 생성할 일정이 없습니다', 'info');
-  }
+    _dash.monthGenResult = {
+      month, created, duplicated, inactiveSkipped, noWorkerSkipped,
+      totalDates: daysInMonth, list, totalCreated: created, error: false,
+    };
 
-  if (_dash.todayDate && _dash.todayDate.startsWith(month)) {
-    await loadTodayCleaning(_dash.todayDate);
-  }
+    // ── billing_records 자동 생성 (financials 기반) ──
+    const billingCreated = await _generateMonthlyBillings(month);
 
+    if (created > 0 || billingCreated > 0) {
+      const parts = [];
+      if (created > 0) parts.push(`일정 ${created}건`);
+      if (billingCreated > 0) parts.push(`정산 ${billingCreated}건`);
+      toast(`${month} 월 ${parts.join(', ')} 생성 완료!`);
+    } else {
+      toast('새로 생성할 일정이 없습니다', 'info');
+    }
+
+    if (_dash.todayDate && _dash.todayDate.startsWith(month)) {
+      await loadTodayCleaning(_dash.todayDate);
+    }
   } catch (e) {
     console.error('_doGenerateMonthlyTasks error:', e);
     toast('오류가 발생했습니다', 'error');
-  }}
+  }
+}
 
 async function _generateMonthlyBillings(month) {
   try {
@@ -739,126 +767,38 @@ async function autoGenerateMonthlyIfNeeded() {
  */
 async function _doAutoGenerateMonth(month) {
   try {
-  const [year, mon] = month.split('-').map(Number);
-  const daysInMonth = new Date(year, mon, 0).getDate();
-  const allDates = [];
-  for (let day = 1; day <= daysInMonth; day++) {
-    const dd = String(day).padStart(2, '0');
-    const mm = String(mon).padStart(2, '0');
-    allDates.push(`${year}-${mm}-${dd}`);
-  }
+    const r = await _collectMonthlyTaskInserts(month, { checkContract: true });
 
-  const activeSchedules = adminData.schedules.filter(s => s.is_active);
-  if (activeSchedules.length === 0) return { created: 0 };
+    if (r.error) { console.error('autoGen task query error:', r.error); return { created: 0 }; }
+    if (r.empty || r.toInsert.length === 0) return { created: 0, duplicated: r.duplicated || 0 };
 
-  const schedByWeekday = {};
-  for (const s of activeSchedules) {
-    if (!schedByWeekday[s.weekday]) schedByWeekday[s.weekday] = [];
-    schedByWeekday[s.weekday].push(s);
-  }
+    const { toInsert, duplicated, inactiveSkipped, noWorkerSkipped } = r;
 
-  const monthAssigns = adminData.assignments.filter(a => a.month === month);
-  const assignMap = {};
-  for (const a of monthAssigns) {
-    if (!assignMap[a.company_id]) assignMap[a.company_id] = [];
-    assignMap[a.company_id].push(a);
-  }
-
-  const firstDay = `${month}-01`;
-  const lastDay = `${month}-${String(daysInMonth).padStart(2, '0')}`;
-  const { data: existingTasks, error: taskErr } = await sb.from('tasks')
-    .select('company_id, task_date')
-    .gte('task_date', firstDay)
-    .lte('task_date', lastDay);
-
-  if (taskErr) { console.error('autoGen task query error:', taskErr); return { created: 0 }; }
-
-  const existingSet = new Set(
-    (existingTasks || []).map(t => `${t.company_id}|${t.task_date}`)
-  );
-
-  let created = 0;
-  let duplicated = 0;
-  let inactiveSkipped = 0;
-  let noWorkerSkipped = 0;
-  const toInsert = [];
-  const inactiveChecked = new Set();
-  const noWorkerChecked = new Set();
-  const _fnMap = _dashCompanyMap();
-
-  for (const dateStr of allDates) {
-    const d = new Date(dateStr + 'T00:00:00');
-    const weekday = d.getDay();
-    const daySchedules = schedByWeekday[weekday];
-    if (!daySchedules) continue;
-
-    const matchedSchedules = daySchedules.filter(s => isScheduleActiveOnDate(s, dateStr));
-    if (matchedSchedules.length === 0) continue;
-
-    const companyIds = [...new Set(matchedSchedules.map(s => s.company_id))];
-
-    for (const companyId of companyIds) {
-      const company = _fnMap[companyId];
-      if (!company || company.status !== 'active') {
-        if (!inactiveChecked.has(companyId)) { inactiveSkipped++; inactiveChecked.add(companyId); }
-        continue;
-      }
-      // 계약기간 체크
-      if (company.contract_start_date && dateStr < company.contract_start_date) continue;
-      if (company.contract_end_date && dateStr > company.contract_end_date) continue;
-
-      const key = `${companyId}|${dateStr}`;
-      if (existingSet.has(key)) { duplicated++; continue; }
-
-      const assigns = assignMap[companyId];
-      if (!assigns || assigns.length === 0) {
-        if (!noWorkerChecked.has(companyId)) { noWorkerSkipped++; noWorkerChecked.add(companyId); }
-        continue;
-      }
-
-      const mainAssign = assigns[0];
-      toInsert.push({
-        company_id: companyId,
-        worker_id: mainAssign.worker_id,
-        task_date: dateStr,
-        status: 'scheduled',
-        task_source: 'auto',
-        memo: null,
-      });
+    const batch = await _batchInsertTasks(toInsert);
+    if (batch.error) {
+      console.error('autoGen insert error:', batch.error);
+      return { created: batch.insertedUpTo, duplicated, error: true };
     }
-  }
+    const created = batch.inserted;
 
-  if (toInsert.length === 0) return { created: 0, duplicated };
+    await saveGenerationLog({
+      action_type: 'auto_month_generate',
+      target_month: month,
+      created_count: created,
+      skipped_count: duplicated,
+      excluded_inactive: inactiveSkipped,
+      excluded_no_worker: noWorkerSkipped,
+    });
 
-  const BATCH_SIZE = 200;
-  for (let i = 0; i < toInsert.length; i += BATCH_SIZE) {
-    const batch = toInsert.slice(i, i + BATCH_SIZE);
-    const { error: insertErr } = await sb.from('tasks').insert(batch);
-    if (insertErr) {
-      console.error('autoGen insert error:', insertErr);
-      return { created: i, duplicated, error: true };
-    }
-  }
-  created = toInsert.length;
+    // billing_records도 자동 생성
+    await _generateMonthlyBillings(month);
 
-  await saveGenerationLog({
-    action_type: 'auto_month_generate',
-    target_month: month,
-    created_count: created,
-    skipped_count: duplicated,
-    excluded_inactive: inactiveSkipped,
-    excluded_no_worker: noWorkerSkipped,
-  });
-
-  // billing_records도 자동 생성
-  await _generateMonthlyBillings(month);
-
-  return { created, duplicated, inactiveSkipped, noWorkerSkipped };
-
+    return { created, duplicated, inactiveSkipped, noWorkerSkipped };
   } catch (e) {
     console.error('_doAutoGenerateMonth error:', e);
     toast('오류가 발생했습니다', 'error');
-  }}
+  }
+}
 
 function renderDashboardHTML() {
   const mc = $('mainContent');
