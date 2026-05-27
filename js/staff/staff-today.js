@@ -210,75 +210,19 @@ async function completeTodayTask(companyId, targetDate) {
   if (btn) { btn.disabled = true; btn.textContent = '처리 중...'; }
 
   const dateStr = targetDate || getStaffDate();
+  const result = await _completeTaskCore(companyId, dateStr, { memo, selectReturn: true });
 
-  // 기존 task 확인 (자동 생성된 scheduled task가 있을 수 있음)
-  const existing = staffData.tasks.find(
-    t => t.company_id === companyId && t.task_date === dateStr
-  );
-
-  let data, error;
-
-  if (existing && existing.status === 'scheduled') {
-    // 기존 예정 task → completed로 UPDATE
-    const res = await sb.from('tasks')
-      .update({
-        status: 'completed',
-        worker_id: currentWorker.id,
-        memo: memo || null,
-      })
-      .eq('id', existing.id)
-      .select()
-      .single();
-    data = res.data;
-    error = res.error;
-    if (!error) {
-      // 로컬 데이터 갱신
-      Object.assign(existing, {
-        status: 'completed',
-        worker_id: currentWorker.id,
-        memo: memo || null,
-        updated_at: new Date().toISOString(),
-      });
-    }
-  } else if (existing && existing.status === 'completed') {
+  if (result.duplicate) {
     if (btn) { btn.disabled = false; btn.textContent = '완료 체크 ✓'; }
     toast('이미 완료 처리되었습니다', 'error');
     return;
-  } else {
-    // task가 없으면 새로 INSERT
-    const res = await sb.from('tasks').insert({
-      company_id: companyId,
-      worker_id:  currentWorker.id,
-      task_date:  dateStr,
-      status:     'completed',
-      task_source: 'manual',
-      memo:       memo || null,
-    }).select().single();
-    data = res.data;
-    error = res.error;
-    if (!error) {
-      if (data) {
-        staffData.tasks.push(data);
-      } else {
-        staffData.tasks.push({
-          company_id: companyId,
-          worker_id: currentWorker.id,
-          task_date: dateStr,
-          status: 'completed',
-          memo: memo || null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
-      }
-    }
   }
-
-  if (error) {
+  if (!result.success) {
     if (btn) { btn.disabled = false; btn.textContent = '완료 체크 ✓'; }
-    if (error.code === '23505') {
+    if (result.error?.code === '23505') {
       toast('이미 완료 처리되었습니다', 'error');
     } else {
-      toast(error.message, 'error');
+      toast(result.error?.message || '오류가 발생했습니다', 'error');
     }
     return;
   }
