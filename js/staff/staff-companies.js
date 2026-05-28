@@ -227,9 +227,22 @@ async function openCompanyDetail(companyId) {
       ${qrReqs.map(r => {
         const rDate = new Date(r.created_at).toLocaleDateString('ko-KR');
         const expDate = new Date(r.expires_at).toLocaleDateString('ko-KR');
+        let qrPhotoHtml = '';
+        if (r.photo_path) {
+          const paths = r.photo_path.split(',').filter(Boolean);
+          if (paths.length > 0) {
+            const baseUrl = (localStorage.getItem('supa_url') || 'https://gcbgzfrffekgcaktspyj.supabase.co') + '/storage/v1/object/public/qr-photos/';
+            qrPhotoHtml = `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">
+              ${paths.map(p => `<div style="width:70px;height:70px;border-radius:6px;overflow:hidden;cursor:pointer"
+                   onclick="event.stopPropagation();openLightbox('${baseUrl}${p}','업체 요청 사진')">
+                <img src="${baseUrl}${p}" style="width:100%;height:100%;object-fit:cover" loading="lazy">
+              </div>`).join('')}
+            </div>`;
+          }
+        }
         return `<div class="request-item" style="border-left:3px solid #f97316">
           <div class="request-content">${escapeHtml(r.content)}</div>
-          ${r.photo_path ? `<div style="margin-top:6px;font-size:11px;color:var(--accent2)">📷 사진 ${r.photo_path.split(',').length}장 첨부</div>` : ''}
+          ${qrPhotoHtml}
           <div class="request-meta">${rDate} · 만료: ${expDate}</div>
         </div>`;
       }).join('')}
