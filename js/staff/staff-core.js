@@ -70,6 +70,7 @@ function switchTab(tabName, el) {
     myCompanies:  renderMyCompanies,
     myPay:        renderMyPay,
     taskHistory:  renderTaskHistory,
+    myRequests:   renderMyRequests,
     notices:      renderNotices,
   };
 
