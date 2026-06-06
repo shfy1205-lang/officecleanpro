@@ -523,8 +523,9 @@ async function _collectMonthlyTaskInserts(month, opts = {}) {
  * 공통 여퍼: toInsert 배열을 BATCH_SIZE 단위로 DB에 삽입
  * @returns {Object} { error?, insertedUpTo?, inserted? }
  */
+const BATCH_SIZE = 200;
+
 async function _batchInsertTasks(toInsert) {
-  const BATCH_SIZE = 200;
   for (let i = 0; i < toInsert.length; i += BATCH_SIZE) {
     const batch = toInsert.slice(i, i + BATCH_SIZE);
     const { error } = await sb.from('tasks').insert(batch);
