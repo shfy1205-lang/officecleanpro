@@ -29,11 +29,12 @@ function renderProrate() {
       a => a.worker_id === prorateWorkerId && a.month === month
     );
     workerName = getWorkerName(prorateWorkerId);
+    const _prFinMap = buildFinMap(adminData.financials, month);
 
     assignData = assigns.map(a => {
       const company = adminData.companies.find(c => c.id === a.company_id);
       const companyName = company ? company.name : '알 수 없음';
-      const originalPay = a.pay_amount || 0;
+      const originalPay = calcAssignmentFinalPay(a, _prFinMap);
 
       // 해당 업체의 월 근무일수 계산 (스케줄 기반)
       const scheds = getCompanySchedules(a.company_id);
