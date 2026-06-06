@@ -181,14 +181,18 @@ function openMyRequestDetail(requestId) {
 
 async function deleteMyRequest(requestId) {
   if (!confirm('이 요청을 취소하시겠습니까?')) return;
+  try {
+    const { error } = await sb.from('requests').delete().eq('id', requestId);
+    if (error) return toast(error.message, 'error');
 
-  const { error } = await sb.from('requests').delete().eq('id', requestId);
-  if (error) return toast(error.message, 'error');
-
-  staffData.requests = staffData.requests.filter(r => r.id !== requestId);
-  toast('요청이 취소되었습니다');
-  closeModal();
-  renderMyRequests();
+    staffData.requests = staffData.requests.filter(r => r.id !== requestId);
+    toast('요청이 취소되었습니다');
+    closeModal();
+    renderMyRequests();
+  } catch (e) {
+    console.error('deleteMyRequest error:', e);
+    toast('요청 취소 중 오류가 발생했습니다', 'error');
+  }
 }
 
 // ─── 새 요청 작성 (업체 선택) ───
