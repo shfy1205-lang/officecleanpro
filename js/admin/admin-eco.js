@@ -58,7 +58,7 @@ function getEcoCompanies(month) {
   const finMap = buildFinMap(adminData.financials, m);
 
   const ecoCompanies = adminData.companies.filter(c => {
-    if (c.status === 'terminated') return false;
+    if (c.status === 'terminated' || c.status === 'paused') return false;
     const fin = finMap[c.id];
     return isEcoRelated(c, fin);
   });
