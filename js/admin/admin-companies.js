@@ -6,7 +6,7 @@
 // ─── 업체관리 모듈 상태 (전역 오염 방지) ───
 const _comp = {
   openId: null,
-  ecoFilter: 'all',
+  ecoFilter: '',
   searchDebounce: null
 };
 
@@ -329,7 +329,7 @@ async function _saveCompanyInner(companyId) {
       await sb.from('company_financials').insert({
         company_id:      newCompany.id,
         month:           selectedMonth || currentMonth(),
-        contract_amount: 0,
+        contract_amount: payload.contract_amount || 0,
         ocp_amount:      0,
         eco_amount:      0,
         worker_pay_total: 0,
@@ -362,7 +362,7 @@ async function deleteCompany(companyId) {
   await sb.from('billing_records').delete().eq('company_id', companyId);
   await sb.from('tasks').delete().eq('company_id', companyId);
   await sb.from('requests').delete().eq('company_id', companyId);
-  await sb.from('change_logs').delete().eq('company_id', companyId);
+  await sb.from('change_logs').delete().eq('entity_id', String(companyId));
 
   const { error } = await sb.from('companies').delete().eq('id', companyId);
   if (error) return toast(error.message, 'error');
