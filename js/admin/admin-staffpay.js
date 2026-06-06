@@ -614,11 +614,15 @@ async function generateNextMonth() {
         .map(c => c.id)
     );
 
-    if (existFins.length > 0) {
-      await sb.from('company_financials').delete().eq('month', nextMonth);
+    // 복사 대상 업체 ID만 삭제 (다른 업체의 기존 데이터는 보존)
+    const copyFinIds = curFins.filter(f => !excludeIds.has(f.company_id)).map(f => f.company_id);
+    const copyAssignIds = [...new Set(curAssigns.filter(a => !excludeIds.has(a.company_id)).map(a => a.company_id))];
+
+    if (existFins.length > 0 && copyFinIds.length > 0) {
+      await sb.from('company_financials').delete().eq('month', nextMonth).in('company_id', copyFinIds);
     }
-    if (existAssigns.length > 0) {
-      await sb.from('company_workers').delete().eq('month', nextMonth);
+    if (existAssigns.length > 0 && copyAssignIds.length > 0) {
+      await sb.from('company_workers').delete().eq('month', nextMonth).in('company_id', copyAssignIds);
     }
 
     let finCount = 0, assignCount = 0;
