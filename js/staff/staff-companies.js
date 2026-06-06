@@ -111,7 +111,12 @@ async function openCompanyDetail(companyId) {
   const todayDone = staffData.tasks.some(
     t => t.company_id === companyId && t.task_date === today() && t.status === 'completed'
   );
-  const isScheduledToday = scheds.some(s => s.weekday === new Date().getDay());
+  const isScheduledToday = scheds.some(s => {
+    if (s.weekday !== new Date().getDay() || !s.is_active) return false;
+    const freq = s.frequency || 'weekly';
+    if (freq === 'biweekly') return isBiweeklyMatch(s.anchor_date, today());
+    return true;
+  });
 
   // 업체(QR) 요청 분리
   const staffReqs = reqs.filter(r => r.request_source !== 'client_qr');
@@ -240,10 +245,13 @@ async function openCompanyDetail(companyId) {
           if (paths.length > 0) {
             const baseUrl = (localStorage.getItem('supa_url') || 'https://gcbgzfrffekgcaktspyj.supabase.co') + '/storage/v1/object/public/qr-photos/';
             qrPhotoHtml = `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">
-              ${paths.map(p => `<div style="width:70px;height:70px;border-radius:6px;overflow:hidden;cursor:pointer"
-                   onclick="event.stopPropagation();openLightbox('${baseUrl}${p}','업체 요청 사진')">
-                <img src="${baseUrl}${p}" style="width:100%;height:100%;object-fit:cover" loading="lazy">
-              </div>`).join('')}
+              ${paths.map(p => {
+              const safeUrl = escapeHtml(baseUrl + encodeURI(p));
+              return `<div style="width:70px;height:70px;border-radius:6px;overflow:hidden;cursor:pointer"
+                   onclick="event.stopPropagation();openLightbox('${safeUrl}','업체 요청 사진')">
+                <img src="${safeUrl}" style="width:100%;height:100%;object-fit:cover" loading="lazy">
+              </div>`;
+            }).join('')}
             </div>`;
           }
         }
@@ -339,7 +347,7 @@ function buildCalendar(companyId, month, scheds, tasks) {
   const lastDate = new Date(y, m, 0).getDate();
   const todayStr = today();
 
-  const scheduledDays = new Set(scheds.map(s => s.weekday));
+  // 격주 판별을 위해 스케줄 목록 유지
   const completedDates = new Set(
     tasks.filter(t => t.status === 'completed').map(t => t.task_date)
   );
@@ -355,7 +363,12 @@ function buildCalendar(companyId, month, scheds, tasks) {
   for (let d = 1; d <= lastDate; d++) {
     const dateStr = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const dow = new Date(y, m - 1, d).getDay();
-    const isScheduled = scheduledDays.has(dow);
+    const isScheduled = scheds.some(s => {
+      if (s.weekday !== dow || !s.is_active) return false;
+      const freq = s.frequency || 'weekly';
+      if (freq === 'biweekly') return isBiweeklyMatch(s.anchor_date, dateStr);
+      return true;
+    });
     const isCompleted = completedDates.has(dateStr);
     const isToday = dateStr === todayStr;
 
