@@ -111,8 +111,8 @@ function renderMyPay() {
       <div class="card pay-card">
         <div class="card-header">
           <div>
-            <div class="card-title">${comp.name}</div>
-            <div class="card-subtitle">${comp.area_name || '기타'}</div>
+            <div class="card-title">${escapeHtml(comp.name)}</div>
+            <div class="card-subtitle">${escapeHtml(comp.area_name || '기타')}</div>
           </div>
           <div class="card-amount">${fmt(a.finalPay)}원</div>
         </div>
