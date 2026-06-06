@@ -8,7 +8,7 @@
 const _alert = {
   CHECK_START_MONTH: '2026-03',
   month: '',
-  statusFilter: 'all',
+  statusFilter: '',
   companySearch: '',
   cache: {}
 };
