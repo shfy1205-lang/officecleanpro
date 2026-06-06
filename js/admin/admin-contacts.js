@@ -53,7 +53,7 @@ function renderContacts(listOnly) {
     </div>
 
     <div class="search-box" style="margin-bottom:14px">
-      <input id="contactSearchInput" placeholder="업체명, 담당자, 전화번호 검색" value="${contactSearch}">
+      <input id="contactSearchInput" placeholder="업체명, 담당자, 전화번호 검색" value="${escapeHtml(contactSearch)}">
     </div>
 
     <div id="contactListContainer">${listHTML}</div>
