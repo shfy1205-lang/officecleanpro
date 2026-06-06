@@ -90,6 +90,7 @@ function parseNoticeTarget(title) {
 function closeModal() {
   $('detailModal').classList.remove('show');
   $('modalBody').classList.remove('modal-wide');
+  $('modalBody').style.maxWidth = '';
 }
 
 /**
@@ -315,6 +316,9 @@ function isMobileView() {
 function dualLayout(pcHTML, mobileHTML) {
   return isMobileView() ? mobileHTML : pcHTML;
 }
+
+// 현재 활성 탭 (뷰포트 변경 시 재렌더용)
+let currentTab = '';
 
 // 뷰포트 breakpoint(768px) 교차 시 현재 탭 재렌더
 let _lastMobileState = typeof window !== 'undefined' && window.innerWidth < 768;
