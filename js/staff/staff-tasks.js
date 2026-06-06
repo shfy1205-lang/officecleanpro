@@ -70,8 +70,8 @@ async function _completeTaskCore(companyId, dateStr, opts = {}) {
 // 청소 완료 체크 (업체 상세 모달에서 사용)
 // ════════════════════════════════════════════════════
 
-async function toggleTask(companyId, targetDate) {
-  const btn = event?.target?.closest('button');
+async function toggleTask(companyId, targetDate, e) {
+  const btn = e?.target?.closest('button');
   if (btn) { btn.disabled = true; btn.textContent = '처리 중...'; }
 
   const dateStr = targetDate || today();
@@ -180,11 +180,11 @@ function buildFullCalendar(month, monthTasks, assigns) {
     dateCountMap[t.task_date] = (dateCountMap[t.task_date] || 0) + 1;
   });
 
-  // 배정된 업체들의 전체 스케줄 목록 (격주 판별용)
-  const allSchedules = [];
+  // 배정된 업체들의 전체 스케줄 요일 집합
+  const allScheduledDays = new Set();
   assigns.forEach(a => {
     const scheds = getCompanySchedules(a.company_id);
-    scheds.forEach(s => { if (s.is_active) allSchedules.push(s); });
+    scheds.forEach(s => allScheduledDays.add(s.weekday));
   });
 
   let html = '<div class="cal-grid">';
@@ -198,12 +198,7 @@ function buildFullCalendar(month, monthTasks, assigns) {
     const dateStr = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const dow = new Date(y, m - 1, d).getDay();
     const count = dateCountMap[dateStr] || 0;
-    const isScheduled = allSchedules.some(s => {
-      if (s.weekday !== dow) return false;
-      const freq = s.frequency || 'weekly';
-      if (freq === 'biweekly') return isBiweeklyMatch(s.anchor_date, dateStr);
-      return true;
-    });
+    const isScheduled = allScheduledDays.has(dow);
     const isToday = dateStr === todayStr;
 
     let cls = 'cal-day';
