@@ -271,7 +271,7 @@ async function submitRequest(companyId) {
 
   if (data && data[0]) staffData.requests.push(data[0]);
 
-  toast('요청읈 등록되었습니다');
+  toast('요청이 등록되었습니다');
   closeRequestModal();
 
   // 내 요청 탭이 활성화되어 있으면 갱신
