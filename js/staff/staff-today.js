@@ -131,8 +131,8 @@ function buildTodayTaskCard(item, dateStr) {
   html += `
     <div class="sttoday-card-top">
       <div style="min-width:0;flex:1">
-        <div class="sttoday-card-name">${company.name}</div>
-        <div class="sttoday-card-addr">${company.location || ''}</div>
+        <div class="sttoday-card-name">${escapeHtml(company.name)}</div>
+        <div class="sttoday-card-addr">${escapeHtml(company.location || '')}</div>
       </div>
       <div style="display:flex;gap:4px;flex-shrink:0">
         ${isCompleted
