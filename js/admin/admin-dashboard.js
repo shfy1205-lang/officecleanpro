@@ -114,6 +114,7 @@ async function loadTodayCleaning(dateStr) {
   } catch (e) {
     console.error('loadTodayCleaning error:', e);
     toast('오류가 발생했습니다', 'error');
+    return [];
   }}
 
 // ─── 최근 변경이력 로드 (대시보드용) ───
@@ -186,7 +187,7 @@ function getDashPendingRequests() {
       id: r.id,
       companyName: getCompanyName(r.company_id),
       title: r.title || '(제목 없음)',
-      createdBy: r.worker_id ? getWorkerName(r.worker_id) : '-',
+      createdBy: r.created_by ? getWorkerName(r.created_by) : '-',
       createdAt: r.created_at,
       status: r.is_resolved ? '처리완료' : '미확인',
     })),
