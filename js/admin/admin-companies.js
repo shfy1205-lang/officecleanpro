@@ -427,7 +427,8 @@ async function openCompanyDetail(companyId) {
   const contractAmt = c.contract_amount || 0;
   const ocpAmt = fin?.ocp_amount || 0;
   const ecoAmt = fin?.eco_amount || 0;
-  const workerPay = assigns.reduce((s, a) => s + (a.pay_amount || 0), 0);
+  const finMap = buildFinMap(adminData.financials, selectedMonth);
+  const workerPay = assigns.reduce((s, a) => s + calcAssignmentFinalPay(a, finMap), 0);
 
   const html = `
     <button class="modal-close" onclick="closeModal()">&times;</button>
