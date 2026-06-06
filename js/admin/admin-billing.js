@@ -639,9 +639,16 @@ async function _saveBillingInner(billingId) {
     status = 'billed';
   }
 
-  if (status === 'billed' && billedAt) {
-    const daysSince = (new Date() - new Date(billedAt)) / (1000 * 60 * 60 * 24);
-    if (daysSince > 30) status = 'overdue';
+  // 연체 판정: 대상월 말일 기준 30일 경과 (billing-alert와 동일 로직)
+  if (status === 'billed') {
+    const billingMonth = month || (oldBilling && oldBilling.month);
+    if (billingMonth) {
+      const monthEnd = new Date(billingMonth + '-01');
+      monthEnd.setMonth(monthEnd.getMonth() + 1);
+      monthEnd.setDate(0);
+      const daysSince = (new Date() - monthEnd) / (1000 * 60 * 60 * 24);
+      if (daysSince >= 30) status = 'overdue';
+    }
   }
 
   const payload = {
