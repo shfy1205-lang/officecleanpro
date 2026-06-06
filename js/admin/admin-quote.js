@@ -368,7 +368,6 @@ async function exportQuoteExcel() {
   if (!d.clientName) return toast('업체명을 입력해주세요', 'error');
   if (!d.amount) return toast('금액을 입력해주세요', 'error');
 
-  try {
     toast('엑셀 생성 중...', 'info');
 
     try {
