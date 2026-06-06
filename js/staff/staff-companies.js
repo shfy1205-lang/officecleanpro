@@ -208,12 +208,14 @@ async function openCompanyDetail(companyId) {
         <button class="btn-sm btn-green" onclick="triggerPhotoUpload('${companyId}', '${note?.id || ''}')">업로드</button>
       </div>
       ${photos.length > 0
-        ? `<div class="photo-grid">${photos.map(p =>
-            `<div class="photo-thumb" onclick="openLightbox('${getStorageUrl(p.storage_path)}', '${(p.caption || '').replace(/'/g, "\\'")}')">
-              <img src="${getStorageUrl(p.storage_path)}" alt="${p.caption || '사진'}" loading="lazy">
+        ? `<div class="photo-grid">${photos.map(p => {
+            const safeUrl = escapeHtml(getStorageUrl(p.storage_path));
+            const safeCap = escapeHtml(p.caption || '사진');
+            return `<div class="photo-thumb" onclick="openLightbox('${safeUrl}', '${safeCap}')">
+              <img src="${safeUrl}" alt="${safeCap}" loading="lazy">
               ${p.caption ? `<div class="photo-thumb-caption">${escapeHtml(p.caption)}</div>` : ''}
-            </div>`
-          ).join('')}</div>`
+            </div>`;
+          }).join('')}</div>`
         : '<p class="text-muted">등록된 사진이 없습니다.</p>'
       }
     </div>
