@@ -157,8 +157,8 @@ function renderRevenue() {
 
               return `<tr class="revenue-row" onclick="openRevenueForm('${r.company.id}')" style="cursor:pointer">
                 <td>
-                  <div style="font-weight:600">${r.company.name}</div>
-                  <div class="text-muted" style="font-size:11px">${r.company.area_name || ''}</div>
+                  <div style="font-weight:600">${escapeHtml(r.company.name)}</div>
+                  <div class="text-muted" style="font-size:11px">${escapeHtml(r.company.area_name || '')}</div>
                 </td>
                 <td>${r.contract > 0 ? fmt(r.contract) + '원' : '-'}</td>
                 <td>${r.workerPay > 0 ? fmt(r.workerPay) + '원' : '-'}</td>
@@ -181,8 +181,8 @@ function renderRevenue() {
           return `<div class="card rv-card" onclick="openRevenueForm('${r.company.id}')" style="cursor:pointer">
             <div class="rv-card-header">
               <div>
-                <div style="font-weight:600;font-size:14px">${r.company.name}</div>
-                <div class="text-muted" style="font-size:11px">${r.company.area_name || ''} · ${contractType}</div>
+                <div style="font-weight:600;font-size:14px">${escapeHtml(r.company.name)}</div>
+                <div class="text-muted" style="font-size:11px">${escapeHtml(r.company.area_name || '')} · ${contractType}</div>
               </div>
               <span style="font-weight:700;color:${r.ocp > 0 ? 'var(--green)' : 'var(--text2)'};font-size:14px">
                 ${r.ocp > 0 ? fmt(r.ocp) + '원' : '-'}
