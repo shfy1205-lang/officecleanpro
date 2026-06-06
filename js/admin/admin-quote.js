@@ -368,217 +368,222 @@ async function exportQuoteExcel() {
   if (!d.clientName) return toast('업체명을 입력해주세요', 'error');
   if (!d.amount) return toast('금액을 입력해주세요', 'error');
 
-  toast('엑셀 생성 중...', 'info');
-
   try {
-    if (typeof ExcelJS === 'undefined') {
-      await loadScript('https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js');
+    toast('엑셀 생성 중...', 'info');
+
+    try {
+      if (typeof ExcelJS === 'undefined') {
+        await loadScript('https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js');
+      }
+
+      const resp = await fetch('assets/quote-template.xlsx');
+      if (!resp.ok) throw new Error('템플릿 로드 실패');
+      const buf = await resp.arrayBuffer();
+
+      const wb = new ExcelJS.Workbook();
+      await wb.xlsx.load(buf);
+      const ws = wb.getWorksheet(1);
+
+      const workContent = buildWorkContentText(d);
+
+      // A5: 날짜
+      ws.getCell('A5').value = d.date;
+      // A7: 업체명
+      ws.getCell('A7').value = d.clientName;
+
+      // I14: 공급가액
+      ws.getCell('I14').value = d.amount;
+      // L14: 세액 (formula preserved or set)
+      ws.getCell('L14').value = { formula: 'I14*0.1' };
+
+      // C14: 규격
+      ws.getCell('C14').value = d.spec;
+      // E14: 횟수
+      ws.getCell('E14').value = d.frequency;
+
+      // E11: 합계 (formula)
+      ws.getCell('E11').value = { formula: 'L11' };
+      // L11: 합계 (formula)
+      ws.getCell('L11').value = { formula: 'I31+L31' };
+      // I31: 공급가액 합계
+      ws.getCell('I31').value = { formula: 'SUM(I14:K30)' };
+      // L31: 세액 합계
+      ws.getCell('L31').value = { formula: 'SUM(L14:M30)' };
+
+      // A16: 작업 상세내용
+      ws.getCell('A16').value = workContent;
+      ws.getCell('A16').alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
+
+      // A33-A35: 하단 참고사항 제거
+      ws.getCell('A33').value = '';
+      ws.getCell('A34').value = '';
+      ws.getCell('A35').value = '';
+
+      const outBuf = await wb.xlsx.writeBuffer();
+      const blob = new Blob([outBuf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `견적서_${d.clientName}_${d.date}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      toast('엑셀 견적서 다운로드 완료');
+    } catch (err) {
+      console.error('Excel export error:', err);
+      toast('엑셀 생성 실패: ' + err.message, 'error');
     }
-
-    const resp = await fetch('assets/quote-template.xlsx');
-    if (!resp.ok) throw new Error('템플릿 로드 실패');
-    const buf = await resp.arrayBuffer();
-
-    const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load(buf);
-    const ws = wb.getWorksheet(1);
-
-    const workContent = buildWorkContentText(d);
-
-    // A5: 날짜
-    ws.getCell('A5').value = d.date;
-    // A7: 업체명
-    ws.getCell('A7').value = d.clientName;
-
-    // I14: 공급가액
-    ws.getCell('I14').value = d.amount;
-    // L14: 세액 (formula preserved or set)
-    ws.getCell('L14').value = { formula: 'I14*0.1' };
-
-    // C14: 규격
-    ws.getCell('C14').value = d.spec;
-    // E14: 횟수
-    ws.getCell('E14').value = d.frequency;
-
-    // E11: 합계 (formula)
-    ws.getCell('E11').value = { formula: 'L11' };
-    // L11: 합계 (formula)
-    ws.getCell('L11').value = { formula: 'I31+L31' };
-    // I31: 공급가액 합계
-    ws.getCell('I31').value = { formula: 'SUM(I14:K30)' };
-    // L31: 세액 합계
-    ws.getCell('L31').value = { formula: 'SUM(L14:M30)' };
-
-    // A16: 작업 상세내용
-    ws.getCell('A16').value = workContent;
-    ws.getCell('A16').alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
-
-    // A33-A35: 하단 참고사항 제거
-    ws.getCell('A33').value = '';
-    ws.getCell('A34').value = '';
-    ws.getCell('A35').value = '';
-
-    const outBuf = await wb.xlsx.writeBuffer();
-    const blob = new Blob([outBuf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `견적서_${d.clientName}_${d.date}.xlsx`;
-    a.click();
-    URL.revokeObjectURL(url);
-
-    toast('엑셀 견적서 다운로드 완료');
-  } catch (err) {
-    console.error('Excel export error:', err);
-    toast('엑셀 생성 실패: ' + err.message, 'error');
   }
-}
 
 
-// ════════════════════════════════════════════════════
-// 이미지 내보내기 (html2canvas)
-// ════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════
+  // 이미지 내보내기 (html2canvas)
+  // ════════════════════════════════════════════════════
 
-async function exportQuoteImage() {
-  const d = getQuoteFormData();
-  if (!d.clientName) return toast('업체명을 입력해주세요', 'error');
-  if (!d.amount) return toast('금액을 입력해주세요', 'error');
+  async function exportQuoteImage() {
+    const d = getQuoteFormData();
+    if (!d.clientName) return toast('업체명을 입력해주세요', 'error');
+    if (!d.amount) return toast('금액을 입력해주세요', 'error');
 
-  const el = document.getElementById('quotePrintArea');
-  if (!el) return toast('미리보기를 먼저 확인해주세요', 'error');
+    const el = document.getElementById('quotePrintArea');
+    if (!el) return toast('미리보기를 먼저 확인해주세요', 'error');
 
-  toast('이미지 생성 중...', 'info');
+    toast('이미지 생성 중...', 'info');
 
-  try {
-    if (typeof html2canvas === 'undefined') {
-      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+    try {
+      if (typeof html2canvas === 'undefined') {
+        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+      }
+
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+      });
+
+      const link = document.createElement('a');
+      link.download = `견적서_${d.clientName}_${d.date}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+
+      toast('이미지 다운로드 완료');
+    } catch (err) {
+      console.error('Image export error:', err);
+      toast('이미지 생성 실패: ' + err.message, 'error');
     }
+  }
 
-    const canvas = await html2canvas(el, {
-      scale: 2,
-      backgroundColor: '#ffffff',
-      useCORS: true,
+
+  // ════════════════════════════════════════════════════
+  // PDF 내보내기 (jsPDF + html2canvas)
+  // ════════════════════════════════════════════════════
+
+  async function exportQuotePDF() {
+    const d = getQuoteFormData();
+    if (!d.clientName) return toast('업체명을 입력해주세요', 'error');
+    if (!d.amount) return toast('금액을 입력해주세요', 'error');
+
+    const el = document.getElementById('quotePrintArea');
+    if (!el) return toast('미리보기를 먼저 확인해주세요', 'error');
+
+    toast('PDF 생성 중...', 'info');
+
+    try {
+      if (typeof html2canvas === 'undefined') {
+        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+      }
+
+      // jsPDF 로드 확인
+      if (!window.jspdf && !window.jsPDF) {
+        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+      }
+
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+
+      // jsPDF UMD: window.jspdf.jsPDF
+      const jsPDFClass = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+      if (!jsPDFClass) throw new Error('jsPDF 라이브러리를 불러올 수 없습니다');
+
+      const pdf = new jsPDFClass('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pdfWidth - 20;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const yOffset = imgHeight > pdfHeight - 20 ? 10 : (pdfHeight - imgHeight) / 2;
+
+      pdf.addImage(imgData, 'PNG', 10, yOffset, imgWidth, Math.min(imgHeight, pdfHeight - 20));
+      pdf.save(`견적서_${d.clientName}_${d.date}.pdf`);
+
+      toast('PDF 다운로드 완료');
+    } catch (err) {
+      console.error('PDF export error:', err);
+      toast('PDF 생성 실패: ' + err.message, 'error');
+    }
+  }
+
+
+  // ════════════════════════════════════════════════════
+  // 헬퍼
+  // ════════════════════════════════════════════════════
+
+  function buildWorkContentText(d) {
+    let text = '상세사항\n\n\n';
+    text += '청소 범위\n';
+    text += `1. 작업일정 \n- ${d.frequency} 사무실 내부청소\n \n`;
+    text += '2. 작업내용\n';
+    d.workItems.forEach(item => {
+      text += `- ${item}\n`;
     });
-
-    const link = document.createElement('a');
-    link.download = `견적서_${d.clientName}_${d.date}.png`;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-
-    toast('이미지 다운로드 완료');
-  } catch (err) {
-    console.error('Image export error:', err);
-    toast('이미지 생성 실패: ' + err.message, 'error');
+    return text;
   }
-}
 
 
-// ════════════════════════════════════════════════════
-// PDF 내보내기 (jsPDF + html2canvas)
-// ════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════
+  // 견적관리 연동: 저장/해제
+  // ════════════════════════════════════════════════════
 
-async function exportQuotePDF() {
-  const d = getQuoteFormData();
-  if (!d.clientName) return toast('업체명을 입력해주세요', 'error');
-  if (!d.amount) return toast('금액을 입력해주세요', 'error');
-
-  const el = document.getElementById('quotePrintArea');
-  if (!el) return toast('미리보기를 먼저 확인해주세요', 'error');
-
-  toast('PDF 생성 중...', 'info');
-
-  try {
-    if (typeof html2canvas === 'undefined') {
-      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+  async function saveQuoteToLead() {
+    if (!pendingQuoteLead || !pendingQuoteLead.id) {
+      return toast('연동된 견적 정보가 없습니다', 'error');
     }
 
-    // jsPDF 로드 확인
-    if (!window.jspdf && !window.jsPDF) {
-      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+    const d = getQuoteFormData();
+    if (!d.clientName) return toast('업체명을 입력해주세요', 'error');
+    if (!d.amount) return toast('금액을 입력해주세요', 'error');
+
+    const payload = {
+      quote_date:       d.date,
+      quote_amount:     d.total,
+      estimated_amount: d.total,   // 예상 총액에도 반영
+      quote_spec:       d.spec,
+      quote_frequency:  d.frequency,
+      quote_work_items: d.workItems,
+      status:           'proposal', // 견적서 작성 → 견적제출 상태로
+    };
+
+    const { error } = await sb.from('leads')
+      .update(payload)
+      .eq('id', pendingQuoteLead.id);
+
+    if (error) return toast('저장 실패: ' + error.message, 'error');
+
+    // 로컬 데이터도 업데이트
+    const local = adminData.leads.find(l => l.id === pendingQuoteLead.id);
+    if (local) {
+      Object.assign(local, payload);
     }
 
-    const canvas = await html2canvas(el, {
-      scale: 2,
-      backgroundColor: '#ffffff',
-      useCORS: true,
-    });
-
-    const imgData = canvas.toDataURL('image/png');
-
-    // jsPDF UMD: window.jspdf.jsPDF
-    const jsPDFClass = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
-    if (!jsPDFClass) throw new Error('jsPDF 라이브러리를 불러올 수 없습니다');
-
-    const pdf = new jsPDFClass('p', 'mm', 'a4');
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
-    const imgWidth = pdfWidth - 20;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    const yOffset = imgHeight > pdfHeight - 20 ? 10 : (pdfHeight - imgHeight) / 2;
-
-    pdf.addImage(imgData, 'PNG', 10, yOffset, imgWidth, Math.min(imgHeight, pdfHeight - 20));
-    pdf.save(`견적서_${d.clientName}_${d.date}.pdf`);
-
-    toast('PDF 다운로드 완료');
-  } catch (err) {
-    console.error('PDF export error:', err);
-    toast('PDF 생성 실패: ' + err.message, 'error');
+    toast('견적서가 저장되었습니다 ✓');
+  } catch (e) {
+    console.error('saveQuoteToLead error:', e);
+    toast('견적 저장 중 오류가 발생했습니다', 'error');
   }
-}
-
-
-// ════════════════════════════════════════════════════
-// 헬퍼
-// ════════════════════════════════════════════════════
-
-function buildWorkContentText(d) {
-  let text = '상세사항\n\n\n';
-  text += '청소 범위\n';
-  text += `1. 작업일정 \n- ${d.frequency} 사무실 내부청소\n \n`;
-  text += '2. 작업내용\n';
-  d.workItems.forEach(item => {
-    text += `- ${item}\n`;
-  });
-  return text;
-}
-
-
-// ════════════════════════════════════════════════════
-// 견적관리 연동: 저장/해제
-// ════════════════════════════════════════════════════
-
-async function saveQuoteToLead() {
-  if (!pendingQuoteLead || !pendingQuoteLead.id) {
-    return toast('연동된 견적 정보가 없습니다', 'error');
-  }
-
-  const d = getQuoteFormData();
-  if (!d.clientName) return toast('업체명을 입력해주세요', 'error');
-  if (!d.amount) return toast('금액을 입력해주세요', 'error');
-
-  const payload = {
-    quote_date:       d.date,
-    quote_amount:     d.total,
-    estimated_amount: d.total,   // 예상 총액에도 반영
-    quote_spec:       d.spec,
-    quote_frequency:  d.frequency,
-    quote_work_items: d.workItems,
-    status:           'proposal', // 견적서 작성 → 견적제출 상태로
-  };
-
-  const { error } = await sb.from('leads')
-    .update(payload)
-    .eq('id', pendingQuoteLead.id);
-
-  if (error) return toast('저장 실패: ' + error.message, 'error');
-
-  // 로컬 데이터도 업데이트
-  const local = adminData.leads.find(l => l.id === pendingQuoteLead.id);
-  if (local) {
-    Object.assign(local, payload);
-  }
-
-  toast('견적서가 저장되었습니다 ✓');
 }
 
 function clearQuoteLead() {
