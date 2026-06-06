@@ -517,13 +517,15 @@ async function savePayAmount(assignId, workerId) {
   try {
   const input = $('editPay_' + assignId);
   if (!input) return;
-  const newPay = parseInt(input.value, 10) || 0;
+  const rawVal = input.value.replace(/,/g, '').trim();
+  const newPay = rawVal === '' ? null : parseInt(rawVal, 10);
+  if (newPay !== null && isNaN(newPay)) return toast('올바른 금액을 입력하세요', 'error');
   if (newPay < 0) return toast('지급금액은 0 이상이어야 합니다', 'error');
   if (newPay > 99999999) return toast('지급금액이 너무 큽니다', 'error');
 
   // 변경 이력용 이전값 저장
   const local = adminData.assignments.find(a => a.id === assignId);
-  const oldPay = local ? (local.pay_amount || 0) : 0;
+  const oldPay = local ? (local.pay_amount ?? 0) : 0;
 
   const { error } = await sb.from('company_workers')
     .update({ pay_amount: newPay })
