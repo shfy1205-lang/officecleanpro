@@ -115,9 +115,9 @@ async function renderChangeLog(listOnly) {
                   <td>${changerName}</td>
                   <td><span class="badge badge-area" style="font-size:10px">${entityLabel}</span></td>
                   <td><span class="badge ${actionBadge}" style="font-size:10px">${actionLabel}</span></td>
-                  <td style="font-size:12px">${l.field_name || '-'}</td>
-                  <td style="font-size:12px;color:var(--red)">${oldVal}</td>
-                  <td style="font-size:12px;color:var(--green)">${newVal}</td>
+                  <td style="font-size:12px">${escapeHtml(l.field_name || '-')}</td>
+                  <td style="font-size:12px;color:var(--red)">${escapeHtml(oldVal)}</td>
+                  <td style="font-size:12px;color:var(--green)">${escapeHtml(newVal)}</td>
                   <td style="font-size:11px;color:var(--text2);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(l.note || '')}">${escapeHtml(l.note) || '-'}</td>
                 </tr>`;
               }).join('')}
@@ -145,10 +145,10 @@ async function renderChangeLog(listOnly) {
               </div>
               ${l.note ? `<div style="font-size:12px;font-weight:500;margin-bottom:4px">${escapeHtml(l.note)}</div>` : ''}
               <div style="font-size:12px;color:var(--text2)">
-                ${l.field_name ? `<span style="font-weight:500">${l.field_name}</span>: ` : ''}
-                ${l.old_value ? `<span style="color:var(--red)">${truncateValue(l.old_value)}</span>` : ''}
+                ${l.field_name ? `<span style="font-weight:500">${escapeHtml(l.field_name)}</span>: ` : ''}
+                ${l.old_value ? `<span style="color:var(--red)">${escapeHtml(truncateValue(l.old_value))}</span>` : ''}
                 ${l.old_value && l.new_value ? ' → ' : ''}
-                ${l.new_value ? `<span style="color:var(--green)">${truncateValue(l.new_value)}</span>` : ''}
+                ${l.new_value ? `<span style="color:var(--green)">${escapeHtml(truncateValue(l.new_value))}</span>` : ''}
               </div>
               <div style="font-size:11px;color:var(--text3);margin-top:4px">변경자: ${changerName}</div>
             </div>
