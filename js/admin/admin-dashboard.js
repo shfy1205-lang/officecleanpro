@@ -642,6 +642,7 @@ async function _generateMonthlyBillings(month) {
   } catch (e) {
     console.error('_generateMonthlyBillings error:', e);
     toast('오류가 발생했습니다', 'error');
+    return 0;
   }}
 
 function buildMonthGenResultHTML() {
