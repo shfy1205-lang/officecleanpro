@@ -210,6 +210,7 @@ function setupEcoOnlyView() {
 // ─── 탭 전환 ───
 
 function switchTab(tabName, el) {
+  currentTab = tabName;
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
 
