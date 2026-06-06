@@ -106,7 +106,7 @@ function renderBillingCheckList(filtered) {
   subCompanies.forEach(c => {
     const f = finMap[c.id];
     if (f) {
-      ecoContractTotal += (c.contract_amount || 0);
+      ecoContractTotal += (f.contract_amount || 0);
       ecoFeeTotal += (f.eco_amount || 0);
     }
   });
@@ -432,7 +432,7 @@ async function autoCreateBillings() {
     toInsert.push({
       company_id: f.company_id,
       month: contactMonth,
-      billed_amount: c.contract_amount || 0,
+      billed_amount: f.contract_amount || 0,
       paid_amount: 0,
       status: 'pending',
     });
