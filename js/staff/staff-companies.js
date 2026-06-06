@@ -134,7 +134,7 @@ async function openCompanyDetail(companyId) {
           ? `<button class="btn-task-done" disabled>
                <span class="check-icon">✓</span> 오늘 청소 완료됨
              </button>`
-          : `<button class="btn-task-check" onclick="toggleTask('${companyId}')">
+          : `<button class="btn-task-check" onclick="toggleTask('${companyId}', null, event)">
                청소 완료 체크
              </button>`
         }
