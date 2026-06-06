@@ -227,7 +227,7 @@ function buildCalendarCells(firstDow, daysInMonth, dateMap, todayStr) {
 
         cellContent += '<div class="cal-companies">';
         companyNames.forEach(n => {
-          cellContent += `<div class="cal-company-name">${n}</div>`;
+          cellContent += `<div class="cal-company-name">${escapeHtml(n)}</div>`;
         });
         if (remaining > 0) {
           cellContent += `<div class="cal-company-more">+${remaining}</div>`;
@@ -264,9 +264,9 @@ function openCalendarDayDetail(dateStr) {
   // 공통 데이터 매핑
   const taskItems = tasks.map(t => {
     const comp = adminData.companies.find(c => c.id === t.company_id);
-    const compName = comp ? comp.name : '알 수 없음';
-    const compAddr = comp ? (comp.location || '-') : '-';
-    const workerName = getWorkerName(t.worker_id);
+    const compName = escapeHtml(comp ? comp.name : '알 수 없음');
+    const compAddr = escapeHtml(comp ? (comp.location || '-') : '-');
+    const workerName = escapeHtml(getWorkerName(t.worker_id));
     const st = getTaskDisplayStatus(t);
 
     let statusBadge = '';
