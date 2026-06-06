@@ -187,19 +187,24 @@ async function saveNotice(noticeId) {
     created_by: currentWorker.id,
   };
 
-  let error;
-  if (noticeId) {
-    ({ error } = await sb.from('notices').update(payload).eq('id', noticeId));
-  } else {
-    ({ error } = await sb.from('notices').insert(payload));
+  try {
+    let error;
+    if (noticeId) {
+      ({ error } = await sb.from('notices').update(payload).eq('id', noticeId));
+    } else {
+      ({ error } = await sb.from('notices').insert(payload));
+    }
+
+    if (error) return toast(error.message, 'error');
+
+    toast(noticeId ? '공지 수정 완료' : '공지 등록 완료');
+    closeModal();
+    await loadAdminData();
+    renderNotices();
+  } catch (e) {
+    console.error('saveNotice error:', e);
+    toast('공지 저장 중 오류가 발생했습니다', 'error');
   }
-
-  if (error) return toast(error.message, 'error');
-
-  toast(noticeId ? '공지 수정 완료' : '공지 등록 완료');
-  closeModal();
-  await loadAdminData();
-  renderNotices();
 }
 
 function openNoticeDetail(noticeId) {
@@ -255,11 +260,16 @@ function openNoticeDetail(noticeId) {
 async function deleteNotice(noticeId) {
   if (!confirm('이 공지를 삭제하시겠습니까?')) return;
 
-  const { error } = await sb.from('notices').delete().eq('id', noticeId);
-  if (error) return toast(error.message, 'error');
+  try {
+    const { error } = await sb.from('notices').delete().eq('id', noticeId);
+    if (error) return toast(error.message, 'error');
 
-  toast('공지 삭제됨');
-  closeModal();
-  await loadAdminData();
-  renderNotices();
+    toast('공지 삭제됨');
+    closeModal();
+    await loadAdminData();
+    renderNotices();
+  } catch (e) {
+    console.error('deleteNotice error:', e);
+    toast('공지 삭제 중 오류가 발생했습니다', 'error');
+  }
 }
