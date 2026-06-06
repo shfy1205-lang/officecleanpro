@@ -131,11 +131,11 @@ function openNoticeForm(noticeId) {
 
     <div class="field">
       <label>제목 *</label>
-      <input id="nTitle" value="${cleanTitle}" placeholder="공지 제목">
+      <input id="nTitle" value="${escapeHtml(cleanTitle)}" placeholder="공지 제목">
     </div>
     <div class="field">
       <label>내용 *</label>
-      <textarea id="nContent" rows="5" placeholder="공지 내용을 입력하세요">${n.content || ''}</textarea>
+      <textarea id="nContent" rows="5" placeholder="공지 내용을 입력하세요">${escapeHtml(n.content || '')}</textarea>
     </div>
     <div class="field" style="display:flex;align-items:center;gap:8px">
       <input type="checkbox" id="nPinned" ${n.is_pinned ? 'checked' : ''} style="width:auto">
