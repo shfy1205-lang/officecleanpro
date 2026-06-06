@@ -40,7 +40,7 @@ async function renderNotices() {
       <div class="card notice-card${n.is_pinned ? ' pinned' : ''}">
         <div class="card-header">
           <div class="card-title">
-            ${n.is_pinned ? '<span class="pin-icon">📌</span> ' : ''}${displayTitle}
+            ${n.is_pinned ? '<span class="pin-icon">📌</span> ' : ''}${escapeHtml(displayTitle)}
           </div>
           <div class="card-subtitle">${date}</div>
         </div>
