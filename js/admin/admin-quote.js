@@ -557,6 +557,7 @@ async function exportQuoteExcel() {
     if (!d.clientName) return toast('업체명을 입력해주세요', 'error');
     if (!d.amount) return toast('금액을 입력해주세요', 'error');
 
+    try {
     const payload = {
       quote_date:       d.date,
       quote_amount:     d.total,
