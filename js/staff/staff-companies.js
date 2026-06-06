@@ -44,7 +44,12 @@ function renderMyCompanies() {
         t => t.company_id === company.id && t.task_date === today() && t.status === 'completed'
       );
       const isDoneToday = todayTasks.length > 0;
-      const isScheduledToday = scheds.some(s => s.weekday === new Date().getDay());
+      const isScheduledToday = scheds.some(s => {
+        if (s.weekday !== new Date().getDay() || !s.is_active) return false;
+        const freq = s.frequency || 'weekly';
+        if (freq === 'biweekly') return isBiweeklyMatch(s.anchor_date, today());
+        return true;
+      });
 
       // QR 업체 요청 카운트
       const qrReqCount = staffData.requests.filter(
