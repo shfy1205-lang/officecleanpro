@@ -245,8 +245,8 @@ function renderEco() {
 }
 
 function renderEcoHTML(listOnly) {
-  // 렌더 시작 시 캐시 무효화 → 이번 렌더 내에서 1회만 재계산
-  _ecoCache = null;
+  // 렌더 시작 시 캐시 무효화 (listOnly면 캐시 유지)
+  if (!listOnly) _ecoCache = null;
 
   const mc = $('mainContent');
   const filtered = getFilteredEcoCompanies();
@@ -406,7 +406,7 @@ function renderEcoHTML(listOnly) {
       </select>
       <div class="eco-search-wrap">
         <input id="ecoSearchInput" class="eco-search-input" type="text" placeholder="업체명 검색"
-               value="${ecoSearch}">
+               value="${escapeHtml(ecoSearch)}">
       </div>
     </div>
 
