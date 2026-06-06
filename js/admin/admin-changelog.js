@@ -205,7 +205,7 @@ async function renderChangeLog(listOnly) {
         <option value="all"${changeLogPeriod === 'all' ? ' selected' : ''}>전체 기간</option>
       </select>
       <div class="search-box" style="flex:1;margin-bottom:0">
-        <input id="changeLogSearchInput" placeholder="검색 (메모, 필드, 값)" value="${changeLogSearch}">
+        <input id="changeLogSearchInput" placeholder="검색 (메모, 필드, 값)" value="${escapeHtml(changeLogSearch)}">
       </div>
     </div>
 
