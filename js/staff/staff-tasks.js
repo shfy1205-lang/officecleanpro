@@ -261,8 +261,8 @@ function buildTaskList(monthTasks) {
           return `<div class="task-list-item">
             <span class="task-list-check">✓</span>
             <div class="task-list-info">
-              <div class="task-list-name">${comp?.name || '알 수 없는 업체'}</div>
-              <div class="task-list-sub">${comp?.area_name || ''} ${comp?.location || ''}</div>
+              <div class="task-list-name">${escapeHtml(comp?.name || '알 수 없는 업체')}</div>
+              <div class="task-list-sub">${escapeHtml(comp?.area_name || '')} ${escapeHtml(comp?.location || '')}</div>
             </div>
             ${t.memo ? `<div class="task-list-memo">${escapeHtml(t.memo)}</div>` : ''}
           </div>`;
