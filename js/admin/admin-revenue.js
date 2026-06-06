@@ -251,6 +251,7 @@ function openRevenueForm(companyId) {
   const assigns = adminData.assignments.filter(
     a => a.company_id === companyId && a.month === revenueMonth
   );
+  const _rvFinMap = buildFinMap(adminData.financials, revenueMonth);
 
   const html = `
     <button class="modal-close" onclick="closeModal()">&times;</button>
@@ -316,7 +317,7 @@ function openRevenueForm(companyId) {
           ${assigns.map(a => `
             <div class="assign-row" style="margin-bottom:4px">
               <span class="assign-name">${getWorkerName(a.worker_id)}</span>
-              <span class="admin-pay-cell">${fmt(a.pay_amount)}원</span>
+              <span class="admin-pay-cell">${fmt(calcAssignmentFinalPay(a, _rvFinMap))}원</span>
             </div>
           `).join('')}
         </div>
