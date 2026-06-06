@@ -38,7 +38,12 @@ function renderTodayTasks() {
     if (!company || company.status !== 'active') return;
 
     const scheds = getCompanySchedules(company.id);
-    const matchSched = scheds.find(s => s.weekday === weekday);
+    const matchSched = scheds.find(s => {
+      if (s.weekday !== weekday || !s.is_active) return false;
+      const freq = s.frequency || 'weekly';
+      if (freq === 'biweekly') return isBiweeklyMatch(s.anchor_date, dateStr);
+      return true;
+    });
     if (!matchSched) return;
 
     const note = getCompanyNote(company.id);
