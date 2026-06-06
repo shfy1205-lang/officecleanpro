@@ -1100,7 +1100,8 @@ async function saveFeeInfo(companyId) {
 
   // 직원 지급 합계
   const assigns = adminData.assignments.filter(a => a.company_id === companyId && a.month === selectedMonth);
-  const workerPay = assigns.reduce((s, a) => s + (a.pay_amount || 0), 0);
+  const _sfFinMap = buildFinMap(adminData.financials, selectedMonth);
+  const workerPay = assigns.reduce((s, a) => s + calcAssignmentFinalPay(a, _sfFinMap), 0);
   const totalCost = ocpAmt + ecoAmt + workerPay;
 
   if (contractAmt > 0 && totalCost > contractAmt) {
