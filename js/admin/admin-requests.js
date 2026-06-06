@@ -109,12 +109,14 @@ function openRequestDetail(requestId) {
         <div class="detail-section">
           <div class="detail-section-title">📷 첨부 사진</div>
           <div style="display:flex;flex-wrap:wrap;gap:8px">
-            ${paths.map(p => `
+            ${paths.map(p => {
+              const safeUrl = escapeHtml(baseUrl + encodeURI(p));
+              return `
               <div style="width:80px;height:80px;border-radius:8px;overflow:hidden;cursor:pointer"
-                   onclick="window.open('${baseUrl}${p}', '_blank')">
-                <img src="${baseUrl}${p}" style="width:100%;height:100%;object-fit:cover" loading="lazy">
+                   onclick="window.open('${safeUrl}', '_blank')">
+                <img src="${safeUrl}" style="width:100%;height:100%;object-fit:cover" loading="lazy">
               </div>
-            `).join('')}
+            `; }).join('')}
           </div>
         </div>
       `;
