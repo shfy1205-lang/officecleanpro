@@ -69,7 +69,7 @@ function renderNotices(listOnly) {
     </div>
 
     <div class="search-box" style="margin-bottom:16px">
-      <input id="noticeSearchInput" placeholder="공지 검색 (제목, 내용)" value="${noticeSearch}">
+      <input id="noticeSearchInput" placeholder="공지 검색 (제목, 내용)" value="${escapeHtml(noticeSearch)}">
     </div>
 
     <div id="noticeListContainer">${listHTML}</div>
