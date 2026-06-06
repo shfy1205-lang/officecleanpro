@@ -349,7 +349,7 @@ function openRevenueForm(companyId) {
       </div>
     </div>
 
-    <button class="btn" style="margin-top:16px" onclick="saveRevenue('${companyId}')">저장하기</button>
+    <button class="btn" style="margin-top:16px" onclick="saveRevenue('${companyId}', event)">저장하기</button>
   `;
 
   $('modalBody').innerHTML = html;
@@ -397,8 +397,8 @@ function previewRevenue() {
   if (resOcp) resOcp.textContent = fmt(ocpAmt) + '원';
 }
 
-async function saveRevenue(companyId) {
-  const btn = event?.target;
+async function saveRevenue(companyId, e) {
+  const btn = e?.target;
   if (btn && btn.disabled) return;
   if (btn) { btn.disabled = true; btn.textContent = '저장 중...'; }
 
