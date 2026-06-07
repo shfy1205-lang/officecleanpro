@@ -433,6 +433,13 @@ function openLeadDetail(leadId) {
         ${l.quote_date ? '📄 견적서 수정' : '📝 견적서 작성'}
       </button>
     </div>
+    ${l.status === 'won' ? `
+    <div style="margin-top:8px">
+      <button class="btn" style="width:100%;background:var(--green)" onclick="registerCompanyFromLead('${l.id}')">
+        🏢 업체 등록하기
+      </button>
+    </div>
+    ` : ''}
     <div style="display:flex;gap:8px;margin-top:8px">
       <button class="btn" style="flex:1" onclick="openLeadForm('${l.id}')">수정</button>
       <button class="btn" style="flex:1;background:var(--red)" onclick="deleteLead('${l.id}')">삭제</button>
@@ -456,6 +463,15 @@ async function updateLeadStatus(leadId, status) {
 
   toast(`상태: ${LEAD_STATUS_MAP[status].label}`);
   openLeadDetail(leadId);
+
+  // 성공 전환 시 업체 등록 제안
+  if (status === 'won') {
+    setTimeout(() => {
+      if (confirm('견적이 성공으로 전환되었습니다.\n업체로 등록하시겠습니까?')) {
+        registerCompanyFromLead(leadId);
+      }
+    }, 300);
+  }
 
   } catch (e) {
     console.error('updateLeadStatus error:', e);
@@ -516,4 +532,34 @@ function goToQuoteFromLead(leadId) {
     quoteTab.classList.add('active');
   }
   renderQuote();
+}
+
+
+// ═══ 견적관리 → 업체 등록 연동 ═══
+function registerCompanyFromLead(leadId) {
+  const l = adminData.leads.find(x => x.id === leadId);
+  if (!l) return;
+
+  pendingLeadForCompany = {
+    company_name: l.company_name,
+    location: l.location || '',
+    contact_name: l.contact_name || '',
+    contact_phone: l.contact_phone || '',
+    contract_amount: 0,
+    memo: l.notes || '',
+  };
+
+  // 작업내용 금액 합계 또는 예상 금액
+  const wi = l.work_items || [];
+  const wiTotal = wi.reduce((s, item) => s + (item.amount || 0), 0);
+  if (wiTotal > 0) {
+    pendingLeadForCompany.contract_amount = wiTotal;
+  } else if (l.estimated_amount) {
+    pendingLeadForCompany.contract_amount = l.estimated_amount;
+  }
+
+  closeModal();
+  const tab = [...document.querySelectorAll('.tab')].find(t => t.textContent.includes('업체관리'));
+  if (tab) switchTab('allClients', tab);
+  setTimeout(() => openCompanyForm(), 200);
 }
