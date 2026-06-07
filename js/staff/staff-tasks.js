@@ -26,7 +26,7 @@ async function _completeTaskCore(companyId, dateStr, opts = {}) {
 
   if (existing && existing.status === 'scheduled') {
     const updatePayload = { status: 'completed', worker_id: currentWorker.id };
-    if (memo !== undefined) updatePayload.memo = memo || null;
+    if (memo !== undefined && memo !== null) updatePayload.memo = memo;
 
     let q = sb.from('tasks').update(updatePayload).eq('id', existing.id);
     if (selectReturn) q = q.select().single();
@@ -73,7 +73,7 @@ async function _completeTaskCore(companyId, dateStr, opts = {}) {
 async function toggleTask(companyId, targetDate, e) {
   const btn = e?.target?.closest('button');
   if (btn) { btn.disabled = true; btn.textContent = '처리 중...'; }
-
+  try {
   const dateStr = targetDate || today();
   const result = await _completeTaskCore(companyId, dateStr);
 
@@ -98,6 +98,11 @@ async function toggleTask(companyId, targetDate, e) {
   // 모달 & 리스트 갱신
   await openCompanyDetail(companyId);
   renderMyCompanies();
+  } catch (e2) {
+    console.error('toggleTask error:', e2);
+    toast('작업 처리 중 오류가 발생했습니다', 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '청소 완료 체크'; }
+  }
 }
 
 
