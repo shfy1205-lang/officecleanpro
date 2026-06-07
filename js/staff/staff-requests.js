@@ -257,6 +257,7 @@ function closeRequestModal() {
 }
 
 async function submitRequest(companyId) {
+  try {
   const input = $('requestInput');
   const content = input?.value?.trim();
   if (!content) return toast('내용을 입력하세요', 'error');
@@ -280,5 +281,9 @@ async function submitRequest(companyId) {
     renderMyRequests();
   } else {
     await openCompanyDetail(companyId);
+  }
+  } catch (e) {
+    console.error('submitRequest error:', e);
+    toast('요청 등록 중 오류가 발생했습니다', 'error');
   }
 }
