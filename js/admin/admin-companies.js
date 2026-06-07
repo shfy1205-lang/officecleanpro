@@ -354,15 +354,22 @@ async function deleteCompany(companyId) {
   if (!confirm('이 업체를 삭제하시겠습니까? 관련 데이터가 모두 삭제됩니다.')) return;
 
   // 관련 데이터 먼저 삭제 (FK cascade가 없을 수 있으므로)
-  await sb.from('company_financials').delete().eq('company_id', companyId);
-  await sb.from('company_workers').delete().eq('company_id', companyId);
-  await sb.from('company_schedule').delete().eq('company_id', companyId);
-  await sb.from('company_note_photos').delete().eq('company_id', companyId);
-  await sb.from('company_notes').delete().eq('company_id', companyId);
-  await sb.from('billing_records').delete().eq('company_id', companyId);
-  await sb.from('tasks').delete().eq('company_id', companyId);
-  await sb.from('requests').delete().eq('company_id', companyId);
-  await sb.from('change_logs').delete().eq('entity_id', String(companyId));
+  const cascadeTables = [
+    ['company_financials', 'company_id'],
+    ['company_workers', 'company_id'],
+    ['company_schedule', 'company_id'],
+    ['company_note_photos', 'company_id'],
+    ['company_notes', 'company_id'],
+    ['billing_records', 'company_id'],
+    ['tasks', 'company_id'],
+    ['requests', 'company_id'],
+    ['change_logs', 'entity_id'],
+  ];
+  for (const [table, col] of cascadeTables) {
+    const val = col === 'entity_id' ? String(companyId) : companyId;
+    const { error: delErr } = await sb.from(table).delete().eq(col, val);
+    if (delErr) console.error(`deleteCompany cascade ${table}:`, delErr);
+  }
 
   const { error } = await sb.from('companies').delete().eq('id', companyId);
   if (error) return toast(error.message, 'error');
