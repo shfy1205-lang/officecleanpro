@@ -13,7 +13,7 @@ function renderBilling() {
   mc.innerHTML = `
     <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
       정산관리
-      <div style="display:flex;gap:6px">
+      <div style="display:flex;gap:6px">hhf
         <button class="btn-sm btn-blue" onclick="exportBilling()" style="font-size:11px;padding:6px 10px">📥 엑셀</button>
         <button class="btn-sm btn-green" onclick="openBillingForm()">+ 정산 등록</button>
       </div>
@@ -400,7 +400,7 @@ function renderBillingMonthly(unpaidAll, totalUnpaid) {
             const bst = BILLING_STATUS_MAP[b.status] || BILLING_STATUS_MAP.pending;
             const unpaid = (b.billed_amount || 0) - (b.paid_amount || 0);
             return `<tr class="billing-row" onclick="openBillingDetail('${b.id}')" style="cursor:pointer">
-              <td>${escapeHtml(getCompanyName(b.company_id) || '(삭제된 업체)'))}</td>
+              <td>${escapeHtml(getCompanyName(b.company_id))}</td>
               <td><span class="badge ${bst.badge}">${bst.label}</span></td>
               <td>${fmt(b.billed_amount)}원</td>
               <td class="admin-pay-cell">${fmt(b.paid_amount)}원</td>
@@ -458,7 +458,7 @@ function renderBillingUnpaid(unpaidAll, totalUnpaid) {
           <tbody>${unpaidAll.map(b => {
             const unpaid = (b.billed_amount || 0) - (b.paid_amount || 0);
             return `<tr class="billing-row" onclick="openBillingDetail('${b.id}')" style="cursor:pointer">
-              <td>${escapeHtml(getCompanyName(b.company_id) || '(삭제된 업체)'))}</td>
+              <td>${escapeHtml(getCompanyName(b.company_id))}</td>
               <td>${b.month}</td>
               <td>${fmt(b.billed_amount)}원</td>
               <td class="admin-pay-cell">${fmt(b.paid_amount)}원</td>
@@ -676,7 +676,7 @@ async function _saveBillingInner(billingId) {
 
   if (billingId && oldBilling) {
     const changes = [];
-    const cName = getCompanyName(oldBilling.company_id) || '(삭제된 업체)';
+    const cName = getCompanyName(oldBilling.company_id);
     const bst = BILLING_STATUS_MAP;
 
     if ((oldBilling.billed_amount || 0) !== billedAmount) changes.push({ field: 'billed_amount', oldVal: oldBilling.billed_amount || 0, newVal: billedAmount });
@@ -711,7 +711,7 @@ function openBillingDetail(billingId) {
 
   const html = `
     <button class="modal-close" onclick="closeModal()">&times;</button>
-    <h3>${escapeHtml(getCompanyName(b.company_id) || '(삭제된 업체)'))} - ${b.month}</h3>
+    <h3>${escapeHtml(getCompanyName(b.company_id))} - ${b.month}</h3>
 
     <div class="detail-section">
       <div class="admin-row-2">
