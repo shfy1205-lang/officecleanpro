@@ -135,7 +135,7 @@ function renderProrate() {
         <tbody>
           ${assignData.map(d => `
           <tr>
-            <td style="font-weight:600">${d.companyName}</td>
+            <td style="font-weight:600">${escapeHtml(d.companyName)}</td>
             <td style="text-align:center">${d.workDays}일</td>
             <td style="text-align:center">
               <input type="number" min="0" max="${d.workDays}" value="${d.absenceDays}"
