@@ -60,7 +60,7 @@ async function renderChangeLog(listOnly) {
     const { data, error } = await query;
 
     if (error) {
-      mc.innerHTML = `<div class="empty-state"><div class="empty-icon">❌</div><p>로그 조회 오류: ${error.message}</p></div>`;
+      mc.innerHTML = `<div class="empty-state"><div class="empty-icon">❌</div><p>로그 조회 오류: ${escapeHtml(error.message)}</p></div>`;
       return;
     }
 
