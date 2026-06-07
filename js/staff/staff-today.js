@@ -121,6 +121,7 @@ function renderTodayTasks() {
 
 function buildTodayTaskCard(item, dateStr) {
   const { company, note, isCompleted, requestCount, todayTask } = item;
+  if (!company) return ''; // 삭제된 업체 방어코드
   const cid = company.id;
   const todayStr = today();
   const isToday = dateStr === todayStr;
