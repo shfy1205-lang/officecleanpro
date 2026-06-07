@@ -426,7 +426,7 @@ function renderEcoHTML(listOnly) {
 }
 
 /* ─── 모바일 인라인 수정 (프롬프트 방식) ─── */
-function startEcoEditMobile(companyId, field, currentVal) {
+async function startEcoEditMobile(companyId, field, currentVal) {
   const label = field === 'contract' ? '계약금액' : '에코수수료';
   const newVal = prompt(label + ' 수정 (숫자만 입력):', currentVal || 0);
   if (newVal === null) return; // 취소
@@ -440,7 +440,7 @@ function startEcoEditMobile(companyId, field, currentVal) {
   // 가짜 input 객체로 saveEcoEdit 재활용
   ecoEditingCell = { companyId, field, cellEl: null };
   const fakeInput = { value: String(parsed) };
-  saveEcoEdit(fakeInput);
+  await saveEcoEdit(fakeInput);
 }
 
 /* ─── 필터 핸들러 ─── */
