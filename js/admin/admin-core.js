@@ -1,1 +1,283 @@
+/**
+ * admin-core.js - 관리자 핵시 로직
+ * 전역 변수, 초기화, 데이터 로드, 탭 전환, 관리자 유틸
+ */
 
+let adminData = {};
+let _workerMap = null; // getWorkerName lookup cache
+let _companyMap = null; // getCompanyName lookup cache
+let selectedMonth = '';
+let clientSearch = '';
+let clientAreaFilter = '';
+let requestFilter = 'all';
+let noticeSearch = '';
+let leadFilter = 'all';
+let leadSearch = '';
+let billingMonth = '';
+let billingView = 'overview'; // overview | all | unpaid
+let revenueMonth = '';
+let pendingQuoteLead = null; // 견적관리 → 견적서 연동용
+
+// ─── 초기화 ───
+
+async function initAdmin() {
+    const msgEl = document.getElementById('loadingMsg');
+    try {
+        if (msgEl) msgEl.textContent = '인증 확인 중...';
+        const ok = await requireAuth('admin');
+        if (!ok) return;
+
+        if (msgEl) msgEl.textContent = '데이터 로딩 중...';
+        selectedMonth = currentMonth();
+        billingMonth = currentMonth();
+        revenueMonth = currentMonth();
+        $('userName').textContent = currentWorker.name;
+
+        // loadAdminData에 10초 타임아웃
+        await Promise.race([
+            loadAdminData(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('데이터 로딩 시간 초과')), 10000))
+        ]);
+
+        $('loading').classList.add('hidden');
+        $('app').style.display = 'block';
+
+        // 에코 사용자: 에코관리 탭만 표시
+        if (isEcoUser()) {
+            setupEcoOnlyView();
+            return;
+        }
+        renderDashboard();
+    } catch (e) {
+        console.error('Admin init error:', e);
+        if (msgEl) {
+            msgEl.innerHTML = '초기화 오류: ' + escapeHtml(e.message || '알 수 없음') + '<br><a href="login.html" style="color:#60a5fa">로그인 페이지로 이동</a>';
+        }
+    }
+}
+
+// DOMContentLoaded가 이미 지나갔을 수도 있으므로 readyState 체크
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initAdmin);
+} else {
+    initAdmin();
+}
+
+// ─── 데이터 로드 ───
+
+async function loadAdminData() {
+  const results = await Promise.allSettled([
+    sb.from('companies').select('*').order('name'),
+    sb.from('company_financials').select('*'),
+    sb.from('company_workers').select('*'),
+    sb.from('workers').select('*').order('name'),
+    sb.from('company_schedule').select('*'),
+    sb.from('requests').select('*').order('created_at', { ascending: false }),
+    sb.from('notices').select('*').order('created_at', { ascending: false }),
+    sb.from('leads').select('*').order('created_at', { ascending: false }),
+    sb.from('billing_records').select('*').order('month', { ascending: false }),
+    sb.from('company_notes').select('id, company_id, special_notes, parking_info, recycling_location, staff_message'),
+    sb.from('pay_confirmations').select('*'),
+  ]);
+
+  const get = (i) => results[i].status === 'fulfilled' ? (results[i].value.data || []) : [];
+
+  adminData.companies        = get(0);
+  adminData.financials       = get(1);
+  adminData.assignments      = get(2);
+  adminData.workers          = get(3);
+  adminData.schedules        = get(4);
+  adminData.requests         = get(5);
+  adminData.notices          = get(6);
+  adminData.leads            = get(7);
+  adminData.billings         = get(8);
+  adminData.notes            = get(9);
+  adminData.payConfirmations = get(10);
+  _workerMap = null; _companyMap = null; // 캐시 무효화
+
+  // 실패한 쿼리 로그
+  results.forEach((r, i) => {
+    if (r.status === 'rejected') console.error(`loadAdminData query[${i}] failed:`, r.reason);
+  });
+}
+
+// ─── 월별 데이터 자동 생성 ───
+
+/**
+ * 특정 월에 financials/assignments 데이터가 없으면
+ * 가장 최근 이전 달 데이터를 복사하여 자동 생성
+ */
+async function ensureMonthData(month) {
+  const hasFinancials = adminData.financials.some(f => f.month === month);
+  const hasAssignments = adminData.assignments.some(a => a.month === month);
+
+  if (hasFinancials && hasAssignments) return; // 이미 데이터 있음
+
+  // 이전 달 중 데이터가 있는 가장 최근 달 찾기
+  const allMonths = [...new Set(adminData.financials.map(f => f.month))].sort().reverse();
+  const prevMonth = allMonths.find(m => m < month);
+
+  if (!prevMonth) return; // 이전 데이터 자체가 없으면 스킵
+
+  let inserted = false;
+
+  // 해지/중지된 업체 ID (해당 월 이전에 해지된 건만 제외)
+  const excludeCompanyIds = new Set(
+    adminData.companies
+      .filter(c => {
+        if (c.status === 'paused' && c.paused_at) {
+          const pauseMonth = c.paused_at.substring(0, 7);
+          return month > pauseMonth;
+        }
+        if (c.status === 'paused') return true; // paused_at 없으면 항상 제외
+        if (c.status === 'terminated' && c.terminated_at) {
+          const termMonth = c.terminated_at.substring(0, 7);
+          return month > termMonth; // 해지월 이후만 제외
+        }
+        return false;
+      })
+      .map(c => c.id)
+  );
+
+  // 1) company_financials 복사 (contract_amount 포함)
+  if (!hasFinancials) {
+    const prevFins = adminData.financials.filter(f => f.month === prevMonth && !excludeCompanyIds.has(f.company_id));
+    if (prevFins.length > 0) {
+      const newFins = prevFins.map(f => ({
+        company_id:      f.company_id,
+        month:           month,
+        contract_amount: f.contract_amount,
+        ocp_amount:      f.ocp_amount,
+        eco_amount:      f.eco_amount,
+        worker_pay_total: f.worker_pay_total,
+        memo:            f.memo,
+      }));
+
+      const { error } = await sb.from('company_financials').insert(newFins);
+      if (error && error.code !== '23505') {
+        console.error('ensureMonthData financials error:', error);
+      } else {
+        inserted = true;
+      }
+    }
+  }
+
+  // 2) company_workers 복사 (해지 업체 제외)
+  if (!hasAssignments) {
+    const prevAssigns = adminData.assignments.filter(a => a.month === prevMonth && !excludeCompanyIds.has(a.company_id));
+    if (prevAssigns.length > 0) {
+      const newAssigns = prevAssigns.map(a => ({
+        company_id: a.company_id,
+        worker_id:  a.worker_id,
+        month:      month,
+        pay_amount: a.pay_amount,
+        share:      a.share,
+      }));
+
+      const { error } = await sb.from('company_workers').insert(newAssigns);
+      if (error && error.code !== '23505') {
+        console.error('ensureMonthData assignments error:', error);
+      } else {
+        inserted = true;
+      }
+    }
+  }
+
+  // 데이터 새로고침
+  if (inserted) {
+    await loadAdminData();
+  }
+}
+
+// ─── 에코 전용 뷰 ───
+
+function setupEcoOnlyView() {
+  // 탭 바에서 에코관리 탭만 남기고 숨김
+  const tabs = document.querySelectorAll('.tabs .tab');
+  tabs.forEach(t => {
+    if (t.textContent.trim() === '에코관리') {
+      t.classList.add('active');
+    } else {
+      t.style.display = 'none';
+    }
+  });
+
+  // 네비바 제목 변경
+  const h2 = document.querySelector('.navbar h2');
+  if (h2) h2.textContent = '에코오피스클린';
+
+  // 에코관리 렌더
+  if (typeof ecoMonth !== 'undefined') { ecoMonth = ecoMonth || selectedMonth; } else { window.ecoMonth = selectedMonth; }
+  renderEco();
+}
+
+// ─── 탭 전환 ───
+
+function switchTab(tabName, el) {
+  currentTab = tabName;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+
+  const renderers = {
+    dashboard:    renderDashboard,
+    allClients:   renderAllClients,
+    requests:     renderRequests,
+    notices:      renderNotices,
+    leads:        renderLeads,
+    billing:      renderBilling,
+    billingAlert: renderBillingAlert,
+    staffPay:     renderStaffPay,
+    areaSummary:  renderAreaSummary,
+    revenue:      renderRevenue,
+    analysis:     renderAnalysis,
+    calendar:     renderCalendar,
+    scheduleLog:  renderScheduleLog,
+    changeLog:    renderChangeLog,
+    contacts:     renderContacts,
+    quote:        renderQuote,
+    prorate:      renderProrate,
+    eco:          renderEco,
+  };
+
+  if (renderers[tabName]) renderers[tabName]();
+}
+
+// ─── 관리자 유틸 ───
+
+function getWorkerName(workerId) {
+  if (!_workerMap) {
+    _workerMap = {};
+    adminData.workers.forEach(w => _workerMap[w.id] = w.name);
+  }
+  return _workerMap[workerId] || '알 수 없음';
+}
+
+function getCompanyName(companyId) {
+  if (!_companyMap) {
+    _companyMap = {};
+    adminData.companies.forEach(c => _companyMap[c.id] = c.name);
+  }
+  return _companyMap[companyId] || '알 수 없음';
+}
+
+function getActiveWorkers() {
+  return adminData.workers.filter(w => w.status === 'active' && w.role === 'staff');
+}
+
+function getCompanySchedules(companyId) {
+  return adminData.schedules
+    .filter(s => s.company_id === companyId && s.is_active)
+    .sort((a, b) => a.weekday - b.weekday);
+}
+
+function getCompanyAssignments(companyId, month) {
+  return adminData.assignments.filter(
+    a => a.company_id === companyId && a.month === month
+  );
+}
+
+function getUniqueAreas() {
+  const areas = new Set();
+  adminData.companies.forEach(c => { if (c.area_name) areas.add(c.area_name); });
+  return [...areas].sort();
+}
