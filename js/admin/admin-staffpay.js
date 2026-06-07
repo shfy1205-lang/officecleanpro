@@ -271,6 +271,10 @@ async function togglePayConfirm(workerId) {
   const month = selectedMonth;
   const current = isPayConfirmed(workerId, month);
 
+  const workerName = getWorkerName(workerId);
+  const action = current ? '확정 해제' : '급여 확정';
+  if (!confirm(workerName + '님의 ' + month + ' 급여를 ' + action + '하시겠습니까?')) return;
+
   if (current) {
     // 확정 해제
     const { error } = await sb.from('pay_confirmations')
