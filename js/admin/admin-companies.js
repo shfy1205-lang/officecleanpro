@@ -280,6 +280,18 @@ function openCompanyForm(companyId) {
 
   $('modalBody').innerHTML = html;
   $('detailModal').classList.add('show');
+
+  // 견적 → 업체등록 프리필
+  if (!isEdit && pendingLeadForCompany) {
+    const ld = pendingLeadForCompany;
+    pendingLeadForCompany = null;
+    if (ld.company_name) $('fName').value = ld.company_name;
+    if (ld.location) $('fLocation').value = ld.location;
+    if (ld.contact_name) $('fContact').value = ld.contact_name;
+    if (ld.contact_phone) $('fPhone').value = ld.contact_phone;
+    if (ld.contract_amount) $('fContractAmount').value = ld.contract_amount.toLocaleString();
+    if (ld.memo) $('fMemo').value = ld.memo;
+  }
 }
 
 async function saveCompany(companyId) {
