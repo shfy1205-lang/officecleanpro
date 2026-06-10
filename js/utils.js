@@ -129,12 +129,12 @@ function calcAssignmentFinalPay(a, finMap) {
     const eco = fin.eco_amount || 0;
     const workerPool = contract - ocp - eco;
     const sharePay = Math.round(workerPool * a.share / 100);
-    // pay_amount가 양수로 명시 설정되었으면 수동 오버라이드, 아니면 share 자동계산값 사용
-    return (a.pay_amount != null && a.pay_amount > 0) ? a.pay_amount : sharePay;
+    // pay_amount가 명시적으로 설정되었으면(0포함) 수동 오버라이드, null이면 share 자동계산값 사용
+    return (a.pay_amount != null) ? a.pay_amount : sharePay;
   }
 
   // share 미설정 시 pay_amount 사용
-  return a.pay_amount || 0;
+  return a.pay_amount ?? 0;
 }
 
 /**
