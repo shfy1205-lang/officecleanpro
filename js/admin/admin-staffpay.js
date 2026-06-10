@@ -51,11 +51,11 @@ function calcStaffPayData(month) {
         calcPay = Math.round(workerPool * a.share / 100);
         method = 'auto';
       } else {
-        calcPay = a.pay_amount || 0;
+        calcPay = a.pay_amount ?? 0;
         method = 'manual';
       }
     } else {
-      calcPay = a.pay_amount || 0;
+      calcPay = a.pay_amount ?? 0;
       method = 'manual';
     }
 
@@ -72,7 +72,7 @@ function calcStaffPayData(month) {
       eco: fin ? (fin.eco_amount || 0) : 0,
       share: a.share || 0,
       calcPay: calcPay,
-      manualPay: a.pay_amount || 0,
+      manualPay: a.pay_amount ?? 0,
       finalPay: finalPay,
       method: method,
     });
