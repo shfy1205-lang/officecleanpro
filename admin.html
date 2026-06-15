@@ -1,122 +1,102 @@
 <!DOCTYPE html>
-<!-- v20260526 -->
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>오피스클린프로 - 관리자</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=20260403">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ì¤í¼ì¤í´ë¦°íë¡ - ê´ë¦¬ì</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css?v=20260615">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
 </head>
 <body>
 
-<!-- 로딩 -->
-<div id="loading"><div class="spinner"></div><p id="loadingMsg" style="color:var(--text2,#aaa);font-size:13px;text-align:center;margin-top:16px"></p></div>
+  <!-- ë¡ë© -->
+  <div id="loading"><div class="spinner"></div></div>
 
-<!-- 앱 -->
-<div id="app" style="display:none">
+  <!-- ì± -->
+  <div id="app" style="display:none">
 
-    <!-- 상단 네비게이션 -->
+    <!-- ìë¨ ë¤ë¹ê²ì´ì -->
     <nav class="navbar">
-        <h2>오피스클린프로</h2>
-        <div class="navbar-right">
-            <span id="userName"></span>
-            <button class="logout-btn" onclick="logout()">로그아웃</button>
-        </div>
+      <h2>ì¤í¼ì¤í´ë¦°íë¡</h2>
+      <div class="navbar-right">
+        <button class="nav-search-trigger" onclick="openSearch()" title="Ctrl+K">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <span class="search-shortcut">Ctrl+K</span>
+        </button>
+        <span id="userName"></span>
+        <button class="logout-btn" onclick="logout()">ë¡ê·¸ìì</button>
+      </div>
     </nav>
 
-    <!-- 관리자 탭 -->
-    <div class="tabs">
-        <button class="tab active" onclick="switchTab('dashboard', this)">대시보드</button>
-        <button class="tab" onclick="switchTab('allClients', this)">업체관리</button>
-        <button class="tab" onclick="switchTab('requests', this)">요청관리</button>
-        <button class="tab" onclick="switchTab('notices', this)">공지관리</button>
-        <button class="tab" onclick="switchTab('leads', this)">견적관리</button>
-        <button class="tab" onclick="switchTab('billing', this)">정산관리</button>
-        <button class="tab" onclick="switchTab('billingAlert', this)">미수경고</button>
-        <button class="tab" onclick="switchTab('staffPay', this)">담당자급여</button>
-        <button class="tab" onclick="switchTab('areaSummary', this)">구역별</button>
-        <button class="tab" onclick="switchTab('revenue', this)">수익관리</button>
-        <button class="tab" onclick="switchTab('analysis', this)">AI분석</button>
-        <button class="tab" onclick="switchTab('calendar', this)">캘린더</button>
-        <button class="tab" onclick="switchTab('scheduleLog', this)">생성로그</button>
-        <button class="tab" onclick="switchTab('changeLog', this)">변경이력</button>
-        <button class="tab" onclick="switchTab('contacts', this)">연락처</button>
-        <button class="tab" onclick="switchTab('quote', this)">견적서</button>
-        <button class="tab" onclick="switchTab('prorate', this)">일할계산</button>
-        <button class="tab" onclick="switchTab('eco', this)">에코관리</button>
+    <!-- ì¹´íê³ ë¦¬ ë¤ë¹ê²ì´ì (5ê° ê·¸ë£¹) -->
+    <div class="nav-categories" id="navCategories">
+      <button class="nav-cat active" data-group="home" onclick="switchGroup('home',this)">
+        <span class="nav-cat-icon">ð </span><span class="nav-cat-label">í</span>
+      </button>
+      <button class="nav-cat" data-group="ops" onclick="switchGroup('ops',this)">
+        <span class="nav-cat-icon">ð</span><span class="nav-cat-label">ì´ì</span>
+      </button>
+      <button class="nav-cat" data-group="finance" onclick="switchGroup('finance',this)">
+        <span class="nav-cat-icon">ð°</span><span class="nav-cat-label">ì¬ë¬´</span>
+      </button>
+      <button class="nav-cat" data-group="sales" onclick="switchGroup('sales',this)">
+        <span class="nav-cat-icon">ð</span><span class="nav-cat-label">ìì</span>
+      </button>
+      <button class="nav-cat" data-group="mgmt" onclick="switchGroup('mgmt',this)">
+        <span class="nav-cat-icon">âï¸</span><span class="nav-cat-label">ê´ë¦¬</span>
+      </button>
     </div>
 
-    <!-- 메인 콘텐츠 -->
+    <!-- ìë¸ í­ (ì íë ì¹´íê³ ë¦¬ì í­ë¤) -->
+    <div class="tabs" id="subTabs"></div>
+
+    <!-- ë©ì¸ ì½íì¸  -->
     <div class="content" id="mainContent"></div>
-</div>
 
-<!-- 상세/편집 모달 -->
-<div class="modal-overlay" id="detailModal" onclick="if(event.target===this)closeModal()">
+  </div>
+
+  <!-- ê¸ë¡ë² ê²ì ëª¨ë¬ -->
+  <div class="search-overlay" id="searchOverlay" onclick="if(event.target===this)closeSearch()">
+    <div class="search-modal">
+      <div class="search-input-wrap">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" id="searchInput" placeholder="ìì²´ëª, ì§ìëª, ë©ë´ ê²ì..." oninput="renderSearchResults(this.value)" autocomplete="off">
+        <kbd>ESC</kbd>
+      </div>
+      <div class="search-results" id="searchResults"></div>
+    </div>
+  </div>
+
+  <!-- ìì¸/í¸ì§ ëª¨ë¬ -->
+  <div class="modal-overlay" id="detailModal" onclick="if(event.target===this)closeModal()">
     <div class="modal" id="modalBody"></div>
-</div>
+  </div>
 
-<!-- 공통 -->
-<script>
-// Dynamic script loader with error detection & loading timeout
-(function() {
-        var v = Date.now();
-    var scripts = [
-        "js/supabase.js",
-        "js/utils.js",
-        "js/export.js",
-        "js/admin/admin-core.js",
-        "js/admin/admin-dashboard.js",
-        "js/admin/admin-companies.js",
-        "js/admin/admin-requests.js",
-        "js/admin/admin-notices.js",
-        "js/admin/admin-leads.js",
-        "js/admin/admin-billing.js",
-        "js/admin/admin-billing-alert.js",
-        "js/admin/admin-staffpay.js",
-        "js/admin/admin-revenue.js",
-        "js/admin/admin-calendar.js",
-        "js/admin/admin-changelog.js",
-        "js/admin/admin-contacts.js",
-        "js/admin/admin-quote.js",
-        "js/admin/admin-prorate.js",
-        "js/admin/admin-eco.js"
-    ];
-    var loaded = 0, total = scripts.length;
-    var msgEl = document.getElementById("loadingMsg");
+  <!-- ê³µíµ -->
+  <script src="js/supabase.js?v=20260615"></script>
+  <script src="js/utils.js?v=20260615"></script>
+  <script src="js/export.js?v=20260615"></script>
 
-    scripts.forEach(function(src) {
-        var s = document.createElement("script");
-        s.src = src + "?v=" + v;
-        s.async = false;
-        s.onload = function() {
-            loaded++;
-            if (msgEl) msgEl.textContent = "로딩 중... (" + loaded + "/" + total + ")";
-        };
-        s.onerror = function() {
-            console.error("Script load failed: " + src);
-            if (msgEl) msgEl.textContent = "스크립트 로드 실패: " + src;
-        };
-        document.head.appendChild(s);
-    });
-
-    // Safety timeout: 15초 후에도 로딩 완료 안 되면 에러 표시
-    setTimeout(function() {
-        var loadEl = document.getElementById("loading");
-        if (loadEl && !loadEl.classList.contains("hidden")) {
-            if (msgEl) {
-                msgEl.innerHTML = "로딩 시간이 초과되었습니다.<br>페이지를 새로고침하거나<br><a href='login.html' style='color:#60a5fa'>로그인 페이지</a>로 이동하세요.";
-            }
-        }
-    }, 15000);
-})();
-</script>
+  <!-- ê´ë¦¬ì ëª¨ë -->
+  <script src="js/admin/admin-core.js?v=20260615"></script>
+  <script src="js/admin/admin-dashboard.js?v=20260615"></script>
+  <script src="js/admin/admin-companies.js?v=20260615"></script>
+  <script src="js/admin/admin-requests.js?v=20260615"></script>
+  <script src="js/admin/admin-notices.js?v=20260615"></script>
+  <script src="js/admin/admin-leads.js?v=20260615"></script>
+  <script src="js/admin/admin-billing.js?v=20260615"></script>
+  <script src="js/admin/admin-billing-alert.js?v=20260615"></script>
+  <script src="js/admin/admin-staffpay.js?v=20260615"></script>
+  <script src="js/admin/admin-revenue.js?v=20260615"></script>
+  <script src="js/admin/admin-calendar.js?v=20260615"></script>
+  <script src="js/admin/admin-changelog.js?v=20260615"></script>
+  <script src="js/admin/admin-contacts.js?v=20260615"></script>
+  <script src="js/admin/admin-quote.js?v=20260615"></script>
+  <script src="js/admin/admin-prorate.js?v=20260615"></script>
+  <script src="js/admin/admin-eco.js?v=20260615"></script>
 </body>
 </html>
