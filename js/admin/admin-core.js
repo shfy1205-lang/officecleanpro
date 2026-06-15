@@ -1,7 +1,7 @@
 /**
- * admin-core.js - ê´ë¦¬ì íµì¬ ë¡ì§
- * ì ì­ ë³ì, ì´ê¸°í, ë°ì´í° ë¡ë, í­ ì í, ê´ë¦¬ì ì í¸
- * v2 - ì¹´íê³ ë¦¬ ë¤ë¹ê²ì´ì + ê¸ë¡ë² ê²ì + URL í´ì ë¼ì°í
+ * admin-core.js - 관리자 핵심 로직
+ * 전역 변수, 초기화, 데이터 로드, 탭 전환, 관리자 유틸
+ * v2 - 카테고리 네비게이션 + 글로벌 검색 + URL 해시 라우팅
  */
 
 let adminData = {};
@@ -22,39 +22,39 @@ let pendingLeadForCompany = null;
 currentTab = 'dashboard';
 let currentGroup = 'home';
 
-// âââ ë¤ë¹ê²ì´ì ê·¸ë£¹ ì ì âââ
+// ─── 네비게이션 그룹 정의 ───
 
 const NAV_GROUPS = {
-  home:    { label: 'í',   icon: 'ð ', tabs: ['dashboard'] },
-  ops:     { label: 'ì´ì', icon: 'ð', tabs: ['allClients', 'requests', 'notices', 'calendar'] },
-  finance: { label: 'ì¬ë¬´', icon: 'ð°', tabs: ['billing', 'billingAlert', 'staffPay', 'revenue', 'prorate'] },
-  sales:   { label: 'ìì', icon: 'ð', tabs: ['leads', 'quote', 'eco'] },
-  mgmt:    { label: 'ê´ë¦¬', icon: 'âï¸', tabs: ['analysis', 'areaSummary', 'contacts', 'scheduleLog', 'changeLog'] },
+  home:    { label: '홈',   icon: '🏠', tabs: ['dashboard'] },
+  ops:     { label: '운영', icon: '📋', tabs: ['allClients', 'requests', 'notices', 'calendar'] },
+  finance: { label: '재무', icon: '💰', tabs: ['billing', 'billingAlert', 'staffPay', 'revenue', 'prorate'] },
+  sales:   { label: '영업', icon: '📊', tabs: ['leads', 'quote', 'eco'] },
+  mgmt:    { label: '관리', icon: '⚙️', tabs: ['analysis', 'areaSummary', 'contacts', 'scheduleLog', 'changeLog'] },
 };
 
 const TAB_LABELS = {
-  dashboard: 'ëìë³´ë', allClients: 'ìì²´ê´ë¦¬', requests: 'ìì²­ê´ë¦¬',
-  notices: 'ê³µì§ê´ë¦¬', leads: 'ê²¬ì ê´ë¦¬', billing: 'ì ì°ê´ë¦¬',
-  billingAlert: 'ë¯¸ìê²½ê³ ', staffPay: 'ë´ë¹ìê¸ì¬', areaSummary: 'êµ¬ì­ë³',
-  revenue: 'ììµê´ë¦¬', analysis: 'AIë¶ì', calendar: 'ìºë¦°ë',
-  scheduleLog: 'ìì±ë¡ê·¸', changeLog: 'ë³ê²½ì´ë ¥', contacts: 'ì°ë½ì²',
-  quote: 'ê²¬ì ì', prorate: 'ì¼í ê³ì°', eco: 'ìì½ê´ë¦¬',
+  dashboard: '대시보드', allClients: '업체관리', requests: '요청관리',
+  notices: '공지관리', leads: '견적관리', billing: '정산관리',
+  billingAlert: '미수경고', staffPay: '담당자급여', areaSummary: '구역별',
+  revenue: '수익관리', analysis: 'AI분석', calendar: '캘린더',
+  scheduleLog: '생성로그', changeLog: '변경이력', contacts: '연락처',
+  quote: '견적서', prorate: '일할계산', eco: '에코관리',
 };
 
-// í­ â ê·¸ë£¹ ì­ë§¤í (ìë ìì±)
+// 탭 → 그룹 역매핑 (자동 생성)
 const TAB_TO_GROUP = {};
 Object.entries(NAV_GROUPS).forEach(([g, v]) => v.tabs.forEach(t => TAB_TO_GROUP[t] = g));
 
-// âââ ì´ê¸°í âââ
+// ─── 초기화 ───
 
 async function initAdmin() {
   const msgEl = document.getElementById('loadingMsg');
   try {
-    if (msgEl) msgEl.textContent = 'ì¸ì¦ íì¸ ì¤...';
+    if (msgEl) msgEl.textContent = '인증 확인 중...';
     const ok = await requireAuth('admin');
     if (!ok) return;
 
-    if (msgEl) msgEl.textContent = 'ë°ì´í° ë¡ë© ì¤...';
+    if (msgEl) msgEl.textContent = '데이터 로딩 중...';
     selectedMonth = currentMonth();
     billingMonth = currentMonth();
     revenueMonth = currentMonth();
@@ -62,25 +62,25 @@ async function initAdmin() {
 
     await Promise.race([
       loadAdminData(),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('ë°ì´í° ë¡ë© ìê° ì´ê³¼')), 10000))
+      new Promise((_, reject) => setTimeout(() => reject(new Error('데이터 로딩 시간 초과')), 10000))
     ]);
 
     $('loading').classList.add('hidden');
     $('app').style.display = 'block';
 
-    // ìì½ ì¬ì©ì: ìì½ê´ë¦¬ í­ë§ íì
+    // 에코 사용자: 에코관리 탭만 표시
     if (isEcoUser()) {
       setupEcoOnlyView();
       return;
     }
 
-    // URL í´ì ê¸°ë° ì´ê¸° í­ ê²°ì 
+    // URL 해시 기반 초기 탭 결정
     handleHashRoute();
   } catch (e) {
     console.error('Admin init error:', e);
     if (msgEl) {
-      msgEl.innerHTML = 'ì´ê¸°í ì¤ë¥: ' + escapeHtml(e.message || 'ì ì ìì')
-        + '<br><a href="login.html" style="color:#60a5fa">ë¡ê·¸ì¸ íì´ì§ë¡ ì´ë</a>';
+      msgEl.innerHTML = '초기화 오류: ' + escapeHtml(e.message || '알 수 없음')
+        + '<br><a href="login.html" style="color:#60a5fa">로그인 페이지로 이동</a>';
     }
   }
 }
@@ -91,7 +91,7 @@ if (document.readyState === 'loading') {
   initAdmin();
 }
 
-// âââ ë°ì´í° ë¡ë âââ
+// ─── 데이터 로드 ───
 
 async function loadAdminData() {
   const results = await Promise.allSettled([
@@ -128,7 +128,7 @@ async function loadAdminData() {
   });
 }
 
-// âââ ìë³ ë°ì´í° ìë ìì± âââ
+// ─── 월별 데이터 자동 생성 ───
 
 async function ensureMonthData(month) {
   const hasFinancials = adminData.financials.some(f => f.month === month);
@@ -186,7 +186,7 @@ async function ensureMonthData(month) {
   if (inserted) await loadAdminData();
 }
 
-// âââ ìì½ ì ì© ë·° âââ
+// ─── 에코 전용 뷰 ───
 
 function setupEcoOnlyView() {
   var navCat = document.getElementById('navCategories');
@@ -195,14 +195,14 @@ function setupEcoOnlyView() {
   if (subTabs) subTabs.style.display = 'none';
 
   var h2 = document.querySelector('.navbar h2');
-  if (h2) h2.textContent = 'ìì½ì¤í¼ì¤í´ë¦°';
+  if (h2) h2.textContent = '에코오피스클린';
 
   if (typeof ecoMonth !== 'undefined') { ecoMonth = ecoMonth || selectedMonth; }
   else { window.ecoMonth = selectedMonth; }
   renderEco();
 }
 
-// âââ ì¹´íê³ ë¦¬ ì í âââ
+// ─── 카테고리 전환 ───
 
 function switchGroup(groupName, el) {
   var group = NAV_GROUPS[groupName];
@@ -211,7 +211,7 @@ function switchGroup(groupName, el) {
   switchTab(targetTab);
 }
 
-// âââ í­ ì í (íµì¬ ë¤ë¹ê²ì´ì í¨ì) âââ
+// ─── 탭 전환 (핵심 네비게이션 함수) ───
 
 function switchTab(tabName, el) {
   var groupName = TAB_TO_GROUP[tabName];
@@ -220,7 +220,7 @@ function switchTab(tabName, el) {
   var subTabsEl = document.getElementById('subTabs');
   var groupChanged = (groupName !== currentGroup);
 
-  // 1. ì¹´íê³ ë¦¬ íì± ìí ìë°ì´í¸
+  // 1. 카테고리 활성 상태 업데이트
   if (groupChanged) {
     document.querySelectorAll('.nav-cat').forEach(function(c) { c.classList.remove('active'); });
     var catBtn = document.querySelector('.nav-cat[data-group="' + groupName + '"]');
@@ -228,19 +228,19 @@ function switchTab(tabName, el) {
     currentGroup = groupName;
   }
 
-  // 2. ìë¸í­ ìë°ì´í¸
+  // 2. 서브탭 업데이트
   if (group.tabs.length === 1) {
-    // ë¨ì¼ í­ ê·¸ë£¹ (í) â ìë¸í­ ì¨ê¹
+    // 단일 탭 그룹 (홈) — 서브탭 숨김
     subTabsEl.style.display = 'none';
   } else {
     subTabsEl.style.display = 'flex';
     if (groupChanged) {
-      // ê·¸ë£¹ì´ ë°ëë©´ ìë¸í­ ë¤ì ë¹ë
+      // 그룹이 바뀌면 서브탭 다시 빌드
       subTabsEl.innerHTML = group.tabs.map(function(t) {
         return '<button class="tab' + (t === tabName ? ' active' : '') + '" onclick="switchTab(\'' + t + '\',this)">' + TAB_LABELS[t] + '</button>';
       }).join('');
     } else {
-      // ê°ì ê·¸ë£¹ ë´ â íì± ìíë§ ë³ê²½
+      // 같은 그룹 내 — 활성 상태만 변경
       if (el && subTabsEl.contains(el)) {
         subTabsEl.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
         el.classList.add('active');
@@ -253,13 +253,13 @@ function switchTab(tabName, el) {
     }
   }
 
-  // 3. ìí + URL í´ì ìë°ì´í¸
+  // 3. 상태 + URL 해시 업데이트
   currentTab = tabName;
   if (location.hash !== '#' + tabName) {
     history.pushState(null, '', '#' + tabName);
   }
 
-  // 4. ë ëë§
+  // 4. 렌더링
   var renderers = {
     dashboard:    renderDashboard,
     allClients:   renderAllClients,
@@ -283,18 +283,18 @@ function switchTab(tabName, el) {
   if (renderers[tabName]) renderers[tabName]();
 }
 
-// âââ URL í´ì ë¼ì°í âââ
+// ─── URL 해시 라우팅 ───
 
 function handleHashRoute() {
   var hash = location.hash.replace('#', '') || 'dashboard';
   var tabName = TAB_LABELS[hash] ? hash : 'dashboard';
-  // switchTabì´ ê·¸ë£¹ ì í + ìë¸í­ ë¹ë + ë ëë§ ëª¨ë ì²ë¦¬
+  // switchTab이 그룹 전환 + 서브탭 빌드 + 렌더링 모두 처리
   switchTab(tabName);
 }
 
 window.addEventListener('popstate', handleHashRoute);
 
-// âââ ê¸ë¡ë² ê²ì âââ
+// ─── 글로벌 검색 ───
 
 var _searchFocusIdx = 0;
 
@@ -316,26 +316,26 @@ function renderSearchResults(query) {
   var q = query.toLowerCase().trim();
   var items = [];
 
-  // í­/ë©ë´ ê²ì
+  // 탭/메뉴 검색
   Object.keys(TAB_LABELS).forEach(function(key) {
     var label = TAB_LABELS[key];
     if (!q || label.toLowerCase().indexOf(q) !== -1 || key.toLowerCase().indexOf(q) !== -1) {
       var group = NAV_GROUPS[TAB_TO_GROUP[key]];
-      items.push({ type: 'tab', key: key, icon: group ? group.icon : 'ð', label: label, sub: group ? group.label : '', pri: q ? 1 : 0 });
+      items.push({ type: 'tab', key: key, icon: group ? group.icon : '📑', label: label, sub: group ? group.label : '', pri: q ? 1 : 0 });
     }
   });
 
   if (q) {
-    // ìì²´ ê²ì
+    // 업체 검색
     (adminData.companies || []).forEach(function(c) {
       if (c.name && c.name.toLowerCase().indexOf(q) !== -1) {
-        items.push({ type: 'company', key: c.id, icon: 'ð¢', label: c.name, sub: c.area_name || '', pri: 2 });
+        items.push({ type: 'company', key: c.id, icon: '🏢', label: c.name, sub: c.area_name || '', pri: 2 });
       }
     });
-    // ì§ì ê²ì
+    // 직원 검색
     (adminData.workers || []).forEach(function(w) {
       if (w.name && w.name.toLowerCase().indexOf(q) !== -1) {
-        items.push({ type: 'worker', key: w.id, icon: 'ð¤', label: w.name, sub: w.role === 'admin' ? 'ê´ë¦¬ì' : 'ì§ì', pri: 2 });
+        items.push({ type: 'worker', key: w.id, icon: '👤', label: w.name, sub: w.role === 'admin' ? '관리자' : '직원', pri: 2 });
       }
     });
   }
@@ -343,7 +343,7 @@ function renderSearchResults(query) {
   items.sort(function(a, b) { return a.pri - b.pri; });
 
   if (items.length === 0) {
-    container.innerHTML = '<div class="search-empty">ê²ì ê²°ê³¼ ìì</div>';
+    container.innerHTML = '<div class="search-empty">검색 결과 없음</div>';
     return;
   }
 
@@ -372,7 +372,7 @@ function searchGo(el) {
   if (type === 'tab') {
     location.hash = key;
   } else if (type === 'company') {
-    // ìì²´ê´ë¦¬ í­ì¼ë¡ ì´ë í í´ë¹ ìì²´ ê²ì
+    // 업체관리 탭으로 이동 후 해당 업체 검색
     clientSearch = getCompanyName(key);
     location.hash = 'allClients';
   } else if (type === 'worker') {
@@ -380,9 +380,9 @@ function searchGo(el) {
   }
 }
 
-// í¤ë³´ë ë¨ì¶í¤
+// 키보드 단축키
 document.addEventListener('keydown', function(e) {
-  // Ctrl+K / Cmd+K â ê²ì ì´ê¸°
+  // Ctrl+K / Cmd+K → 검색 열기
   if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
     e.preventDefault();
     openSearch();
@@ -413,14 +413,14 @@ document.addEventListener('keydown', function(e) {
   }
 });
 
-// âââ ê´ë¦¬ì ì í¸ âââ
+// ─── 관리자 유틸 ───
 
 function getWorkerName(workerId) {
   if (!_workerMap) {
     _workerMap = {};
     adminData.workers.forEach(function(w) { _workerMap[w.id] = w.name; });
   }
-  return _workerMap[workerId] || 'ì ì ìì';
+  return _workerMap[workerId] || '알 수 없음';
 }
 
 function getCompanyName(companyId) {
@@ -428,7 +428,7 @@ function getCompanyName(companyId) {
     _companyMap = {};
     adminData.companies.forEach(function(c) { _companyMap[c.id] = c.name; });
   }
-  return _companyMap[companyId] || 'ì ì ìì';
+  return _companyMap[companyId] || '알 수 없음';
 }
 
 function getActiveWorkers() {
