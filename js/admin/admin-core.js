@@ -19,7 +19,7 @@ let billingView = 'overview';
 let revenueMonth = '';
 let pendingQuoteLead = null;
 let pendingLeadForCompany = null;
-let currentTab = 'dashboard';
+currentTab = 'dashboard';
 let currentGroup = 'home';
 
 // âââ ë¤ë¹ê²ì´ì ê·¸ë£¹ ì ì âââ
