@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>ì¤í¼ì¤í´ë¦°íë¡ - ê´ë¦¬ì</title>
+  <title>오피스클린프로 - 관리자</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css?v=20260615">
@@ -13,75 +13,75 @@
 </head>
 <body>
 
-  <!-- ë¡ë© -->
+  <!-- 로딩 -->
   <div id="loading"><div class="spinner"></div></div>
 
-  <!-- ì± -->
+  <!-- 앱 -->
   <div id="app" style="display:none">
 
-    <!-- ìë¨ ë¤ë¹ê²ì´ì -->
+    <!-- 상단 네비게이션 -->
     <nav class="navbar">
-      <h2>ì¤í¼ì¤í´ë¦°íë¡</h2>
+      <h2>오피스클린프로</h2>
       <div class="navbar-right">
         <button class="nav-search-trigger" onclick="openSearch()" title="Ctrl+K">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
           <span class="search-shortcut">Ctrl+K</span>
         </button>
         <span id="userName"></span>
-        <button class="logout-btn" onclick="logout()">ë¡ê·¸ìì</button>
+        <button class="logout-btn" onclick="logout()">로그아웃</button>
       </div>
     </nav>
 
-    <!-- ì¹´íê³ ë¦¬ ë¤ë¹ê²ì´ì (5ê° ê·¸ë£¹) -->
+    <!-- 카테고리 네비게이션 (5개 그룹) -->
     <div class="nav-categories" id="navCategories">
       <button class="nav-cat active" data-group="home" onclick="switchGroup('home',this)">
-        <span class="nav-cat-icon">ð </span><span class="nav-cat-label">í</span>
+        <span class="nav-cat-icon">🏠</span><span class="nav-cat-label">홈</span>
       </button>
       <button class="nav-cat" data-group="ops" onclick="switchGroup('ops',this)">
-        <span class="nav-cat-icon">ð</span><span class="nav-cat-label">ì´ì</span>
+        <span class="nav-cat-icon">📋</span><span class="nav-cat-label">운영</span>
       </button>
       <button class="nav-cat" data-group="finance" onclick="switchGroup('finance',this)">
-        <span class="nav-cat-icon">ð°</span><span class="nav-cat-label">ì¬ë¬´</span>
+        <span class="nav-cat-icon">💰</span><span class="nav-cat-label">재무</span>
       </button>
       <button class="nav-cat" data-group="sales" onclick="switchGroup('sales',this)">
-        <span class="nav-cat-icon">ð</span><span class="nav-cat-label">ìì</span>
+        <span class="nav-cat-icon">📊</span><span class="nav-cat-label">영업</span>
       </button>
       <button class="nav-cat" data-group="mgmt" onclick="switchGroup('mgmt',this)">
-        <span class="nav-cat-icon">âï¸</span><span class="nav-cat-label">ê´ë¦¬</span>
+        <span class="nav-cat-icon">⚙️</span><span class="nav-cat-label">관리</span>
       </button>
     </div>
 
-    <!-- ìë¸ í­ (ì íë ì¹´íê³ ë¦¬ì í­ë¤) -->
+    <!-- 서브 탭 (선택된 카테고리의 탭들) -->
     <div class="tabs" id="subTabs"></div>
 
-    <!-- ë©ì¸ ì½íì¸  -->
+    <!-- 메인 콘텐츠 -->
     <div class="content" id="mainContent"></div>
 
   </div>
 
-  <!-- ê¸ë¡ë² ê²ì ëª¨ë¬ -->
+  <!-- 글로벌 검색 모달 -->
   <div class="search-overlay" id="searchOverlay" onclick="if(event.target===this)closeSearch()">
     <div class="search-modal">
       <div class="search-input-wrap">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-        <input type="text" id="searchInput" placeholder="ìì²´ëª, ì§ìëª, ë©ë´ ê²ì..." oninput="renderSearchResults(this.value)" autocomplete="off">
+        <input type="text" id="searchInput" placeholder="업체명, 직원명, 메뉴 검색..." oninput="renderSearchResults(this.value)" autocomplete="off">
         <kbd>ESC</kbd>
       </div>
       <div class="search-results" id="searchResults"></div>
     </div>
   </div>
 
-  <!-- ìì¸/í¸ì§ ëª¨ë¬ -->
+  <!-- 상세/편집 모달 -->
   <div class="modal-overlay" id="detailModal" onclick="if(event.target===this)closeModal()">
     <div class="modal" id="modalBody"></div>
   </div>
 
-  <!-- ê³µíµ -->
+  <!-- 공통 -->
   <script src="js/supabase.js?v=20260615"></script>
   <script src="js/utils.js?v=20260615"></script>
   <script src="js/export.js?v=20260615"></script>
 
-  <!-- ê´ë¦¬ì ëª¨ë -->
+  <!-- 관리자 모듈 -->
   <script src="js/admin/admin-core.js?v=20260615"></script>
   <script src="js/admin/admin-dashboard.js?v=20260615"></script>
   <script src="js/admin/admin-companies.js?v=20260615"></script>
