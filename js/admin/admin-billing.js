@@ -13,7 +13,7 @@ function renderBilling() {
   mc.innerHTML = `
     <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
       정산관리
-      <div style="display:flex;gap:6px">hhf
+      <div style="display:flex;gap:6px">
         <button class="btn-sm btn-blue" onclick="exportBilling()" style="font-size:11px;padding:6px 10px">📥 엑셀</button>
         <button class="btn-sm btn-green" onclick="openBillingForm()">+ 정산 등록</button>
       </div>
@@ -385,6 +385,7 @@ function renderBillingMonthly(unpaidAll, totalUnpaid) {
     </div>
 
     ${list.length > 0 ? `
+      <div class="bm-table-pc">
       <div class="table-wrap">
         <table>
           <thead>
@@ -411,6 +412,25 @@ function renderBillingMonthly(unpaidAll, totalUnpaid) {
           }).join('')}</tbody>
         </table>
       </div>
+      </div>
+      <div class="bm-cards-mobile">
+        ${list.map(b => {
+          const bst = BILLING_STATUS_MAP[b.status] || BILLING_STATUS_MAP.pending;
+          const unpaid = (b.billed_amount || 0) - (b.paid_amount || 0);
+          return `<div class="card bo-card" onclick="openBillingDetail('${b.id}')" style="cursor:pointer">
+            <div class="bo-card-header">
+              <strong>${escapeHtml(getCompanyName(b.company_id))}</strong>
+              <span class="badge ${bst.badge}">${bst.label}</span>
+            </div>
+            <div class="bo-card-body">
+              <div class="bo-card-row"><span>ì²­êµ¬ì¡</span><span>${fmt(b.billed_amount)}ì</span></div>
+              <div class="bo-card-row"><span>ìê¸ì¡</span><span style="color:var(--green)">${fmt(b.paid_amount)}ì</span></div>
+              <div class="bo-card-row"><span>ë¯¸ìê¸</span><span style="color:${unpaid > 0 ? 'var(--red)' : 'var(--text2)'};font-weight:${unpaid > 0 ? '600' : '400'}">${unpaid > 0 ? fmt(unpaid) + 'ì' : '-'}</span></div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+
     ` : `
       <div class="empty-state">
         <div class="empty-icon">💳</div>
@@ -444,6 +464,7 @@ function renderBillingUnpaid(unpaidAll, totalUnpaid) {
     <p class="text-muted" style="margin-bottom:12px">입금 완료되지 않은 모든 정산 건을 표시합니다.</p>
 
     ${unpaidAll.length > 0 ? `
+      <div class="bu-table-pc">
       <div class="table-wrap">
         <table>
           <thead>
@@ -469,6 +490,24 @@ function renderBillingUnpaid(unpaidAll, totalUnpaid) {
           }).join('')}</tbody>
         </table>
       </div>
+      </div>
+      <div class="bu-cards-mobile">
+        ${unpaidAll.map(b => {
+          const unpaid = (b.billed_amount || 0) - (b.paid_amount || 0);
+          return `<div class="card bo-card" onclick="openBillingDetail('${b.id}')" style="cursor:pointer">
+            <div class="bo-card-header">
+              <strong>${escapeHtml(getCompanyName(b.company_id))}</strong>
+              <span class="badge badge-area">${b.month}</span>
+            </div>
+            <div class="bo-card-body">
+              <div class="bo-card-row"><span>ì²­êµ¬ì¡</span><span>${fmt(b.billed_amount)}ì</span></div>
+              <div class="bo-card-row"><span>ìê¸ì¡</span><span style="color:var(--green)">${fmt(b.paid_amount)}ì</span></div>
+              <div class="bo-card-row"><span>ë¯¸ìê¸</span><span style="color:var(--red);font-weight:600">${unpaid > 0 ? fmt(unpaid) + 'ì' : '-'}</span></div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+
     ` : `
       <div class="empty-state">
         <div class="empty-icon">💳</div>
