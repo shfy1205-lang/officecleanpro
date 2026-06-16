@@ -28,7 +28,7 @@ const NAV_GROUPS = {
   home:    { label: '홈',   icon: '🏠', tabs: ['dashboard'] },
   ops:     { label: '운영', icon: '📋', tabs: ['allClients', 'requests', 'notices', 'calendar'] },
   hr:      { label: '인사', icon: '👥', tabs: ['workers'] },
-  finance: { label: '재무', icon: '💰', tabs: ['billing', 'billingAlerth', 'staffPay', 'revenue', 'prorate'] },
+  finance: { label: '재무', icon: '💰', tabs: ['billing', 'billingAlert', 'staffPay', 'revenue', 'prorate'] },
   sales:   { label: '영업', icon: '📊', tabs: ['leads', 'quote', 'eco'] },
   mgmt:    { label: '관리', icon: '⚙️', tabs: ['analysis', 'areaSummary', 'contacts', 'scheduleLog', 'changeLog'] },
 };
