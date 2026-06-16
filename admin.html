@@ -6,7 +6,8 @@
   <title>오피스클린프로 - 관리자</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=20260616">
+  <link rel="stylesheet" href="css/style.css?v=20260617">
+  <link rel="stylesheet" href="css/nav-style-patch.css?v=20260617">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
@@ -18,45 +19,60 @@
 
   <!-- 앱 -->
   <div id="app" style="display:none">
+    <div class="app-layout">
 
-    <!-- 상단 네비게이션 -->
-    <nav class="navbar">
-      <h2>오피스클린프로</h2>
-      <div class="navbar-right">
-        <button class="nav-search-trigger" onclick="openSearch()" title="Ctrl+K">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-          <span class="search-shortcut">Ctrl+K</span>
-        </button>
-        <span id="userName"></span>
-        <button class="logout-btn" onclick="logout()">로그아웃</button>
-      </div>
-    </nav>
+      <!-- 사이드바 -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sb-brand">
+          <h2>OfficeCleanPro</h2>
+          <span>청소사업 관리 시스템</span>
+        </div>
+        <nav class="sb-nav" id="sidebarNav">
+          <!-- buildSidebarNav()로 동적 생성 -->
+        </nav>
+        <div class="sb-footer">
+          <div class="sb-avatar" id="userAvatar"></div>
+          <div class="sb-user-info">
+            <div class="sb-user-name" id="userName"></div>
+            <div class="sb-user-role">관리자</div>
+          </div>
+          <button class="sb-logout" onclick="logout()">로그아웃</button>
+        </div>
+      </aside>
 
-    <!-- 카테고리 네비게이션 (5개 그룹) -->
-    <div class="nav-categories" id="navCategories">
-      <button class="nav-cat active" data-group="home" onclick="switchGroup('home',this)">
-        <span class="nav-cat-icon">🏠</span><span class="nav-cat-label">홈</span>
-      </button>
-      <button class="nav-cat" data-group="ops" onclick="switchGroup('ops',this)">
-        <span class="nav-cat-icon">📋</span><span class="nav-cat-label">운영</span>
-      </button>
-      <button class="nav-cat" data-group="finance" onclick="switchGroup('finance',this)">
-        <span class="nav-cat-icon">💰</span><span class="nav-cat-label">재무</span>
-      </button>
-      <button class="nav-cat" data-group="sales" onclick="switchGroup('sales',this)">
-        <span class="nav-cat-icon">📊</span><span class="nav-cat-label">영업</span>
-      </button>
-      <button class="nav-cat" data-group="mgmt" onclick="switchGroup('mgmt',this)">
-        <span class="nav-cat-icon">⚙️</span><span class="nav-cat-label">관리</span>
-      </button>
+      <!-- 사이드바 오버레이 (모바일) -->
+      <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+      <!-- 메인 영역 -->
+      <main class="main-area">
+        <!-- 탑바 -->
+        <div class="topbar">
+          <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+          <div class="topbar-title">
+            <h3 id="pageTitle">대시보드</h3>
+          </div>
+          <div class="topbar-filters">
+            <select class="filter-select" id="globalAreaFilter" onchange="applyGlobalFilter()">
+              <option value="">전체 구역</option>
+            </select>
+            <select class="filter-select" id="globalWorkerFilter" onchange="applyGlobalFilter()">
+              <option value="">전체 직원</option>
+            </select>
+            <button class="nav-search-trigger" onclick="openSearch()" title="Ctrl+K">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+              <span class="search-shortcut">Ctrl+K</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 서브 탭 (호환성 유지) -->
+        <div class="tabs" id="subTabs" style="display:none"></div>
+
+        <!-- 메인 콘텐츠 -->
+        <div class="content" id="mainContent"></div>
+      </main>
+
     </div>
-
-    <!-- 서브 탭 (선택된 카테고리의 탭들) -->
-    <div class="tabs" id="subTabs"></div>
-
-    <!-- 메인 콘텐츠 -->
-    <div class="content" id="mainContent"></div>
-
   </div>
 
   <!-- 글로벌 검색 모달 -->
@@ -77,26 +93,26 @@
   </div>
 
   <!-- 공통 -->
-  <script src="js/supabase.js?v=20260616"></script>
-  <script src="js/utils.js?v=20260616"></script>
-  <script src="js/export.js?v=20260616"></script>
+  <script src="js/supabase.js?v=20260617"></script>
+  <script src="js/utils.js?v=20260617"></script>
+  <script src="js/export.js?v=20260617"></script>
 
   <!-- 관리자 모듈 -->
-  <script src="js/admin/admin-core.js?v=20260616"></script>
-  <script src="js/admin/admin-dashboard.js?v=20260616"></script>
-  <script src="js/admin/admin-companies.js?v=20260616"></script>
-  <script src="js/admin/admin-requests.js?v=20260616"></script>
-  <script src="js/admin/admin-notices.js?v=20260616"></script>
-  <script src="js/admin/admin-leads.js?v=20260616"></script>
-  <script src="js/admin/admin-billing.js?v=20260616"></script>
-  <script src="js/admin/admin-billing-alert.js?v=20260616"></script>
-  <script src="js/admin/admin-staffpay.js?v=20260616"></script>
-  <script src="js/admin/admin-revenue.js?v=20260616"></script>
-  <script src="js/admin/admin-calendar.js?v=20260616"></script>
-  <script src="js/admin/admin-changelog.js?v=20260616"></script>
-  <script src="js/admin/admin-contacts.js?v=20260616"></script>
-  <script src="js/admin/admin-quote.js?v=20260616"></script>
-  <script src="js/admin/admin-prorate.js?v=20260616"></script>
-  <script src="js/admin/admin-eco.js?v=20260616"></script>
+  <script src="js/admin/admin-core.js?v=20260617"></script>
+  <script src="js/admin/admin-dashboard.js?v=20260617"></script>
+  <script src="js/admin/admin-companies.js?v=20260617"></script>
+  <script src="js/admin/admin-requests.js?v=20260617"></script>
+  <script src="js/admin/admin-notices.js?v=20260617"></script>
+  <script src="js/admin/admin-leads.js?v=20260617"></script>
+  <script src="js/admin/admin-billing.js?v=20260617"></script>
+  <script src="js/admin/admin-billing-alert.js?v=20260617"></script>
+  <script src="js/admin/admin-staffpay.js?v=20260617"></script>
+  <script src="js/admin/admin-revenue.js?v=20260617"></script>
+  <script src="js/admin/admin-calendar.js?v=20260617"></script>
+  <script src="js/admin/admin-changelog.js?v=20260617"></script>
+  <script src="js/admin/admin-contacts.js?v=20260617"></script>
+  <script src="js/admin/admin-quote.js?v=20260617"></script>
+  <script src="js/admin/admin-prorate.js?v=20260617"></script>
+  <script src="js/admin/admin-eco.js?v=20260617"></script>
 </body>
 </html>
