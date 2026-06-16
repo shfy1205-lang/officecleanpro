@@ -27,7 +27,8 @@ let currentGroup = 'home';
 const NAV_GROUPS = {
   home:    { label: '홈',   icon: '🏠', tabs: ['dashboard'] },
   ops:     { label: '운영', icon: '📋', tabs: ['allClients', 'requests', 'notices', 'calendar'] },
-  finance: { label: '재무', icon: '💰', tabs: ['billing', 'billingAlert', 'staffPay', 'revenue', 'prorate'] },
+  hr:      { label: '인사', icon: '👥', tabs: ['workers'] },
+  finance: { label: '재무', icon: '💰', tabs: ['billing', 'billingAlerth', 'staffPay', 'revenue', 'prorate'] },
   sales:   { label: '영업', icon: '📊', tabs: ['leads', 'quote', 'eco'] },
   mgmt:    { label: '관리', icon: '⚙️', tabs: ['analysis', 'areaSummary', 'contacts', 'scheduleLog', 'changeLog'] },
 };
@@ -35,7 +36,7 @@ const NAV_GROUPS = {
 const TAB_LABELS = {
   dashboard: '대시보드', allClients: '업체관리', requests: '요청관리',
   notices: '공지관리', leads: '견적관리', billing: '정산관리',
-  billingAlert: '미수경고', staffPay: '담당자급여', areaSummary: '구역별',
+  billingAlert: '미수경고', staffPay: '담당자급여', workers: '직원관리', areaSummary: '구역별',
   revenue: '수익관리', analysis: 'AI분석', calendar: '캘린더',
   scheduleLog: '생성로그', changeLog: '변경이력', contacts: '연락처',
   quote: '견적서', prorate: '일할계산', eco: '에코관리',
@@ -52,7 +53,7 @@ const TAB_ICONS = {
   billingAlert: '⚠️', staffPay: '💰', revenue: '📈',
   prorate: '➗', leads: '🎯', quote: '📄',
   eco: '🌱', analysis: '🤖', areaSummary: '🗺️',
-  contacts: '📞', scheduleLog: '📝', changeLog: '🔄',
+  workers: '👥', contacts: '📞', scheduleLog: '📝', changeLog: '🔄',
 };
 
 // ─── 초기화 ───
@@ -304,6 +305,7 @@ function switchTab(tabName, el) {
     quote:        renderQuote,
     prorate:      renderProrate,
     eco:          renderEco,
+    workers:      renderWorkers,
   };
   if (renderers[tabName]) renderers[tabName]();
 }
