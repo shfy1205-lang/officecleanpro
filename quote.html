@@ -68,22 +68,6 @@
     <div class="header-sub">30초면 완료! 빠른 견적을 받아보세요</div>
   </div>
 
-  <!-- ===== 신뢰 지표 ===== -->
-  <div class="trust-bar">
-    <div class="trust-item">
-      <div class="trust-num">100+</div>
-      <div class="trust-label">관리 업체</div>
-    </div>
-    <div class="trust-item">
-      <div class="trust-num green">98%</div>
-      <div class="trust-label">만족도</div>
-    </div>
-    <div class="trust-item">
-      <div class="trust-num amber">당일</div>
-      <div class="trust-label">견적 회신</div>
-    </div>
-  </div>
-
   <!-- ===== 폼 영역 ===== -->
   <div class="form-wrap" id="formWrap">
 
@@ -251,7 +235,6 @@
       }
 
       document.getElementById('formWrap').style.display = 'none';
-      document.querySelector('.trust-bar').style.display = 'none';
 
       var info = '<strong>' + esc(companyName) + '</strong>';
       if (contactName) info += ' / ' + esc(contactName);
