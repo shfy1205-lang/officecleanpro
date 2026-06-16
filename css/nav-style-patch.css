@@ -1,0 +1,619 @@
+/*
+ * ══════════════════════════════════════════════════
+ * nav-style-patch.css
+ * 사이드바 라이트 테마 레이아웃
+ * ══════════════════════════════════════════════════
+ *
+ * 기존 다크 탑네비 → 라이트 사이드바 전환 패치
+ * CSS 변수 오버라이드 포함 (style.css 다크 → 라이트)
+ */
+
+
+/* ═══════════════════════════════════════════════
+   0. Light Theme Variables (override style.css :root)
+   ═══════════════════════════════════════════════ */
+
+:root {
+  --bg: #f5f7fa;
+  --bg2: #ffffff;
+  --bg3: #eef1f6;
+  --card: #ffffff;
+  --border: #e0e4ea;
+  --text: #1a1d23;
+  --text2: #6b7280;
+  --accent: #6c5ce7;
+  --accent2: #7c6ff0;
+  --green: #10b981;
+  --red: #ef4444;
+  --yellow: #f59e0b;
+  --orange: #f97316;
+  --radius: 12px;
+}
+
+
+/* ═══════════════════════════════════════════════
+   1. App Layout
+   ═══════════════════════════════════════════════ */
+
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+}
+
+
+/* ═══════════════════════════════════════════════
+   2. Sidebar (220px, fixed left)
+   ═══════════════════════════════════════════════ */
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 220px;
+  height: 100vh;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  z-index: 100;
+}
+
+/* ── Brand ── */
+.sb-brand {
+  padding: 20px 16px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sb-brand h2 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+  line-height: 1.3;
+}
+
+.sb-brand span {
+  display: block;
+  font-size: 11px;
+  color: var(--text2);
+  margin-top: 2px;
+  font-weight: 400;
+}
+
+/* ── Nav Container ── */
+.sb-nav {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px 0;
+}
+
+.sb-nav::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sb-nav::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+/* ── Group Labels (홈, 운영, 재무, 영업, 관리) ── */
+.sb-group-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text2);
+  padding: 16px 16px 6px;
+  margin: 0;
+}
+
+/* ── Nav Item ── */
+.sb-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 16px;
+  font-size: 13px;
+  color: var(--text2);
+  background: none;
+  border: none;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  line-height: 1.4;
+}
+
+.sb-item:hover {
+  background: var(--bg3);
+  color: var(--text);
+}
+
+.sb-item.active {
+  background: rgba(108, 92, 231, 0.08);
+  color: var(--accent);
+  border-left-color: var(--accent);
+  font-weight: 600;
+}
+
+/* ── Nav Item Icon ── */
+.sb-item-icon {
+  font-size: 15px;
+  line-height: 1;
+  flex-shrink: 0;
+  width: 20px;
+  text-align: center;
+}
+
+/* ── Footer ── */
+.sb-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.sb-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(108, 92, 231, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: var(--accent);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.sb-user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.sb-user-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sb-user-role {
+  font-size: 10px;
+  color: var(--text2);
+  margin-top: 1px;
+}
+
+.sb-logout {
+  padding: 4px 8px;
+  font-size: 11px;
+  color: var(--text2);
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+
+.sb-logout:hover {
+  color: var(--red);
+  border-color: var(--red);
+}
+
+
+/* ═══════════════════════════════════════════════
+   3. Main Area
+   ═══════════════════════════════════════════════ */
+
+.main-area {
+  margin-left: 220px;
+  flex: 1;
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+
+/* ═══════════════════════════════════════════════
+   4. Topbar (sticky)
+   ═══════════════════════════════════════════════ */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  padding: 12px 20px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  z-index: 50;
+  gap: 12px;
+}
+
+.topbar-title {
+  margin: 0;
+}
+
+.topbar-title h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.topbar-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.filter-select {
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  appearance: auto;
+}
+
+.filter-select:focus {
+  border-color: var(--accent);
+}
+
+
+/* ═══════════════════════════════════════════════
+   5. Hide Old Navigation
+   ═══════════════════════════════════════════════ */
+
+.navbar {
+  display: none;
+}
+
+.nav-categories {
+  display: none;
+}
+
+
+/* ═══════════════════════════════════════════════
+   6. Override Content Max-Width
+   ═══════════════════════════════════════════════ */
+
+.content {
+  padding: 20px;
+  max-width: none;
+  margin: 0;
+}
+
+
+/* ═══════════════════════════════════════════════
+   7. Card Enhancement
+   ═══════════════════════════════════════════════ */
+
+.card {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.login-box {
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+}
+
+
+/* ═══════════════════════════════════════════════
+   8. Search Trigger Button
+   ═══════════════════════════════════════════════ */
+
+.nav-search-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text2);
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.nav-search-trigger:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.search-shortcut {
+  font-size: 10px;
+  padding: 2px 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text2);
+  font-family: inherit;
+  line-height: 1;
+}
+
+
+/* ═══════════════════════════════════════════════
+   9. Search Modal (Light Theme)
+   ═══════════════════════════════════════════════ */
+
+.search-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  display: none;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 15vh;
+  z-index: 1000;
+}
+
+.search-overlay.show {
+  display: flex;
+}
+
+.search-modal {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 520px;
+  max-height: 60vh;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  animation: searchIn 0.15s ease-out;
+}
+
+@keyframes searchIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.search-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.search-input-wrap svg {
+  flex-shrink: 0;
+  color: var(--text2);
+}
+
+.search-input-wrap input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: 15px;
+}
+
+.search-input-wrap input::placeholder {
+  color: var(--text2);
+}
+
+.search-input-wrap kbd {
+  font-size: 10px;
+  padding: 2px 6px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text2);
+  font-family: inherit;
+}
+
+.search-results {
+  overflow-y: auto;
+  max-height: calc(60vh - 52px);
+  padding: 6px;
+}
+
+.search-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.search-item:hover,
+.search-item.focused {
+  background: var(--bg3);
+}
+
+.search-item-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.search-item-label {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.search-item-sub {
+  font-size: 11px;
+  color: var(--text2);
+}
+
+.search-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--text2);
+  font-size: 13px;
+}
+
+
+/* ═══════════════════════════════════════════════
+   10. Mobile Responsive (max-width: 768px)
+   ═══════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+
+  /* Sidebar: off-screen by default */
+  .sidebar {
+    width: 100%;
+    max-width: 280px;
+    left: -100%;
+    transition: left 0.25s ease;
+    z-index: 200;
+  }
+
+  .sidebar.open {
+    left: 0;
+  }
+
+  /* Main area: full width */
+  .main-area {
+    margin-left: 0;
+  }
+
+  /* Mobile hamburger button */
+  .mobile-menu-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 18px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s;
+  }
+
+  .mobile-menu-btn:hover {
+    background: var(--bg3);
+  }
+
+  /* Overlay behind sidebar */
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 150;
+    display: none;
+  }
+
+  .sidebar-overlay.show {
+    display: block;
+  }
+
+  /* Topbar wraps, filters stack */
+  .topbar {
+    flex-wrap: wrap;
+    padding: 10px 14px;
+    gap: 8px;
+  }
+
+  .topbar-filters {
+    flex-basis: 100%;
+    margin-left: 0;
+    flex-wrap: wrap;
+  }
+
+  /* Smaller search modal */
+  .search-modal {
+    width: 95%;
+    border-radius: 10px;
+  }
+
+  .search-shortcut {
+    display: none;
+  }
+}
+
+
+/* ═══════════════════════════════════════════════
+   11. Desktop: Hide Mobile Menu Button
+   ═══════════════════════════════════════════════ */
+
+@media (min-width: 769px) {
+  .mobile-menu-btn {
+    display: none;
+  }
+
+  .sidebar-overlay {
+    display: none !important;
+  }
+}
+
+
+/* ═══════════════════════════════════════════════
+   12. Additional Mobile Breakpoint (480px)
+   ═══════════════════════════════════════════════ */
+
+@media (max-width: 480px) {
+
+  .content {
+    padding: 14px 10px;
+  }
+
+  .topbar {
+    padding: 8px 10px;
+  }
+
+  .topbar-title h3 {
+    font-size: 14px;
+  }
+
+  .filter-select {
+    flex: 1;
+    min-width: 0;
+    font-size: 11px;
+  }
+
+  .topbar-filters {
+    gap: 6px;
+  }
+
+  .sb-brand {
+    padding: 16px 14px 10px;
+  }
+
+  .sb-brand h2 {
+    font-size: 15px;
+  }
+
+  .sb-item {
+    padding: 7px 14px;
+    font-size: 13px;
+  }
+
+  .sb-group-label {
+    padding: 12px 14px 4px;
+  }
+}
