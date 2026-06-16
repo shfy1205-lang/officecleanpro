@@ -1,7 +1,7 @@
 /**
  * admin-core.js - 관리자 핵심 로직
  * 전역 변수, 초기화, 데이터 로드, 탭 전환, 관리자 유틸
- * v2 - 카테고리 네비게이션 + 글로벌 검색 + URL 해시 라우팅
+ * v3 - 사이드바 네비게이션 + 글로밌 필터 + URL 해시 라우팅
  */
 
 let adminData = {};
@@ -27,7 +27,7 @@ let currentGroup = 'home';
 const NAV_GROUPS = {
   home:    { label: '홈',   icon: '🏠', tabs: ['dashboard'] },
   ops:     { label: '운영', icon: '📋', tabs: ['allClients', 'requests', 'notices', 'calendar'] },
-  finance: { label: '재무', icon: '💰', tabs: ['billing', 'billingAlert', 'staffPay', 'revenue', 'prorate'] },
+  finance: { label: '�ެ무', icon: '💰', tabs: ['billing', 'billingAlert', 'staffPay', 'revenue', 'prorate'] },
   sales:   { label: '영업', icon: '📊', tabs: ['leads', 'quote', 'eco'] },
   mgmt:    { label: '관리', icon: '⚙️', tabs: ['analysis', 'areaSummary', 'contacts', 'scheduleLog', 'changeLog'] },
 };
@@ -45,6 +45,16 @@ const TAB_LABELS = {
 const TAB_TO_GROUP = {};
 Object.entries(NAV_GROUPS).forEach(([g, v]) => v.tabs.forEach(t => TAB_TO_GROUP[t] = g));
 
+// 탭 아이콘 매핑 (사이드바용)
+const TAB_ICONS = {
+  dashboard: '📊', allClients: '🏢', requests: '📩',
+  notices: '📢', calendar: '📅', billing: '💳',
+  billingAlert: '⚠️', staffPay: '💰', revenue: '📈',
+  prorate: '➗', leads: '🎯', quote: '📄',
+  eco: '🌱', analysis: '🤖', areaSummary: '🗺️',
+  contacts: '📞', scheduleLog: '📝', changeLog: '🔄',
+};
+
 // ─── 초기화 ───
 
 async function initAdmin() {
@@ -54,16 +64,26 @@ async function initAdmin() {
     const ok = await requireAuth('admin');
     if (!ok) return;
 
-    if (msgEl) msgEl.textContent = '데이터 로딩 중...';
+    if (msgEl) msgEl.textContent = '데이터 로듩 중...';
     selectedMonth = currentMonth();
     billingMonth = currentMonth();
     revenueMonth = currentMonth();
-    $('userName').textContent = currentWorker.name;
+
+    // 사이드바 빌드 (데이터 불필요)
+    buildSidebarNav();
 
     await Promise.race([
       loadAdminData(),
       new Promise((_, reject) => setTimeout(() => reject(new Error('데이터 로딩 시간 초과')), 10000))
     ]);
+
+    // 사용자 정보 표시
+    $('userName').textContent = currentWorker.name;
+    var avatarEl = document.getElementById('userAvatar');
+    if (avatarEl) avatarEl.textContent = (currentWorker.name || '?').charAt(0);
+
+    // 글로벌 필터 초기화
+    initGlobalFilters();
 
     $('loading').classList.add('hidden');
     $('app').style.display = 'block';
@@ -80,7 +100,7 @@ async function initAdmin() {
     console.error('Admin init error:', e);
     if (msgEl) {
       msgEl.innerHTML = '초기화 오류: ' + escapeHtml(e.message || '알 수 없음')
-        + '<br><a href="login.html" style="color:#60a5fa">로그인 페이지로 이동</a>';
+        + '<br><a href="login.html" style="color:#6c5ce7">로그인 페이지로 이동</a>';
     }
   }
 }
@@ -186,23 +206,47 @@ async function ensureMonthData(month) {
   if (inserted) await loadAdminData();
 }
 
+// ─── 사이드바 빌드 ───
+
+function buildSidebarNav() {
+  var nav = document.getElementById('sidebarNav');
+  if (!nav) return;
+  var html = '';
+  Object.entries(NAV_GROUPS).forEach(function(entry) {
+    var groupKey = entry[0];
+    var group = entry[1];
+    html += '<div class="sb-group-label">' + group.icon + ' ' + group.label + '</div>';
+    group.tabs.forEach(function(tabKey) {
+      var icon = TAB_ICONS[tabKey] || '📑';
+      var label = TAB_LABELS[tabKey] || tabKey;
+      html += '<button class="sb-item' + (tabKey === 'dashboard' ? ' active' : '') + '" data-tab="' + tabKey + '" onclick="switchTab(\'' + tabKey + '\',this)">'
+        + '<span class="sb-item-icon">' + icon + '</span>'
+        + '<span>' + label + '</span>'
+        + '</button>';
+    });
+  });
+  nav.innerHTML = html;
+}
+
 // ─── 에코 전용 뷰 ───
 
 function setupEcoOnlyView() {
-  var navCat = document.getElementById('navCategories');
-  if (navCat) navCat.style.display = 'none';
+  var sidebar = document.getElementById('sidebar');
+  if (sidebar) sidebar.style.display = 'none';
+  var mainArea = document.querySelector('.main-area');
+  if (mainArea) mainArea.style.marginLeft = '0';
   var subTabs = document.getElementById('subTabs');
   if (subTabs) subTabs.style.display = 'none';
 
-  var h2 = document.querySelector('.navbar h2');
-  if (h2) h2.textContent = '에코오피스클린';
+  var titleEl = document.getElementById('pageTitle');
+  if (titleEl) titleEl.textContent = '에코오피스클린';
 
   if (typeof ecoMonth !== 'undefined') { ecoMonth = ecoMonth || selectedMonth; }
   else { window.ecoMonth = selectedMonth; }
   renderEco();
 }
 
-// ─── 카테고리 전환 ───
+// ─── 카테고리 전환 (호환성 유지) ───
 
 function switchGroup(groupName, el) {
   var group = NAV_GROUPS[groupName];
@@ -216,50 +260,31 @@ function switchGroup(groupName, el) {
 function switchTab(tabName, el) {
   var groupName = TAB_TO_GROUP[tabName];
   if (!groupName) return;
-  var group = NAV_GROUPS[groupName];
+  currentGroup = groupName;
+
+  // 1. 사이드바 활성 상태 업데이트
+  document.querySelectorAll('.sb-item').forEach(function(item) {
+    item.classList.toggle('active', item.getAttribute('data-tab') === tabName);
+  });
+
+  // 2. 페이지 제목 업데이트
+  var titleEl = document.getElementById('pageTitle');
+  if (titleEl) titleEl.textContent = TAB_LABELS[tabName] || tabName;
+
+  // 3. 서브탭 숨김 (사이드바가 대체)
   var subTabsEl = document.getElementById('subTabs');
-  var groupChanged = (groupName !== currentGroup);
+  if (subTabsEl) subTabsEl.style.display = 'none';
 
-  // 1. 카테고리 활성 상태 업데이트
-  if (groupChanged) {
-    document.querySelectorAll('.nav-cat').forEach(function(c) { c.classList.remove('active'); });
-    var catBtn = document.querySelector('.nav-cat[data-group="' + groupName + '"]');
-    if (catBtn) catBtn.classList.add('active');
-    currentGroup = groupName;
-  }
-
-  // 2. 서브탭 업데이트
-  if (group.tabs.length === 1) {
-    // 단일 탭 그룹 (홈) — 서브탭 숨김
-    subTabsEl.style.display = 'none';
-  } else {
-    subTabsEl.style.display = 'flex';
-    if (groupChanged) {
-      // 그룹이 바뀌면 서브탭 다시 빌드
-      subTabsEl.innerHTML = group.tabs.map(function(t) {
-        return '<button class="tab' + (t === tabName ? ' active' : '') + '" onclick="switchTab(\'' + t + '\',this)">' + TAB_LABELS[t] + '</button>';
-      }).join('');
-    } else {
-      // 같은 그룹 내 — 활성 상태만 변경
-      if (el && subTabsEl.contains(el)) {
-        subTabsEl.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
-        el.classList.add('active');
-      } else {
-        var idx = group.tabs.indexOf(tabName);
-        subTabsEl.querySelectorAll('.tab').forEach(function(t, i) {
-          t.classList.toggle('active', i === idx);
-        });
-      }
-    }
-  }
-
-  // 3. 상태 + URL 해시 업데이트
+  // 4. 상태 + URL 해시 업데이트
   currentTab = tabName;
   if (location.hash !== '#' + tabName) {
     history.pushState(null, '', '#' + tabName);
   }
 
-  // 4. 렌더링
+  // 5. 모바일 사이드바 닫기
+  closeSidebar();
+
+  // 6. 렌더링
   var renderers = {
     dashboard:    renderDashboard,
     allClients:   renderAllClients,
@@ -283,12 +308,60 @@ function switchTab(tabName, el) {
   if (renderers[tabName]) renderers[tabName]();
 }
 
+// ─── 모바일 사이드바 토글 ───
+
+function toggleSidebar() {
+  var sidebar = document.getElementById('sidebar');
+  var overlay = document.getElementById('sidebarOverlay');
+  if (!sidebar) return;
+  sidebar.classList.toggle('open');
+  if (overlay) overlay.classList.toggle('show', sidebar.classList.contains('open'));
+}
+
+function closeSidebar() {
+  var sidebar = document.getElementById('sidebar');
+  var overlay = document.getElementById('sidebarOverlay');
+  if (sidebar) sidebar.classList.remove('open');
+  if (overlay) overlay.classList.remove('show');
+}
+
+// ─── 글로벌 필터 ───
+
+function initGlobalFilters() {
+  var areaFilter = document.getElementById('globalAreaFilter');
+  var workerFilter = document.getElementById('globalWorkerFilter');
+  if (!areaFilter || !workerFilter) return;
+
+  var areas = getUniqueAreas();
+  areaFilter.innerHTML = '<option value="">전체 구역</option>' + areas.map(function(a) {
+    return '<option value="' + escapeHtml(a) + '">' + escapeHtml(a) + '</option>';
+  }).join('');
+
+  var workers = getActiveWorkers();
+  workerFilter.innerHTML = '<option value="">전체 직원</option>' + workers.map(function(w) {
+    return '<option value="' + w.id + '">' + escapeHtml(w.name) + '</option>';
+  }).join('');
+}
+
+function applyGlobalFilter() {
+  if (currentTab) switchTab(currentTab);
+}
+
+function getGlobalFilters() {
+  var areaFilter = document.getElementById('globalAreaFilter');
+  var workerFilter = document.getElementById('globalWorkerFilter');
+  return {
+    area: areaFilter ? areaFilter.value : '',
+    worker: workerFilter ? workerFilter.value : '',
+  };
+}
+
 // ─── URL 해시 라우팅 ───
 
 function handleHashRoute() {
   var hash = location.hash.replace('#', '') || 'dashboard';
   var tabName = TAB_LABELS[hash] ? hash : 'dashboard';
-  // switchTab이 그룹 전환 + 서브탭 빌드 + 렌더링 모두 처리
+  // switchTab이 그룹 전환 + 사이드바 활성 + 렌더링 모두 처리
   switchTab(tabName);
 }
 
@@ -380,7 +453,7 @@ function searchGo(el) {
   }
 }
 
-// 키보드 단축키
+// 키보드 단축絬
 document.addEventListener('keydown', function(e) {
   // Ctrl+K / Cmd+K → 검색 열기
   if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
