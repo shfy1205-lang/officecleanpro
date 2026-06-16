@@ -2458,6 +2458,14 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
 .bo-table-pc { display: block; }
 .bo-cards-mobile { display: none; }
 
+/* 월별 정산 PC/모바일 토글 */
+.bm-table-pc { display: block; }
+.bm-cards-mobile { display: none; }
+
+/* 미수금 PC/모바일 토글 */
+.bu-table-pc { display: block; }
+.bu-cards-mobile { display: none; }
+
 @media (max-width: 768px) {
   .bo-table-pc { display: none; }
   .bo-cards-mobile { display: block; }
@@ -2471,7 +2479,14 @@ td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
   display: flex; justify-content: space-between; align-items: center;
   margin-bottom: 8px;
 }
-.bo-card-body {
+.bo
+@media (max-width: 768px) {
+  .bm-table-pc { display: none; }
+  .bm-cards-mobile { display: block; }
+  .bu-table-pc { display: none; }
+  .bu-cards-mobile { display: block; }
+}
+-card-body {
   display: flex; flex-direction: column; gap: 4px;
 }
 .bo-card-row {
