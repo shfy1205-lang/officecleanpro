@@ -28,7 +28,7 @@ const NAV_GROUPS = {
   home:    { label: '홈',   icon: '🏠', tabs: ['dashboard'] },
   ops:     { label: '운영', icon: '📋', tabs: ['allClients', 'requests', 'notices', 'calendar'] },
   hr:      { label: '인사', icon: '👥', tabs: ['workers'] },
-  finance: { label: '재무', icon: '💰', tabs: ['billing', 'staffPay', 'revenue', 'prorate'] },
+  finance: { label: '재무', icon: '💰', tabs: ['billing', 'staffPay', 'revenue', 'prorate', 'taxInvoice'] },
   sales:   { label: '영업', icon: '📊', tabs: ['leads', 'quote', 'eco'] },
   mgmt:    { label: '관리', icon: '⚙️', tabs: ['analysis', 'areaSummary', 'contacts', 'scheduleLog', 'changeLog'] },
 };
@@ -40,6 +40,7 @@ const TAB_LABELS = {
   revenue: '수익관리', analysis: 'AI분석', calendar: '캘린더',
   scheduleLog: '생성로그', changeLog: '변경이력', contacts: '연락처',
   quote: '견적서', prorate: '일할계산', eco: '에코관리',
+  taxInvoice: '세금계산서',
 };
 
 // 탭 → 그룹 역매핑 (자동 생성)
@@ -304,6 +305,7 @@ function switchTab(tabName, el) {
     quote:        renderQuote,
     prorate:      renderProrate,
     eco:          renderEco,
+    taxInvoice:   renderTaxInvoice,
     workers:      renderWorkers,
   };
   if (renderers[tabName]) renderers[tabName]();
