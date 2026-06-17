@@ -118,7 +118,7 @@ function openTaxInfoModal(companyId) {
                value="${escapeHtml(c.tax_email || '')}" placeholder="tax@example.com">
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
-        <button class="btn-sm btn-gray" onclick="closeModal()">뷨소</button>
+        <button class="btn-sm btn-gray" onclick="closeModal()">취소</button>
         <button class="btn-sm btn-blue" onclick="submitTaxInfoModal('${companyId}')">저장</button>
       </div>
     </div>`;
@@ -205,8 +205,7 @@ function getTaxTargets(month) {
 
 
 // ═══════════════════════════════════════════════════════
-//  홈��
-스 일괄발급 엑셀 다운로드
+//  홈택스 일괄발급 엑셀 다운로드
 // ═══════════════════════════════════════════════════════
 
 function downloadTaxExcel() {
@@ -232,8 +231,7 @@ function downloadTaxExcel() {
   const lastDay  = new Date(yr, mn, 0).getDate();
   const wDate    = yr + String(mn).padStart(2, '0') + String(lastDay).padStart(2, '0');
 
-  // ── Sheet 1: 홈��
-스 일괄발급 양식 ──
+  // ── Sheet 1: 홈택스 일괄발급 양식 ──
   const h1 = [
     '작성일자','공급받는자구분','공급받는자등록번호','종사업장번호',
     '상호','성명','주소','업태','종목','이메일1','이메일2',
@@ -290,7 +288,7 @@ function downloadTaxExcel() {
 }
 
 
-// ════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 //  렌더링
 // ═══════════════════════════════════════════════════════
 
@@ -334,8 +332,7 @@ function renderTaxInvoiceHTML() {
       세금계산서 관리
       <button class="btn-sm btn-blue" onclick="downloadTaxExcel()" ${canDL ? '' : 'disabled'}
               style="font-size:12px;padding:8px 14px">
-        📥 홈��
-스 엑셀 다운로드
+        📥 홈택스 엑셀 다운로드
       </button>
     </div>
 
@@ -346,7 +343,7 @@ function renderTaxInvoiceHTML() {
         <div class="stat-value blue">${cnt}건</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">공급가액 함*��</div>
+        <div class="stat-label">공급가액 합계</div>
         <div class="stat-value" style="font-size:20px">${fmt(sumS)}원</div>
       </div>
       <div class="stat-card">
@@ -489,7 +486,7 @@ function _buildTaxTargetTable(targets, sumS, sumT, sumA) {
     <table>
       <thead><tr>
         <th>업체명</th><th>사업자번호</th><th>대표자</th><th>계약금액</th>
-        <th>공급가액</th><th>세액</th><th>함*��</th><th>상태</th><th></th>
+        <th>공급가액</th><th>세액</th><th>합계</th><th>상태</th><th></th>
       </tr></thead>
       <tbody>${rows}${footer}</tbody>
     </table>
