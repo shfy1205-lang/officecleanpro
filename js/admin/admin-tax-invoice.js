@@ -122,7 +122,7 @@ function openTaxInfoModal(companyId) {
         <button class="btn-sm btn-blue" onclick="submitTaxInfoModal('${companyId}')">저장</button>
       </div>
     </div>`;
-  $('detailModal').classList.add('active');
+  $('detailModal').classList.add('show');
 }
 
 async function submitTaxInfoModal(companyId) {
