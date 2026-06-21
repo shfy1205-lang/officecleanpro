@@ -73,6 +73,7 @@ function switchTab(tabName, el) {
     taskHistory:  renderTaskHistory,
     myRequests:   renderMyRequests,
     notices:      renderNotices,
+    chat:         renderStaffChat,
   };
 
   if (renderers[tabName]) renderers[tabName]();
