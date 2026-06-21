@@ -27,7 +27,7 @@ let currentGroup = 'home';
 const NAV_GROUPS = {
   home:    { label: '홈',   icon: '🏠', tabs: ['dashboard'] },
   ops:     { label: '운영', icon: '📋', tabs: ['allClients', 'requests', 'notices', 'calendar'] },
-  hr:      { label: '인사', icon: '👥', tabs: ['workers'] },
+  hr:      { label: '인사', icon: '👥', tabs: ['workers', 'chat'] },
   finance: { label: '재무', icon: '💰', tabs: ['billing', 'staffPay', 'revenue', 'prorate', 'taxInvoice'] },
   sales:   { label: '영업', icon: '📊', tabs: ['leads', 'quote', 'eco'] },
   mgmt:    { label: '관리', icon: '⚙️', tabs: ['analysis', 'areaSummary', 'contacts', 'scheduleLog', 'changeLog'] },
@@ -41,6 +41,7 @@ const TAB_LABELS = {
   scheduleLog: '생성로그', changeLog: '변경이력', contacts: '연락처',
   quote: '견적서', prorate: '일할계산', eco: '에코관리',
   taxInvoice: '세금계산서',
+  chat: '채팅',
 };
 
 // 탭 → 그룹 역매핑 (자동 생성)
@@ -55,6 +56,7 @@ const TAB_ICONS = {
   prorate: '➗', leads: '🎯', quote: '📄',
   eco: '🌱', analysis: '🤖', areaSummary: '🗺️',
   workers: '👥', contacts: '📞', scheduleLog: '📝', changeLog: '🔄',
+  chat: '💬',
 };
 
 // ─── 초기화 ───
@@ -307,6 +309,7 @@ function switchTab(tabName, el) {
     eco:          renderEco,
     taxInvoice:   renderTaxInvoice,
     workers:      renderWorkers,
+    chat:         renderChat,
   };
   if (renderers[tabName]) renderers[tabName]();
 }
