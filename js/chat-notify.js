@@ -52,7 +52,45 @@
       }, function(payload) {
         _onNewMessage(payload.new);
       })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'messages',
+        filter: 'sender_id=eq.' + currentWorker.id
+      }, function(payload) {
+        _onReadReceipt(payload.new);
+      })
       .subscribe();
+  }
+
+  // âââ ì¤ìê° ì½ì íì¸ âââ
+
+  function _onReadReceipt(msg) {
+    if (!msg.read_at) return;
+
+    // admin íì´ì§: íì¬ ì´ë¦° ëíì ë©ìì§ë©´ ì¦ì ë°ì
+    if (typeof chatMessages !== 'undefined' && typeof chatCurrentPartner !== 'undefined'
+        && chatCurrentPartner === msg.receiver_id) {
+      for (var i = 0; i < chatMessages.length; i++) {
+        if (chatMessages[i].id === msg.id) {
+          chatMessages[i].read_at = msg.read_at;
+          break;
+        }
+      }
+      if (typeof renderChatMessages === 'function') renderChatMessages();
+    }
+
+    // staff íì´ì§: íì¬ ì´ë¦° ëíì ë©ìì§ë©´ ì¦ì ë°ì
+    if (typeof staffChatMessages !== 'undefined' && typeof staffChatPartner !== 'undefined'
+        && staffChatPartner === msg.receiver_id) {
+      for (var i = 0; i < staffChatMessages.length; i++) {
+        if (staffChatMessages[i].id === msg.id) {
+          staffChatMessages[i].read_at = msg.read_at;
+          break;
+        }
+      }
+      if (typeof renderStaffChatMessages === 'function') renderStaffChatMessages();
+    }
   }
 
   // âââ ì ë©ìì§ ìì  âââ
