@@ -26,7 +26,7 @@ let currentGroup = 'home';
 
 const NAV_GROUPS = {
   home:    { label: '홈',   icon: '🏠', tabs: ['dashboard'] },
-  ops:     { label: '운영', icon: '📋', tabs: ['allClients', 'requests', 'notices', 'calendar'] },
+  ops:     { label: '운영', icon: '📋', tabs: ['allClients', 'requests', 'notices', 'calendar', 'supplies'] },
   hr:      { label: '인사', icon: '👥', tabs: ['workers', 'chat'] },
   finance: { label: '재무', icon: '💰', tabs: ['billing', 'staffPay', 'revenue', 'prorate', 'taxInvoice'] },
   sales:   { label: '영업', icon: '📊', tabs: ['leads', 'quote', 'eco'] },
@@ -41,6 +41,7 @@ const TAB_LABELS = {
   scheduleLog: '생성로그', changeLog: '변경이력', contacts: '연락처',
   quote: '견적서', prorate: '일할계산', eco: '에코관리',
   taxInvoice: '세금계산서',
+    supplies: '물품요청',
   chat: '채팅',
 };
 
@@ -57,6 +58,7 @@ const TAB_ICONS = {
   eco: '🌱', analysis: '🤖', areaSummary: '🗺️',
   workers: '👥', contacts: '📞', scheduleLog: '📝', changeLog: '🔄',
   chat: '💬',
+  supplies: '📦',
 };
 
 // ─── 초기화 ───
@@ -310,6 +312,7 @@ function switchTab(tabName, el) {
     taxInvoice:   renderTaxInvoice,
     workers:      renderWorkers,
     chat:         renderChat,
+    supplies:     renderSupplies,
   };
   if (renderers[tabName]) renderers[tabName]();
 }
