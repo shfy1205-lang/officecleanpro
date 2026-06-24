@@ -1170,3 +1170,95 @@
   cursor: pointer;
 }
 .wk-map-default-label input { margin: 0; }
+
+
+/* ═══════════════════════════════════════════════
+   13. Admin Mobile Optimization (v2)
+   ═══════════════════════════════════════════════ */
+
+/* 테이블 가로 스크롤 래퍼 */
+@media (max-width: 768px) {
+  table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+    font-size: 12px;
+  }
+  table th, table td {
+    padding: 8px 10px;
+    min-width: 60px;
+  }
+  table th:first-child, table td:first-child {
+    position: sticky;
+    left: 0;
+    background: #fff;
+    z-index: 1;
+  }
+
+  /* 대시보드 요약 카드 스택 */
+  .stat-cards, .dash-stats {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px;
+  }
+
+  /* 모달 풀폭 */
+  .modal-overlay .modal,
+  .modal-content,
+  [class*="modal-box"] {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    margin: 10px auto;
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+
+  /* 버튼 터치 타겟 */
+  button, .btn, [class*="-btn"] {
+    min-height: 36px;
+  }
+
+  /* 폼 입력 터치 최적화 */
+  input, select, textarea {
+    font-size: 16px !important; /* iOS 줌 방지 */
+  }
+
+  /* 뱃지/상태 태그 */
+  .badge, [class*="badge"], [class*="status"] {
+    font-size: 11px;
+    padding: 2px 6px;
+  }
+
+  /* 카드 패딩 최적화 */
+  .card {
+    padding: 12px;
+  }
+
+  /* topbar 타이틀 간격 */
+  .topbar-title h3 {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 480px) {
+  /* 초소형 화면 */
+  .stat-cards, .dash-stats {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* 테이블 더 작은 폰트 */
+  table {
+    font-size: 11px;
+  }
+  table th, table td {
+    padding: 6px 8px;
+  }
+
+  /* 필터 풀폭 */
+  .filter-select {
+    width: 100%;
+  }
+}
