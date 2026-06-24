@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   selectedMonth = currentMonth();
   $('userName').textContent = currentWorker.name;
+    if ($('profileName')) $('profileName').textContent = currentWorker.name;
 
   $('loading').classList.add('hidden');
   $('app').style.display = 'block';
@@ -149,3 +150,50 @@ function isNoticeVisibleToMe(notice) {
 
   return false;
 }
+
+
+// --- 하단 네비게이션 ---
+
+function switchBottomNav(tabName, el) {
+  // 하단 네비 active 업데이트
+  var items = document.querySelectorAll('.bnav-item');
+  for (var i = 0; i < items.length; i++) items[i].classList.remove('active');
+  if (el) el.classList.add('active');
+
+  // 기존 switchTab 호출
+  switchTab(tabName);
+}
+
+function switchFromMore(tabName) {
+  // 더보기 메뉴 닫기
+  toggleMoreMenu();
+
+  // 하단 네비에서 더보기 활성화
+  var items = document.querySelectorAll('.bnav-item');
+  for (var i = 0; i < items.length; i++) items[i].classList.remove('active');
+  var lastItem = items[items.length - 1];
+  if (lastItem) lastItem.classList.add('active');
+
+  switchTab(tabName);
+}
+
+function toggleMoreMenu() {
+  var overlay = document.getElementById('moreOverlay');
+  if (overlay) overlay.classList.toggle('open');
+}
+
+function toggleProfileMenu() {
+  var menu = document.getElementById('profileMenu');
+  if (menu) menu.classList.toggle('open');
+}
+
+// 프로필 메뉴 외부 클릭 닫기
+document.addEventListener('click', function(e) {
+  var menu = document.getElementById('profileMenu');
+  var btn = document.querySelector('.profile-btn');
+  if (menu && menu.classList.contains('open')) {
+    if (!menu.contains(e.target) && e.target !== btn) {
+      menu.classList.remove('open');
+    }
+  }
+});
