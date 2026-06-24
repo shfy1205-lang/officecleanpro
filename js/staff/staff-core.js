@@ -1,4 +1,4 @@
-/**
+h/**
  * staff-core.js - 직원 핵심 로직
  * 전역 변수, 초기화, 데이터 로드, 탭 전환, 직원 유틸
  */
@@ -65,7 +65,7 @@ async function loadStaffData() {
 function switchTab(tabName, el) {
   currentTab = tabName;
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  el.classList.add('active');
+  if (el) el.classList.add('active');
 
   const renderers = {
     todayTasks:   renderTodayTasks,
