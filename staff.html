@@ -6,7 +6,8 @@
   <title>오피스클린프로 - 직원</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=20260623">
+  <link rel="stylesheet" href="css/style.css?v=20260624">
+    <link rel="stylesheet" href="css/staff-mobile.css?v=20260624">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
@@ -25,6 +26,14 @@
       <div class="navbar-right">
         <span id="userName"></span>
         <button class="logout-btn" onclick="logout()">로그아웃</button>
+        <button class="profile-btn" onclick="toggleProfileMenu()">👤</button>
+        <div class="profile-menu" id="profileMenu">
+          <div class="profile-menu-header">
+            <div class="profile-menu-name" id="profileName"></div>
+            <div class="profile-menu-role">직원</div>
+          </div>
+          <button class="profile-menu-item danger" onclick="logout()">로그아웃</button>
+        </div>
       </div>
     </nav>
 
@@ -45,7 +54,59 @@
 
   </div>
 
-  <!-- 업체 상세 모달 -->
+  
+    <!-- 하단 네비게이션 -->
+    <nav class="bottom-nav" id="bottomNav">
+      <button class="bnav-item active" onclick="switchBottomNav('todayTasks', this)">
+        <span class="bnav-icon">🏠</span>
+        <span class="bnav-label">홈</span>
+      </button>
+      <button class="bnav-item" onclick="switchBottomNav('myCompanies', this)">
+        <span class="bnav-icon">🏢</span>
+        <span class="bnav-label">업체</span>
+      </button>
+      <button class="bnav-item" onclick="switchBottomNav('myPay', this)">
+        <span class="bnav-icon">💰</span>
+        <span class="bnav-label">급여</span>
+      </button>
+      <button class="bnav-item" onclick="switchBottomNav('chat', this)">
+        <span class="bnav-icon">💬</span>
+        <span class="bnav-label">채팅</span>
+      </button>
+      <button class="bnav-item" onclick="toggleMoreMenu()">
+        <span class="bnav-icon">⋯</span>
+        <span class="bnav-label">더보기</span>
+      </button>
+    </nav>
+
+    <!-- 더보기 메뉴 -->
+    <div class="more-overlay" id="moreOverlay" onclick="toggleMoreMenu()">
+      <div class="more-panel" onclick="event.stopPropagation()">
+        <div class="more-handle"></div>
+        <div class="more-grid">
+          <button class="more-item" onclick="switchFromMore('taskHistory')">
+            <span class="more-item-icon">📋</span>
+            <span class="more-item-label">출퇴기록</span>
+          </button>
+          <button class="more-item" onclick="switchFromMore('myRequests')">
+            <span class="more-item-icon">📝</span>
+            <span class="more-item-label">내 요청</span>
+          </button>
+          <button class="more-item" onclick="switchFromMore('notices')">
+            <span class="more-item-icon">📢</span>
+            <span class="more-item-label">공지사항</span>
+          </button>
+          <button class="more-item" onclick="switchFromMore('supplies')">
+            <span class="more-item-icon">📦</span>
+            <span class="more-item-label">물품요청</span>
+          </button>
+        </div>
+        <div class="more-divider"></div>
+        <button class="more-logout" onclick="logout()">로그아웃</button>
+      </div>
+    </div>
+
+    <!-- 업체 상세 모달 -->
   <div class="modal-overlay" id="detailModal" onclick="if(event.target===this)closeModal()">
     <div class="modal" id="modalBody"></div>
   </div>
