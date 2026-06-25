@@ -1,11 +1,11 @@
 /**
- * staff-supplies.js - ì§ì ë¬¼íìì²­ ëª¨ë
- * íì¥ë³ ë¬¼í ìì²­(ì²´í¬ë°ì¤) + ë©ëª¨ + ìì²­ ë´ì­ ì¡°í
+ * staff-supplies.js - 직원 물품요청 모듈
+ * 현장별 물품 요청(체크박스) + 메모 + 요청 내역 조회
  */
 
 var staffSupplyRequests = [];
 
-// âââ CSS ì£¼ì âââ
+// ─── CSS 주입 ───
 
 function injectStaffSupplyStyles() {
   if (document.getElementById('staffSupplyStyleTag')) return;
@@ -38,7 +38,7 @@ function injectStaffSupplyStyles() {
   document.head.appendChild(style);
 }
 
-// âââ ë ë âââ
+// ─── 렌더 ───
 
 async function renderStaffSupplies() {
   injectStaffSupplyStyles();
@@ -47,7 +47,7 @@ async function renderStaffSupplies() {
   var month = selectedMonth || currentMonth();
   var assigns = staffData.assignments.filter(function(a) { return a.month === month; });
 
-  // ë°°ì  ìì²´ ëª©ë¡ (ì¤ë³µ ì ê±°)
+  // 배정 업체 목록 (중복 제거)
   var seen = {};
   var companyOptions = [];
   assigns.forEach(function(a) {
@@ -58,42 +58,42 @@ async function renderStaffSupplies() {
   });
 
   var html = '<div class="supply-form">';
-  html += '<h3>ë¬¼í ìì²­</h3>';
+  html += '<h3>물품 요청</h3>';
 
-  // ìì²´ ì í
+  // 업체 선택
   html += '<select class="supply-select" id="supplyCompany">';
-  html += '<option value="">íì¥ì ì ííì¸ì</option>';
+  html += '<option value="">현장을 선택하세요</option>';
   companyOptions.forEach(function(c) {
     html += '<option value="' + c.id + '">' + escapeHtml(c.name) + '</option>';
   });
   html += '</select>';
 
-  // ì²´í¬ë°ì¤ ë¬¼í
+  // 체크박스 물품
   html += '<div class="supply-items">';
-  html += '<div class="supply-check"><input type="checkbox" id="supItem1" value="ì¼ë°ì°ë ê¸°ë´í¬"><label for="supItem1">ì¼ë°ì°ë ê¸°ë´í¬</label></div>';
-  html += '<div class="supply-check"><input type="checkbox" id="supItem2" value="ììë¬¼ì°ë ê¸°ë´í¬"><label for="supItem2">ììë¬¼ì°ë ê¸°ë´í¬</label></div>';
-  html += '<div class="supply-check"><input type="checkbox" id="supItem3" value="ì¬íì© ë¹ëë´í¬"><label for="supItem3">ì¬íì© ë¹ëë´í¬</label></div>';
+  html += '<div class="supply-check"><input type="checkbox" id="supItem1" value="일반쓰레기봉투"><label for="supItem1">일반쓰레기봉투</label></div>';
+  html += '<div class="supply-check"><input type="checkbox" id="supItem2" value="음식물쓰레기봉투"><label for="supItem2">음식물쓰레기봉투</label></div>';
+  html += '<div class="supply-check"><input type="checkbox" id="supItem3" value="재활용 비닐봉투"><label for="supItem3">재활용 비닐봉투</label></div>';
   html += '</div>';
 
-  // ê¸°í ë©ëª¨
-  html += '<textarea class="supply-memo" id="supplyMemo" placeholder="ê¸°í ìì²­ì¬í­ì ìë ¥íì¸ì (ì í)"></textarea>';
+  // 기타 메모
+  html += '<textarea class="supply-memo" id="supplyMemo" placeholder="기타 요청사항을 입력하세요 (선택)"></textarea>';
 
-  // ì ì¶ ë²í¼
-  html += '<button class="supply-submit" onclick="submitSupplyRequest()">ìì²­íê¸°</button>';
+  // 제출 버튼
+  html += '<button class="supply-submit" onclick="submitSupplyRequest()">요청하기</button>';
   html += '</div>';
 
-  // ìì²­ ë´ì­
+  // 요청 내역
   html += '<div class="supply-history">';
-  html += '<h3>ìì²­ ë´ì­</h3>';
+  html += '<h3>요청 내역</h3>';
 
   if (staffSupplyRequests.length === 0) {
-    html += '<div class="supply-empty">ìì²­ ë´ì­ì´ ììµëë¤</div>';
+    html += '<div class="supply-empty">요청 내역이 없습니다</div>';
   } else {
     staffSupplyRequests.forEach(function(req) {
       var comp = getCompanyById(req.company_id);
-      var compName = comp ? escapeHtml(comp.name) : 'ì ì ìì';
+      var compName = comp ? escapeHtml(comp.name) : '알 수 없음';
       var statusClass = req.status === 'completed' ? 'completed' : 'pending';
-      var statusText = req.status === 'completed' ? 'ì²ë¦¬ìë£' : 'ëê¸°ì¤';
+      var statusText = req.status === 'completed' ? '처리완료' : '대기중';
       var date = new Date(req.created_at);
       var dateStr = (date.getMonth() + 1) + '/' + date.getDate() + ' '
         + String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0');
@@ -125,7 +125,7 @@ async function renderStaffSupplies() {
   $('mainContent').innerHTML = html;
 }
 
-// âââ ë°ì´í° ë¡ë âââ
+// ─── 데이터 로드 ───
 
 async function loadStaffSupplyRequests() {
   try {
@@ -142,11 +142,11 @@ async function loadStaffSupplyRequests() {
   }
 }
 
-// âââ ìì²­ ì ì¶ âââ
+// ─── 요청 제출 ───
 
 async function submitSupplyRequest() {
   var companyId = document.getElementById('supplyCompany').value;
-  if (!companyId) { alert('íì¥ì ì ííì¸ì'); return; }
+  if (!companyId) { alert('현장을 선택하세요'); return; }
 
   var items = [];
   var checks = document.querySelectorAll('.supply-check input[type="checkbox"]');
@@ -155,12 +155,12 @@ async function submitSupplyRequest() {
   var memo = (document.getElementById('supplyMemo').value || '').trim();
 
   if (items.length === 0 && !memo) {
-    alert('ìì²­í  ë¬¼íì ì ííê±°ë ê¸°í ìì²­ì í­ì ìë ¥íì¸ì');
+    alert('요청할 물품을 선택하거나 기타 요청사항을 입력하세요');
     return;
   }
 
   var btn = document.querySelector('.supply-submit');
-  if (btn) { btn.disabled = true; btn.textContent = 'ìì²­ ì¤...'; }
+  if (btn) { btn.disabled = true; btn.textContent = '요청 중...'; }
 
   try {
     var res = await sb.from('supply_requests').insert({
@@ -171,11 +171,11 @@ async function submitSupplyRequest() {
     });
     if (res.error) throw res.error;
 
-    alert('ë¬¼í ìì²­ì´ ìë£ëììµëë¤');
+    alert('물품 요청이 완료되었습니다');
     renderStaffSupplies();
   } catch (e) {
     console.error('submitSupplyRequest error:', e);
-    alert('ìì²­ ì¤í¨: ' + (e.message || 'ì ì ìë ì¤ë¥'));
-    if (btn) { btn.disabled = false; btn.textContent = 'ìì²­íê¸°'; }
+    alert('요청 실패: ' + (e.message || '알 수 없는 오류'));
+    if (btn) { btn.disabled = false; btn.textContent = '요청하기'; }
   }
 }
