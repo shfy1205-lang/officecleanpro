@@ -1,12 +1,12 @@
 /**
- * admin-supplies.js - ê´ë¦¬ì ë¬¼íìì²­ ê´ë¦¬ ëª¨ë
- * ìì²­ ëª©ë¡ ì¡°í + ì²ë¦¬ ìë£ + ìì½ ì¹´ë
+ * admin-supplies.js - 관리자 물품요청 관리 모듈
+ * 요청 목록 조회 + 처리 완료 + 요약 카드
  */
 
 var supplyRequests = [];
 var supplyFilter = 'all';
 
-// âââ CSS ì£¼ì âââ
+// ─── CSS 주입 ───
 
 function injectSupplyStyles() {
   if (document.getElementById('supplyStyleTag')) return;
@@ -41,7 +41,7 @@ function injectSupplyStyles() {
   document.head.appendChild(style);
 }
 
-// âââ ë ë âââ
+// ─── 렌더 ───
 
 async function renderSupplies() {
   injectSupplyStyles();
@@ -52,30 +52,30 @@ async function renderSupplies() {
 
   var html = '';
 
-  // ìì½ ì¹´ë
+  // 요약 카드
   html += '<div class="supply-summary">';
-  html += '<div class="supply-stat"><div class="supply-stat-num pending">' + pending.length + '</div><div class="supply-stat-label">ëê¸° ì¤</div></div>';
-  html += '<div class="supply-stat"><div class="supply-stat-num done">' + completed.length + '</div><div class="supply-stat-label">ì²ë¦¬ ìë£</div></div>';
-  html += '<div class="supply-stat"><div class="supply-stat-num total">' + supplyRequests.length + '</div><div class="supply-stat-label">ì ì²´</div></div>';
+  html += '<div class="supply-stat"><div class="supply-stat-num pending">' + pending.length + '</div><div class="supply-stat-label">대기 중</div></div>';
+  html += '<div class="supply-stat"><div class="supply-stat-num done">' + completed.length + '</div><div class="supply-stat-label">처리 완료</div></div>';
+  html += '<div class="supply-stat"><div class="supply-stat-num total">' + supplyRequests.length + '</div><div class="supply-stat-label">전체</div></div>';
   html += '</div>';
 
-  // íí° ë²í¼
+  // 필터 버튼
   html += '<div class="supply-filters">';
-  html += '<button class="supply-filter-btn' + (supplyFilter === 'all' ? ' active' : '') + '" onclick="filterSupplies(\'all\')">ì ì²´</button>';
-  html += '<button class="supply-filter-btn' + (supplyFilter === 'pending' ? ' active' : '') + '" onclick="filterSupplies(\'pending\')">ëê¸° ì¤</button>';
-  html += '<button class="supply-filter-btn' + (supplyFilter === 'completed' ? ' active' : '') + '" onclick="filterSupplies(\'completed\')">ì²ë¦¬ ìë£</button>';
+  html += '<button class="supply-filter-btn' + (supplyFilter === 'all' ? ' active' : '') + '" onclick="filterSupplies(\'all\')">전체</button>';
+  html += '<button class="supply-filter-btn' + (supplyFilter === 'pending' ? ' active' : '') + '" onclick="filterSupplies(\'pending\')">대기 중</button>';
+  html += '<button class="supply-filter-btn' + (supplyFilter === 'completed' ? ' active' : '') + '" onclick="filterSupplies(\'completed\')">처리 완료</button>';
   html += '</div>';
 
-  // íí° ì ì©
+  // 필터 적용
   var filtered = supplyRequests;
   if (supplyFilter !== 'all') {
     filtered = supplyRequests.filter(function(r) { return r.status === supplyFilter; });
   }
 
-  // ìì²­ ëª©ë¡
+  // 요청 목록
   html += '<div class="supply-list">';
   if (filtered.length === 0) {
-    html += '<div class="supply-admin-empty">ìì²­ì´ ììµëë¤</div>';
+    html += '<div class="supply-admin-empty">요청이 없습니다</div>';
   } else {
     filtered.forEach(function(req) {
       var workerName = getWorkerName(req.worker_id);
@@ -93,9 +93,9 @@ async function renderSupplies() {
       html += '</div>';
 
       if (req.status === 'pending') {
-        html += '<button class="supply-complete-btn" onclick="completeSupplyRequest(\'' + req.id + '\')">ì²ë¦¬ ìë£</button>';
+        html += '<button class="supply-complete-btn" onclick="completeSupplyRequest(\'' + req.id + '\')">처리 완료</button>';
       } else {
-        html += '<span class="supply-done-badge">ì²ë¦¬ìë£</span>';
+        html += '<span class="supply-done-badge">처리완료</span>';
       }
       html += '</div>';
 
@@ -119,7 +119,7 @@ async function renderSupplies() {
   $('mainContent').innerHTML = html;
 }
 
-// âââ ë°ì´í° ë¡ë âââ
+// ─── 데이터 로드 ───
 
 async function loadSupplyRequests() {
   try {
@@ -135,17 +135,17 @@ async function loadSupplyRequests() {
   }
 }
 
-// âââ íí° ë³ê²½ âââ
+// ─── 필터 변경 ───
 
 function filterSupplies(filter) {
   supplyFilter = filter;
   renderSupplies();
 }
 
-// âââ ì²ë¦¬ ìë£ âââ
+// ─── 처리 완료 ───
 
 async function completeSupplyRequest(requestId) {
-  if (!confirm('ì´ ìì²­ì ì²ë¦¬ ìë£ë¡ ë³ê²½íìê² ìµëê¹?')) return;
+  if (!confirm('이 요청을 처리 완료로 변경하시겠습니까?')) return;
 
   try {
     var res = await sb.from('supply_requests')
@@ -160,6 +160,6 @@ async function completeSupplyRequest(requestId) {
     renderSupplies();
   } catch (e) {
     console.error('completeSupplyRequest error:', e);
-    alert('ì²ë¦¬ ì¤í¨: ' + (e.message || 'ì ì ìë ì¤ë¥'));
+    alert('처리 실패: ' + (e.message || '알 수 없는 오류'));
   }
 }
