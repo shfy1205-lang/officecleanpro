@@ -1,7 +1,7 @@
 /**
- * chat-notify.js - ì±í ìë¦¼ ìì¤í
- * Supabase Realtime + ë¸ë¼ì°ì  ìë¦¼ + ì¸ì± ë±ì§/ìë¦¼ì
- * admin.html, staff.html ììª½ìì ëì
+ * chat-notify.js - 채팅 알림 시스템
+ * Supabase Realtime + 브라우저 알림 + 인앱 뱃지/알림음
+ * admin.html, staff.html 양쪽에서 동작
  */
 
 (function() {
@@ -11,7 +11,7 @@
   var _unread = 0;
   var _initDone = false;
 
-  // âââ ì´ê¸°í âââ
+  // ─── 초기화 ───
 
   function initNotify() {
     if (_initDone) return;
@@ -21,26 +21,26 @@
     }
     _initDone = true;
 
-    // ë¸ë¼ì°ì  ìë¦¼ ê¶í ìì²­
+    // 브라우저 알림 권한 요청
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
 
-    // Supabase Realtime êµ¬ë
+    // Supabase Realtime 구독
     _subscribe();
 
-    // ì±í í­ í´ë¦­ ê°ì§ â ë±ì§ ì´ê¸°í
+    // 채팅 탭 클릭 감지 → 뱃지 초기화
     document.addEventListener('click', function(e) {
       if (e.target.classList && e.target.classList.contains('tab')) {
         var txt = e.target.textContent.replace(/\d+/g, '').trim();
-        if (txt === 'ì±í') {
+        if (txt === '채팅') {
           setTimeout(function() { _unread = 0; _updateBadge(); }, 300);
         }
       }
     });
   }
 
-  // âââ Realtime êµ¬ë âââ
+  // ─── Realtime 구독 ───
 
   function _subscribe() {
     _channel = sb.channel('chat-notify')
@@ -63,12 +63,12 @@
       .subscribe();
   }
 
-  // âââ ì¤ìê° ì½ì íì¸ âââ
+  // ─── 실시간 읽음 확인 ───
 
   function _onReadReceipt(msg) {
     if (!msg.read_at) return;
 
-    // admin íì´ì§: íì¬ ì´ë¦° ëíì ë©ìì§ë©´ ì¦ì ë°ì
+    // admin 페이지: 현재 열린 대화의 메시지면 즉시 반영
     if (typeof chatMessages !== 'undefined' && typeof chatCurrentPartner !== 'undefined'
         && chatCurrentPartner === msg.receiver_id) {
       for (var i = 0; i < chatMessages.length; i++) {
@@ -80,7 +80,7 @@
       if (typeof renderChatMessages === 'function') renderChatMessages();
     }
 
-    // staff íì´ì§: íì¬ ì´ë¦° ëíì ë©ìì§ë©´ ì¦ì ë°ì
+    // staff 페이지: 현재 열린 대화의 메시지메 즉시 반영
     if (typeof staffChatMessages !== 'undefined' && typeof staffChatPartner !== 'undefined'
         && staffChatPartner === msg.receiver_id) {
       for (var i = 0; i < staffChatMessages.length; i++) {
@@ -93,10 +93,10 @@
     }
   }
 
-  // âââ ì ë©ìì§ ìì  âââ
+  // ─── 새 메시지 수신 ───
 
   function _onNewMessage(msg) {
-    // íì¬ ì±í í­ìì í´ë¹ ìë ëíë¥¼ ë³´ê³  ìì¼ë©´ ë¬´ì
+    // 현재 채팅 탭에서 해당 상대 대화를 보고 있으면 무시
     var onChat = (typeof currentTab !== 'undefined' && currentTab === 'chat');
     var partner = (typeof chatCurrentPartner !== 'undefined') ? chatCurrentPartner
                 : (typeof staffChatPartner !== 'undefined') ? staffChatPartner
@@ -113,7 +113,7 @@
     }
   }
 
-  // âââ ì¸ì± ë±ì§ âââ
+  // ─── 인앱 뱃지 ───
 
   function _updateBadge() {
     var tabs = document.querySelectorAll('.tab');
@@ -123,7 +123,7 @@
       if (old) old.remove();
 
       var raw = tab.textContent.replace(/\d+/g, '').trim();
-      if (raw === 'ì±í' && _unread > 0) {
+      if (raw === '채팅' && _unread > 0) {
         var b = document.createElement('span');
         b.className = 'notify-badge';
         b.textContent = _unread > 99 ? '99+' : _unread;
@@ -134,12 +134,12 @@
       }
     }
 
-    // íì´í ìë°ì´í¸
+    // 타이틀 업데이트
     var base = document.title.replace(/^\(\d+\)\s*/, '');
     document.title = _unread > 0 ? '(' + _unread + ') ' + base : base;
   }
 
-  // âââ ìë¦¼ì (Web Audio) âââ
+  // ─── 알림음 (Web Audio) ───
 
   function _playSound() {
     try {
@@ -155,15 +155,15 @@
       osc.start(ctx.currentTime);
       osc.stop(ctx.currentTime + 0.4);
       setTimeout(function() { ctx.close(); }, 500);
-    } catch (e) { /* ì¤ëì¤ ë¯¸ì§ì ë¬´ì */ }
+    } catch (e) { /* 오디오 미지원 무시 */ }
   }
 
-  // âââ ë¸ë¼ì°ì  ìë¦¼ âââ
+  // ─── 브라우저 알림 ───
 
   function _browserNotify(msg) {
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
 
-    var sender = 'ì ë©ìì§';
+    var sender = '새 메시지';
     try {
       if (typeof adminData !== 'undefined' && adminData.workers) {
         var w = adminData.workers.find(function(w) { return w.id === msg.sender_id; });
@@ -175,7 +175,7 @@
     } catch (e) {}
 
     var preview = (msg.content || '').substring(0, 50);
-    var n = new Notification('ì¤í¼ì¤í´ë¦°íë¡', {
+    var n = new Notification('오피스클린프로', {
       body: sender + ': ' + preview,
       tag: 'chat-' + msg.sender_id,
       requireInteraction: false
@@ -186,7 +186,7 @@
       var chatBtn = null;
       var tabs = document.querySelectorAll('.tab');
       for (var j = 0; j < tabs.length; j++) {
-        if (tabs[j].textContent.replace(/\d+/g, '').trim() === 'ì±í') {
+        if (tabs[j].textContent.replace(/\d+/g, '').trim() === '채팅') {
           chatBtn = tabs[j]; break;
         }
       }
@@ -199,7 +199,7 @@
     setTimeout(function() { n.close(); }, 5000);
   }
 
-  // âââ ìì âââ
+  // ─── 시작 ───
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() { setTimeout(initNotify, 2000); });
   } else {
