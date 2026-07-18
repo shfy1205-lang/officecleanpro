@@ -985,7 +985,7 @@ function renderDashboardHTML() {
           <div class="stat-value" style="font-size:22px;color:var(--primary)">${fmt(totalOcpFee)}원</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">작업자 지급액 (3.3% 공제 전)</div>
+          <div class="stat-label">작업자 지급액 (10% 공제 전)</div>
           <div class="stat-value green" style="font-size:22px">${fmt(totalWorkerPay)}원</div>
         </div>
       </div>
