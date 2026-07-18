@@ -274,6 +274,34 @@ function openCompanyForm(companyId) {
       <textarea id="fMemo" rows="2" placeholder="메모">${escapeHtml(c.memo || '')}</textarea>
     </div>
 
+    ${!isEdit ? `
+    <div style="border-top:1px solid var(--border);margin:14px 0;padding-top:12px">
+      <div style="font-weight:700;margin-bottom:8px">🗓️ 청소 일정·담당 <span style="font-weight:400;color:var(--text2);font-size:12px">(등록과 동시에 일정·정산·QR 자동 생성)</span></div>
+      <div class="admin-row-2">
+        <div class="field">
+          <label>빈도</label>
+          <select id="fRegFreq"><option value="weekly">매주</option><option value="biweekly">격주</option></select>
+        </div>
+        <div class="field">
+          <label>청소 요일 (복수 선택)</label>
+          <div id="fRegDays" style="display:flex;gap:6px;flex-wrap:wrap">
+            ${['일','월','화','수','목','금','토'].map((d,i)=>`<button type="button" class="btn btn-sm btn-gray" data-wd="${i}" onclick="this.classList.toggle('btn-blue');this.classList.toggle('btn-gray')">${d}</button>`).join('')}
+          </div>
+        </div>
+      </div>
+      <div class="admin-row-2">
+        <div class="field"><label>시작 시간</label><input id="fRegStart" type="time" value="06:00"></div>
+        <div class="field"><label>종료 시간</label><input id="fRegEnd" type="time" value="08:00"></div>
+      </div>
+      <div class="admin-row-2">
+        <div class="field">
+          <label>담당 직원</label>
+          <select id="fRegWorker"><option value="">선택 안함</option>${getActiveWorkers().map(w=>`<option value="${w.id}">${escapeHtml(w.name)}</option>`).join('')}</select>
+        </div>
+        <div class="field"><label>직원 월 급여 (원)</label><input id="fRegPay" type="text" value="0" oninput="fmtInput(this)"></div>
+      </div>
+    </div>` : ''}
+
     <button class="btn" id="saveCompanyBtn" onclick="saveCompany('${companyId || ''}')">${isEdit ? '수정 저장' : '등록하기'}</button>
     ${isEdit ? `<button class="btn" style="background:var(--red);margin-top:8px" onclick="deleteCompany('${companyId}')">업체 삭제</button>` : ''}
   `;
@@ -331,25 +359,37 @@ async function _saveCompanyInner(companyId) {
   if (companyId) {
     ({ error } = await sb.from('companies').update(payload).eq('id', companyId));
   } else {
-    // 신규 업체: QR 토큰 자동 생성
-    payload.qr_token = crypto.randomUUID();
-    const { data: newCompany, error: insertErr } = await sb.from('companies').insert(payload).select().single();
-    error = insertErr;
-
-    // 신규 업체: 현재 선택된 월에 빈 financials 레코드 자동 생성
-    if (!error && newCompany) {
-      await sb.from('company_financials').insert({
-        company_id:      newCompany.id,
-        month:           selectedMonth || currentMonth(),
-        contract_amount: payload.contract_amount || 0,
-        ocp_amount:      0,
-        eco_amount:      0,
-        worker_pay_total: 0,
-      });
+    // 신규 업체: register_company RPC 한 번으로 업체+계약+일정+담당+QR+당월 데이터 생성
+    const wd = Array.from(document.querySelectorAll('#fRegDays [data-wd].btn-blue')).map(x => parseInt(x.dataset.wd));
+    const { data: reg, error: regErr } = await sb.rpc('register_company', {
+      p_name: name,
+      p_location: payload.location || null,
+      p_area_name: payload.area_name || null,
+      p_contact_name: payload.contact_name || null,
+      p_contact_phone: payload.contact_phone || null,
+      p_start_date: payload.clean_start_date || new Date().toISOString().slice(0, 10),
+      p_monthly_amount: payload.contract_amount || 0,
+      p_weekdays: wd.length ? wd : null,
+      p_start_time: ($('fRegStart') && $('fRegStart').value) || null,
+      p_end_time: ($('fRegEnd') && $('fRegEnd').value) || null,
+      p_worker_id: ($('fRegWorker') && $('fRegWorker').value) || null,
+      p_pay_amount: $('fRegPay') ? (parseInt(($('fRegPay').value || '0').replace(/,/g, '')) || 0) : 0,
+      p_frequency: ($('fRegFreq') && $('fRegFreq').value) || 'weekly',
+      p_subcontract_from: payload.subcontract_from || null,
+      p_memo: payload.memo || null,
+    });
+    error = regErr;
+    // RPC가 다루지 않는 부가 필드 반영 (구역 코드 등)
+    if (!error && reg && reg.company_id) {
+      const extra = {};
+      if (payload.area_code) extra.area_code = payload.area_code;
+      if (payload.status && payload.status !== 'active') extra.status = payload.status;
+      if (payload.terminated_at) extra.terminated_at = payload.terminated_at;
+      if (Object.keys(extra).length) await sb.from('companies').update(extra).eq('id', reg.company_id);
     }
   }
 
-  if (error) return toast(error.message, 'error');
+    if (error) return toast(error.message, 'error');
 
   toast(companyId ? '수정 완료' : '등록 완료');
   closeModal();
