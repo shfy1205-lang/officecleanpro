@@ -7,7 +7,7 @@
 let prorateMonth = '';
 let prorateWorkerId = '';
 let prorateAbsences = {}; // { assignId: absenceDays }
-let prorateExtraDeduct = 0; // 추가 제외금액 (3.3% 공제 전)
+let prorateExtraDeduct = 0; // 추가 제외금액 (10% 공제 전)
 
 function renderProrate() {
   const mc = $('mainContent');
@@ -73,9 +73,9 @@ function renderProrate() {
   }
 
   const adjustedTotal = Math.max(0, totalProrated - prorateExtraDeduct);
-  const deduction = Math.round(adjustedTotal * 0.033);
+  const deduction = Math.round(adjustedTotal * 0.10);
   const netPay = adjustedTotal - deduction;
-  const origDeduction = Math.round(totalOriginal * 0.033);
+  const origDeduction = Math.round(totalOriginal * 0.10);
   const origNet = totalOriginal - origDeduction;
   const diff = netPay - origNet;
 
@@ -114,7 +114,7 @@ function renderProrate() {
       <div class="stat-card">
         <div class="stat-label">차액</div>
         <div class="stat-value" style="color:${diff < 0 ? 'var(--red)' : 'var(--green)'}">${diff < 0 ? '' : '+'}${fmt(diff)}</div>
-        <div style="font-size:11px;color:var(--text2)">3.3% 공제 포함</div>
+        <div style="font-size:11px;color:var(--text2)">10% 공제 포함</div>
       </div>
     </div>
 
@@ -169,7 +169,7 @@ function renderProrate() {
             <td style="text-align:right;font-size:14px;color:var(--primary)">${fmt(adjustedTotal)}원</td>
           </tr>
           <tr style="font-size:12px;color:var(--text2)">
-            <td colspan="4" style="text-align:right">3.3% 공제</td>
+            <td colspan="4" style="text-align:right">10% 공제</td>
             <td style="text-align:right">-${fmt(origDeduction)}원</td>
             <td style="text-align:right">-${fmt(deduction)}원</td>
           </tr>
