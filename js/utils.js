@@ -95,11 +95,11 @@ function closeModal() {
 }
 
 /**
- * 3.3% 공제 계산 (공통)
+ * 10% 공제 계산 (공통)
  * 모든 화면에서 동일한 공제 계산을 사용하도록 통일
  */
 function calcDeduction(totalPay) {
-  const deduction = Math.round(totalPay * 0.033);
+  const deduction = Math.round(totalPay * 0.10);
   const netPay = totalPay - deduction;
   return { deduction, netPay };
 }
@@ -364,7 +364,7 @@ function escapeHtml(text) {
 
 /**
  * 직원별 급여 명세 이미지를 Canvas로 생성하여 PNG 다운로드
- * 현장별 지급금액 + 3.3% 공제 내역을 깔끔한 이미지로 표시
+ * 현장별 지급금액 + 10% 공제 내역을 깔끔한 이미지로 표시
  *
  * @param {Object} params
  * @param {string} params.workerName - 직원명
@@ -477,10 +477,10 @@ function generatePayImage(params) {
   ctx.textAlign = 'left';
   y += 30;
 
-  // 3.3% 공제
+  // 10% 공제
   ctx.fillStyle = '#5f6368';
   ctx.font = '13px -apple-system, BlinkMacSystemFont, sans-serif';
-  ctx.fillText('3.3% 공제액', padding + 10, y);
+  ctx.fillText('10% 공제액', padding + 10, y);
   ctx.textAlign = 'right';
   ctx.fillStyle = '#d93025';
   ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, sans-serif';
