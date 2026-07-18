@@ -1,10 +1,10 @@
 /**
  * admin-staffpay.js - 담당자급여, 구역별 현황, AI분석 탭
- * 3.3% 공제 계산, 업체별 금액 수정, 급여 확정/해제, 급여명세서 보기/다운로드 기능 포함
+ * 10% 공제 계산, 업체별 금액 수정, 급여 확정/해제, 급여명세서 보기/다운로드 기능 포함
  */
 
 // ════════════════════════════════════════════════════
-// 담당자급여 탭 - 자동 계산 + 3.3% 공제 + 급여 확정 + 급여명세서
+// 담당자급여 탭 - 자동 계산 + 10% 공제 + 급여 확정 + 급여명세서
 // ════════════════════════════════════════════════════
 
 /**
@@ -86,7 +86,7 @@ function calcStaffPayData(month) {
 }
 
 // ★ calcDeduction()은 utils.js에 공통 함수로 정의됨
-// 모든 화면에서 동일한 3.3% 공제 계산을 사용
+// 모든 화면에서 동일한 10% 공제 계산을 사용
 
 /**
  * 해당 직원의 해당 월 확정 여부 조회
@@ -115,8 +115,8 @@ function renderStaffPay() {
   const { rows, grandTotal, avgPay } = calcStaffPayData(month);
   const monthLabel = month.split('-')[1];
 
-  // 전체 3.3% 공제 합계
-  const totalDeduction = Math.round(grandTotal * 0.033);
+  // 전체 10% 공제 합계
+  const totalDeduction = Math.round(grandTotal * 0.10);
   const totalNetPay = grandTotal - totalDeduction;
 
   // 확정 현황
@@ -159,7 +159,7 @@ function renderStaffPay() {
         <div class="stat-value green">${fmt(grandTotal)}<span class="sp-unit">원</span></div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">3.3% 공제 합계</div>
+        <div class="stat-label">10% 공제 합계</div>
         <div class="stat-value red">${fmt(totalDeduction)}<span class="sp-unit">원</span></div>
       </div>
       <div class="stat-card">
@@ -186,7 +186,7 @@ function renderStaffPay() {
                 <th>직원명</th>
                 <th>담당업체수</th>
                 <th>총급여</th>
-                <th>3.3% 공제액</th>
+                <th>10% 공제액</th>
                 <th>실지급액</th>
                 <th>상태</th>
                 <th>상세</th>
@@ -391,7 +391,7 @@ async function unconfirmAllPay() {
     toast('오류가 발생했습니다', 'error');
   }}
 
-/** 직원별 상세 모달: 업체별 급여 내역 + 3.3% + 금액 수정 + 확정 상태 + 명세서 다운로드 */
+/** 직원별 상세 모달: 업체별 급여 내역 + 10% + 금액 수정 + 확정 상태 + 명세서 다운로드 */
 function openStaffPayDetail(workerId) {
   const month = selectedMonth;
   const { rows } = calcStaffPayData(month);
@@ -424,14 +424,14 @@ function openStaffPayDetail(workerId) {
       }
     </div>
 
-    <!-- 급여 요약 카드 (3.3% 포함) -->
+    <!-- 급여 요약 카드 (10% 포함) -->
     <div class="sp-detail-summary">
       <div class="sp-detail-card">
         <div class="sp-detail-label">총급여</div>
         <div class="sp-detail-value">${fmt(worker.totalPay)}원</div>
       </div>
       <div class="sp-detail-card sp-detail-red">
-        <div class="sp-detail-label">3.3% 공제</div>
+        <div class="sp-detail-label">10% 공제</div>
         <div class="sp-detail-value">-${fmt(deduction)}원</div>
       </div>
       <div class="sp-detail-card sp-detail-green">
@@ -507,7 +507,7 @@ function openStaffPayDetail(workerId) {
     <div style="margin-top:12px;font-size:11px;color:var(--text2);line-height:1.6">
       <strong>계산 방식:</strong> 계약금액 - 오피스수수료 - 에코수수료 = 작업자풀 → 작업자풀 × 배분율(%) = 급여<br>
       배분율 미설정 시 수동 입력 금액(pay_amount)을 사용합니다.<br>
-      <strong>3.3% 공제:</strong> 총급여 × 3.3% = 공제액, 실지급액 = 총급여 - 공제액
+      <strong>10% 공제:</strong> 총급여 × 10% = 공제액, 실지급액 = 총급여 - 공제액
     </div>
   `;
 
@@ -701,7 +701,7 @@ function downloadPayslipExcel(workerId) {
     ['대상 월', month],
     ['담당 업체 수', worker.companies.length + '개'],
     ['총급여', worker.totalPay],
-    ['3.3% 공제액', deduction],
+    ['10% 공제액', deduction],
     ['실지급액', netPay],
   ];
 
@@ -764,7 +764,7 @@ function downloadPayslipPDF(workerId) {
 
   doc.setFontSize(10);
   doc.text(`Total Pay: ${fmt(worker.totalPay)} KRW`, 25, y); y += 6;
-  doc.text(`Tax (3.3%): -${fmt(deduction)} KRW`, 25, y); y += 6;
+  doc.text(`Tax (10%): -${fmt(deduction)} KRW`, 25, y); y += 6;
   doc.text(`Net Pay: ${fmt(netPay)} KRW`, 25, y); y += 10;
 
   // 업체별 내역 테이블
@@ -847,7 +847,7 @@ function downloadAllPayslips() {
 
     dataRows.push(['', '']);
     dataRows.push(['총급여', worker.totalPay]);
-    dataRows.push(['3.3% 공제액', deduction]);
+    dataRows.push(['10% 공제액', deduction]);
     dataRows.push(['실지급액', netPay]);
 
     return {
