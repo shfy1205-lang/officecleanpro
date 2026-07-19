@@ -28,14 +28,14 @@ const NAV_GROUPS = {
   home:    { label: '홈',   icon: '🏠', tabs: ['dashboard'] },
   ops:     { label: '운영', icon: '📋', tabs: ['allClients', 'requests', 'notices', 'calendar', 'supplies'] },
   hr:      { label: '인사', icon: '👥', tabs: ['workers', 'chat'] },
-  finance: { label: '재무', icon: '💰', tabs: ['billing', 'staffPay', 'revenue', 'prorate', 'taxInvoice'] },
+  finance: { label: '재무', icon: '💰', tabs: ['finance'] },
   sales:   { label: '영업', icon: '📊', tabs: ['leads', 'quote', 'eco'] },
   mgmt:    { label: '관리', icon: '⚙️', tabs: ['analysis', 'areaSummary', 'contacts', 'scheduleLog', 'changeLog'] },
 };
 
 const TAB_LABELS = {
   dashboard: '대시보드', allClients: '업체관리', requests: '요청관리',
-  notices: '공지관리', leads: '견적관리', billing: '정산관리',
+  notices: '공지관리', leads: '견적관리', billing: '정산관리', finance: '재무',
   staffPay: '담당자급여', workers: '직원관리', areaSummary: '구역별',
   revenue: '수익관리', analysis: 'AI분석', calendar: '캘린더',
   scheduleLog: '생성로그', changeLog: '변경이력', contacts: '연락처',
@@ -48,11 +48,12 @@ const TAB_LABELS = {
 // 탭 → 그룹 역매핑 (자동 생성)
 const TAB_TO_GROUP = {};
 Object.entries(NAV_GROUPS).forEach(([g, v]) => v.tabs.forEach(t => TAB_TO_GROUP[t] = g));
+['billing','staffPay','revenue','prorate','taxInvoice'].forEach(function(t){ TAB_TO_GROUP[t] = 'finance'; });
 
 // 탭 아이콘 매핑 (사이드바용)
 const TAB_ICONS = {
   dashboard: '📊', allClients: '🏢', requests: '📩',
-  notices: '📢', calendar: '📅', billing: '💳',
+  notices: '📢', calendar: '📅', billing: '💳', finance: '💰',
   staffPay: '💰', revenue: '📈',
   prorate: '➗', leads: '🎯', quote: '📄',
   eco: '🌱', analysis: '🤖', areaSummary: '🗺️',
@@ -313,19 +314,20 @@ function switchTab(tabName, el) {
     requests:     renderRequests,
     notices:      renderNotices,
     leads:        renderLeads,
-    billing:      renderBilling,
-    staffPay:     renderStaffPay,
+    billing:      function(){ showFinanceSub('billing'); },
+    finance:      renderFinance,
+    staffPay:     function(){ showFinanceSub('staffPay'); },
     areaSummary:  renderAreaSummary,
-    revenue:      renderRevenue,
+    revenue:      function(){ showFinanceSub('revenue'); },
     analysis:     renderAnalysis,
     calendar:     renderCalendar,
     scheduleLog:  renderScheduleLog,
     changeLog:    renderChangeLog,
     contacts:     renderContacts,
     quote:        renderQuote,
-    prorate:      renderProrate,
+    prorate:      function(){ showFinanceSub('prorate'); },
     eco:          renderEco,
-    taxInvoice:   renderTaxInvoice,
+    taxInvoice:   function(){ showFinanceSub('taxInvoice'); },
     workers:      renderWorkers,
     chat:         renderChat,
     supplies:     renderSupplies,
@@ -549,4 +551,30 @@ function getUniqueAreas() {
   var areas = new Set();
   adminData.companies.forEach(function(c) { if (c.area_name) areas.add(c.area_name); });
   return [...areas].sort();
+}
+
+
+// ════════════════════════════════════════════════════
+// 재무 화면 통합 — 정산/급여/수익/일할/세금계산서를 서브탭으로
+// 기존 렌더 함수는 그대로 호출, 서브탭 바만 #subTabs에 얹음(계산 로직 무변경)
+// ════════════════════════════════════════════════════
+function showFinanceSub(sub) {
+  window._financeSub = sub;
+  var labels = { billing: '정산', staffPay: '담당자급여', revenue: '수익', prorate: '일할계산', taxInvoice: '세금계산서' };
+  var st = document.getElementById('subTabs');
+  if (st) {
+    st.innerHTML = '<div class="fin-subtabs">' + Object.keys(labels).map(function(k){
+      return '<button class="fin-subtab' + (k === sub ? ' active' : '') + '" onclick="showFinanceSub(\'' + k + '\')">' + labels[k] + '</button>';
+    }).join('') + '</div>';
+    st.style.display = 'block';
+  }
+  var realMap = { billing: window.renderBilling, staffPay: window.renderStaffPay, revenue: window.renderRevenue, prorate: window.renderProrate, taxInvoice: window.renderTaxInvoice };
+  var fn = realMap[sub] || window.renderBilling;
+  if (typeof fn === 'function') fn();
+  var titleEl = document.getElementById('pageTitle');
+  if (titleEl) titleEl.textContent = '재무';
+}
+
+function renderFinance() {
+  showFinanceSub(window._financeSub || 'billing');
 }
