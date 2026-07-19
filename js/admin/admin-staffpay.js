@@ -116,7 +116,7 @@ function renderStaffPay() {
   const monthLabel = month.split('-')[1];
 
   // 전체 10% 공제 합계
-  const totalDeduction = Math.round(grandTotal * 0.10);
+  const totalDeduction = calcDeduction(grandTotal).deduction;
   const totalNetPay = grandTotal - totalDeduction;
 
   // 확정 현황
