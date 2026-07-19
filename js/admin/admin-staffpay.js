@@ -968,28 +968,28 @@ function renderAnalysis() {
     <div class="section-title">AI 분석</div>
     ${monthSelectorHTML(selectedMonth, 'changeAnalysisMonth')}
 
-    <div class="analysis-card">
+    <div class="analysis-card" style="cursor:pointer" title="클릭하면 해당 화면으로 이동" onclick="switchTab('allClients')">
       <h4>⚠️ 미배정 업체 (${unassigned.length}곳)</h4>
       <p>${unassigned.length > 0
         ? unassigned.map(c => escapeHtml(c.name)).join(', ')
         : '모든 활성 업체에 직원이 배정되어 있습니다.'}</p>
     </div>
 
-    <div class="analysis-card">
+    <div class="analysis-card" style="cursor:pointer" title="클릭하면 해당 화면으로 이동" onclick="switchTab('revenue')">
       <h4>💰 고액 지급 업체 (50만원 이상)</h4>
       <p>${highPay.length > 0
         ? highPay.map(h => `${escapeHtml(h.name)}: ${fmt(h.pay)}원`).join(', ')
         : '50만원 이상 지급 업체가 없습니다.'}</p>
     </div>
 
-    <div class="analysis-card">
+    <div class="analysis-card" style="cursor:pointer" title="클릭하면 해당 화면으로 이동" onclick="switchTab('staffPay')">
       <h4>🔥 업무 과부하 직원 (8곳 이상)</h4>
       <p>${heavy.length > 0
         ? heavy.map(h => `${escapeHtml(h.name)}: ${h.cnt}곳`).join(', ')
         : '과부하 직원이 없습니다.'}</p>
     </div>
 
-    <div class="analysis-card">
+    <div class="analysis-card" style="cursor:pointer" title="클릭하면 해당 화면으로 이동" onclick="switchTab('requests')">
       <h4>📋 미처리 요청 (${pendingRequests.length}건)</h4>
       <p>${pendingRequests.length > 0
         ? pendingRequests.slice(0, 5).map(r =>
@@ -998,7 +998,7 @@ function renderAnalysis() {
         : '모든 요청이 처리되었습니다.'}</p>
     </div>
 
-    <div class="analysis-card">
+    <div class="analysis-card" style="cursor:pointer" title="클릭하면 해당 화면으로 이동" onclick="switchTab('billing')">
       <h4>💳 미수금 현황 (${unpaidBillings.length}건${overdueCount > 0 ? ', 연체 ' + overdueCount + '건' : ''})</h4>
       <p>${unpaidBillings.length > 0
         ? unpaidBillings.slice(0, 5).map(b => {
@@ -1008,7 +1008,7 @@ function renderAnalysis() {
         : '미수금이 없습니다.'}</p>
     </div>
 
-    <div class="analysis-card">
+    <div class="analysis-card" style="cursor:pointer" title="클릭하면 해당 화면으로 이동" onclick="switchTab('leads')">
       <h4>📊 견적 현황 (진행중 ${activeLeads.length}건, 성공 ${wonLeads.length}건)</h4>
       <p>${activeLeads.length > 0
         ? activeLeads.slice(0, 5).map(l => {
