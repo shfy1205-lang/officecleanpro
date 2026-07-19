@@ -77,3 +77,36 @@ tbody tr:last-child td{border-bottom:none!important}
 .toast-error{background:var(--red-soft);color:var(--red);border:1px solid #f6c9c4}
 .empty-state{color:var(--text3);padding:40px 0}
 .empty-icon{opacity:.5}
+
+/* ══ P2-1: 물품요청 화면 스타일 통일 ══ */
+.supply-filter-btn{border:1px solid var(--border)!important;border-radius:99px!important;background:var(--bg2)!important;color:var(--text2)!important;font-weight:600!important;padding:7px 15px!important}
+.supply-filter-btn.active{background:var(--accent)!important;border-color:var(--accent)!important;color:#fff!important}
+.supply-stat{background:var(--card)!important;border:1px solid var(--border)!important;border-radius:var(--radius)!important;box-shadow:var(--shadow-sm)}
+.supply-stat-num{font-weight:800!important;letter-spacing:-.03em}
+.supply-stat-num.pending{color:var(--yellow)!important}
+.supply-stat-num.done{color:var(--green)!important}
+.supply-stat-num.total{color:var(--accent)!important}
+.supply-admin-card{border:1px solid var(--border)!important;border-radius:var(--radius)!important;box-shadow:var(--shadow-sm)!important}
+.supply-complete-btn{background:var(--green)!important;border-radius:9px!important;font-weight:700!important}
+.supply-admin-tag{background:var(--bg3)!important;color:var(--text2)!important;border-radius:7px!important}
+
+/* ══ P2-2: 직원관리 밀도 개선 (2열 대형카드 → 3열 컴팩트) ══ */
+.wk-grid{display:grid!important;grid-template-columns:repeat(3,1fr)!important;gap:12px!important}
+@media (max-width:1250px){.wk-grid{grid-template-columns:repeat(2,1fr)!important}}
+.wk-card{padding:12px 14px!important;border:1px solid var(--border)!important;border-radius:var(--radius)!important;box-shadow:var(--shadow-sm)}
+.wk-avatar{width:36px!important;height:36px!important;font-size:14px!important}
+.wk-card-stats{gap:6px!important;margin-top:8px!important}
+.wk-card-stat{background:var(--bg3)!important;border-radius:8px!important;padding:6px 8px!important}
+.wk-card-stat-label{font-size:10.5px!important;color:var(--text3)!important}
+.wk-card-stat-val{font-size:13.5px!important;font-weight:700!important}
+.wk-stat{background:var(--card)!important;border:1px solid var(--border)!important;border-radius:var(--radius)!important;box-shadow:var(--shadow-sm)}
+
+/* ══ P2-3: 로그인 화면 라이트 톤 통일 ══ */
+.login-screen{background:var(--bg)!important}
+.login-box{background:var(--card)!important;border:1px solid var(--border)!important;border-radius:16px!important;box-shadow:0 12px 40px rgba(16,24,40,.08)!important}
+.login-box h1,.login-box h2{color:var(--accent)!important;letter-spacing:-.02em}
+.login-box .subtitle{color:var(--text2)!important}
+.login-box label{color:var(--text2)!important}
+.login-box input{background:var(--bg2)!important;border:1px solid var(--border)!important;border-radius:9px!important;color:var(--text)!important}
+.login-box input:focus{border-color:var(--accent2)!important;box-shadow:0 0 0 3px var(--accent-soft)!important;outline:none}
+.login-box .btn{background:var(--accent)!important;border-radius:9px!important;font-weight:700!important}
