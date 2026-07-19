@@ -496,6 +496,8 @@ async function openCompanyDetail(companyId) {
       ${c.subcontract_from ? '<span style="font-size:11px;margin-left:6px;background:var(--orange);color:#fff;padding:2px 6px;border-radius:4px">' + (c.subcontract_from === '에코오피스클린' ? '에코 도급' : '에코 광고비') + '</span>' : ''}
     </div>
 
+    <div id="companySummary_${companyId}" class="company-summary"><div style="color:var(--text3);font-size:12px;padding:10px 0">📊 이번 달 현황 불러오는 중...</div></div>
+
     <div class="detail-section">
       <button class="btn-sm btn-blue" onclick="openCompanyForm('${companyId}')">기본정보 수정</button>
     </div>
@@ -643,6 +645,7 @@ async function openCompanyDetail(companyId) {
 
   $('modalBody').innerHTML = html + `<div style="position:sticky;bottom:-26px;margin:16px -28px -26px;padding:12px 28px;background:var(--card);border-top:1px solid var(--border);display:flex;justify-content:flex-end;z-index:5"><button class="btn saveall-btn" style="width:auto;padding:10px 26px" onclick="saveAllCompanyDetail('${companyId}')">💾 모두 저장</button></div>`;
   $('detailModal').classList.add('show');
+  loadCompanySummary(companyId);
   loadOriginSections(companyId);
 }
 
@@ -1311,4 +1314,52 @@ async function saveAllCompanyDetail(companyId) {
     toast('저장 중 오류가 발생했습니다', 'error');
     document.querySelectorAll('.saveall-btn').forEach(b => { b.disabled = false; b.textContent = '💾 모두 저장'; });
   }
+}
+
+
+// ════════════════════════════════════════════════════
+// 업체 360° 뷰 — 이번 달 청소·수금·민원 한눈에 요약
+// ════════════════════════════════════════════════════
+async function loadCompanySummary(companyId) {
+  try {
+    const d = new Date();
+    const y = d.getFullYear(), m = d.getMonth();
+    const mStr = y + '-' + String(m + 1).padStart(2, '0');
+    const start = mStr + '-01';
+    const end = new Date(y, m + 1, 0);
+    const endStr = end.getFullYear() + '-' + String(end.getMonth() + 1).padStart(2, '0') + '-' + String(end.getDate()).padStart(2, '0');
+    const [tRes, bRes, rRes] = await Promise.all([
+      sb.from('tasks').select('status').eq('company_id', companyId).gte('task_date', start).lte('task_date', endStr),
+      sb.from('billing_records').select('status, billed_amount, paid_amount').eq('company_id', companyId).eq('month', mStr).maybeSingle(),
+      sb.from('requests').select('id', { count: 'exact', head: true }).eq('company_id', companyId).eq('is_resolved', false),
+    ]);
+    const tasks = tRes.data || [];
+    const done = tasks.filter(function(t){return t.status==='completed';}).length;
+    const planned = tasks.filter(function(t){return t.status!=='cancelled';}).length;
+    const bill = bRes.data;
+    const billLabel = !bill ? { txt: '미생성', cls: 'gray' } : (bill.status === 'paid' ? { txt: '수금 완료', cls: 'good' } : (bill.status === 'billed' ? { txt: '청구됨', cls: 'warn' } : (bill.status === 'overdue' ? { txt: '연체', cls: 'bad' } : { txt: '미청구', cls: 'gray' })));
+    const openReq = rRes.count || 0;
+    renderCompanySummary(companyId, { mStr: mStr, done: done, planned: planned, billLabel: billLabel, openReq: openReq, billed: bill ? bill.billed_amount : 0 });
+  } catch (e) { console.error('loadCompanySummary error:', e); }
+}
+
+function renderCompanySummary(companyId, s) {
+  const el = document.getElementById('companySummary_' + companyId);
+  if (!el) return;
+  const cleanPct = s.planned > 0 ? Math.round(s.done / s.planned * 100) : 0;
+  el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:6px 0 14px">'
+    + tile('🧹 이번 달 청소', s.done + ' / ' + s.planned + '회', cleanPct >= 100 ? 'good' : (cleanPct > 0 ? 'warn' : 'gray'), cleanPct + '% 완료')
+    + tile('💰 수금', s.billLabel.txt, s.billLabel.cls, s.billed ? fmtWon(s.billed) + '원' : '')
+    + tile('📩 미처리 민원', s.openReq + '건', s.openReq > 0 ? 'bad' : 'good', s.openReq > 0 ? '확인 필요' : '없음')
+    + tile('📅 기준월', s.mStr.split('-')[1] + '월', 'gray', '')
+    + '</div>';
+}
+
+function tile(label, value, cls, sub) {
+  const colorMap = { good: 'var(--green)', warn: 'var(--yellow)', bad: 'var(--red)', gray: 'var(--text2)' };
+  return '<div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 12px">'
+    + '<div style="font-size:11px;color:var(--text2);font-weight:600">' + label + '</div>'
+    + '<div style="font-size:17px;font-weight:800;color:' + (colorMap[cls] || 'var(--text)') + ';margin-top:2px">' + value + '</div>'
+    + (sub ? '<div style="font-size:11px;color:var(--text3);margin-top:1px">' + sub + '</div>' : '')
+    + '</div>';
 }
