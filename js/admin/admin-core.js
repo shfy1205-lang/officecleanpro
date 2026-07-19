@@ -120,18 +120,22 @@ if (document.readyState === 'loading') {
 // ─── 데이터 로드 ───
 
 async function loadAdminData() {
+  // 성능: 월 단위 데이터는 화면(월 탭)이 쓰는 '현재-2월 ~ +1월' 창만 로딩
+  const _d = new Date();
+  const _f = new Date(_d.getFullYear(), _d.getMonth() - 2, 1);
+  const _mFloor = _f.getFullYear() + '-' + String(_f.getMonth() + 1).padStart(2, '0');
   const results = await Promise.allSettled([
     sb.from('companies').select('*').order('name'),
-    sb.from('company_financials').select('*'),
-    sb.from('company_workers').select('*'),
+    sb.from('company_financials').select('*').gte('month', _mFloor),
+    sb.from('company_workers').select('*').gte('month', _mFloor),
     sb.from('workers').select('*').order('name'),
     sb.from('company_schedule').select('*'),
     sb.from('requests').select('*').order('created_at', { ascending: false }),
     sb.from('notices').select('*').order('created_at', { ascending: false }),
     sb.from('leads').select('*').order('created_at', { ascending: false }),
-    sb.from('billing_records').select('*').order('month', { ascending: false }),
+    sb.from('billing_records').select('*').or('month.gte.' + _mFloor + ',status.neq.paid').order('month', { ascending: false }),
     sb.from('company_notes').select('id, company_id, special_notes, parking_info, recycling_location, staff_message'),
-    sb.from('pay_confirmations').select('*'),
+    sb.from('pay_confirmations').select('*').gte('month', _mFloor),
   ]);
 
   const get = (i) => results[i].status === 'fulfilled' ? (results[i].value.data || []) : [];
