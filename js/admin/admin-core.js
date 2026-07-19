@@ -224,7 +224,7 @@ function buildSidebarNav() {
   var html = '';
   Object.entries(NAV_GROUPS).forEach(function(entry) {
     var group = entry[1];
-    var collapsed = group.label === '관리';
+    var collapsed = (group.label === '관리' || group.label === '영업');
     html += '<div class="sb-group-label"' + (collapsed ? ' style="cursor:pointer" onclick="toggleSbGroup(this)"' : '') + '>' + group.icon + ' ' + group.label + (collapsed ? ' <span class="sb-caret" style="float:right">▸</span>' : '') + '</div>';
     if (collapsed) html += '<div class="sb-group-items" style="display:none">';
     group.tabs.forEach(function(tabKey) {
