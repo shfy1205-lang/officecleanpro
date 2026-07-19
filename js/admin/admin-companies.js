@@ -641,7 +641,7 @@ async function openCompanyDetail(companyId) {
     </div>
   `;
 
-  $('modalBody').innerHTML = html;
+  $('modalBody').innerHTML = html + `<div style="position:sticky;bottom:-26px;margin:16px -28px -26px;padding:12px 28px;background:var(--card);border-top:1px solid var(--border);display:flex;justify-content:flex-end;z-index:5"><button class="btn saveall-btn" style="width:auto;padding:10px 26px" onclick="saveAllCompanyDetail('${companyId}')">💾 모두 저장</button></div>`;
   $('detailModal').classList.add('show');
   loadOriginSections(companyId);
 }
@@ -1291,4 +1291,24 @@ async function endOriginAssignment(companyId, assignId, workerId) {
   toast('배정 종료 — 다음 달부터 제외됩니다');
   await loadAdminData();
   openCompanyDetail(companyId);
+}
+
+
+// ════════════════════════════════════════════════════
+// P4: 통합 저장 — 입력을 먼저 다 읽는 순서(스케줄→노트→수수료)로 기존 함수 재사용
+// ════════════════════════════════════════════════════
+async function saveAllCompanyDetail(companyId) {
+  try {
+    document.querySelectorAll('.saveall-btn').forEach(b => { b.disabled = true; b.textContent = '저장 중...'; });
+    const hasSched = adminData.schedules.some(s => s.company_id === companyId && s.is_active);
+    if (hasSched) await saveScheduleSettings(companyId);
+    const note = getCompanyNote(companyId);
+    await saveAdminNoteInfo(companyId, note && note.id ? note.id : '');
+    await saveFeeInfo(companyId);
+    toast('모두 저장 완료');
+  } catch (e) {
+    console.error('saveAllCompanyDetail error:', e);
+    toast('저장 중 오류가 발생했습니다', 'error');
+    document.querySelectorAll('.saveall-btn').forEach(b => { b.disabled = false; b.textContent = '💾 모두 저장'; });
+  }
 }
