@@ -98,8 +98,11 @@ function closeModal() {
  * 10% 공제 계산 (공통)
  * 모든 화면에서 동일한 공제 계산을 사용하도록 통일
  */
+// ★ 원천징수 요율 단일 소스 — 요율 변경은 이 한 줄만 수정
+var TAX_WITHHOLD_RATE = 0.10;
+
 function calcDeduction(totalPay) {
-  const deduction = Math.round(totalPay * 0.10);
+  const deduction = Math.round(totalPay * TAX_WITHHOLD_RATE);
   const netPay = totalPay - deduction;
   return { deduction, netPay };
 }
