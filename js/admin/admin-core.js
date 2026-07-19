@@ -223,9 +223,10 @@ function buildSidebarNav() {
   if (!nav) return;
   var html = '';
   Object.entries(NAV_GROUPS).forEach(function(entry) {
-    var groupKey = entry[0];
     var group = entry[1];
-    html += '<div class="sb-group-label">' + group.icon + ' ' + group.label + '</div>';
+    var collapsed = group.label === '관리';
+    html += '<div class="sb-group-label"' + (collapsed ? ' style="cursor:pointer" onclick="toggleSbGroup(this)"' : '') + '>' + group.icon + ' ' + group.label + (collapsed ? ' <span class="sb-caret" style="float:right">▸</span>' : '') + '</div>';
+    if (collapsed) html += '<div class="sb-group-items" style="display:none">';
     group.tabs.forEach(function(tabKey) {
       var icon = TAB_ICONS[tabKey] || '📑';
       var label = TAB_LABELS[tabKey] || tabKey;
@@ -234,8 +235,19 @@ function buildSidebarNav() {
         + '<span>' + label + '</span>'
         + '</button>';
     });
+    if (collapsed) html += '</div>';
   });
   nav.innerHTML = html;
+}
+
+// 관리 그룹 접기/펼치기
+function toggleSbGroup(el) {
+  var items = el.nextElementSibling;
+  if (!items || !items.classList.contains('sb-group-items')) return;
+  var open = items.style.display !== 'none';
+  items.style.display = open ? 'none' : 'block';
+  var caret = el.querySelector('.sb-caret');
+  if (caret) caret.textContent = open ? '▸' : '▾';
 }
 
 // ─── 에코 전용 뷰 ───
