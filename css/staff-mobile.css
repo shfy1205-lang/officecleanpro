@@ -16,6 +16,8 @@
   --red: #dc2626;
   --yellow: #d97706;
   --orange: #ea580c;
+  --accent: #4f46e5;
+  --accent2: #6366f1;
 }
 
 /* --- 네비바 라이트 --- */
@@ -29,8 +31,8 @@
 .profile-btn {
   width: 34px; height: 34px;
   border-radius: 50%;
-  background: #eff6ff;
-  border: 1px solid #dbeafe;
+  background: #eef2ff;
+  border: 1px solid #e0e7ff;
   font-size: 16px;
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
@@ -97,7 +99,7 @@
 
 .bnav-icon { font-size: 22px; line-height: 1; }
 .bnav-label { font-size: 10px; color: #94a3b8; font-weight: 500; }
-.bnav-item.active .bnav-label { color: #3b82f6; font-weight: 700; }
+.bnav-item.active .bnav-label { color: var(--accent); font-weight: 700; }
 
 .bnav-badge {
   position: absolute; top: 0; right: 4px;
@@ -178,7 +180,7 @@
   color: #1e293b;
 }
 .field label { color: #64748b; }
-.field input:focus, .field textarea:focus { border-color: #3b82f6; }
+.field input:focus, .field textarea:focus { border-color: var(--accent); }
 
 /* --- 카드 라이트 --- */
 .card, [class*="-card"] {
