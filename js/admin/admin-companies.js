@@ -502,7 +502,7 @@ async function openCompanyDetail(companyId) {
 
     <!-- 💰 수수료 현황 (수정 가능) -->
     <div class="detail-section">
-      <div class="detail-section-title">💰 ${selectedMonth.split('-')[1]}월 수수료 현황</div>
+      <div class="detail-section-title" style="display:flex;justify-content:space-between;align-items:center"><span>💰 ${selectedMonth.split('-')[1]}월 수수료 현황</span><div>${monthSelectorHTML(selectedMonth, 'changeCompanyDetailMonth')}</div></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px">
           <div style="font-size:11px;color:var(--text2);margin-bottom:4px">계약금액</div>
@@ -589,45 +589,13 @@ async function openCompanyDetail(companyId) {
     </div>
 
     <div class="detail-section">
-      <div class="detail-section-title" style="display:flex;justify-content:space-between;align-items:center">
-        <span>👤 직원 배정</span>
-        <div style="display:flex;gap:4px;align-items:center">
-          ${monthSelectorHTML(selectedMonth, 'changeCompanyDetailMonth')}
-        </div>
-      </div>
+      <div class="detail-section-title">📄 계약 <span style="font-weight:400;font-size:11px;color:var(--text2)">(원본 — 변경 시 이력 보존·자동 반영)</span></div>
+      <div id="contractBox_${companyId}"><p class="text-muted">불러오는 중...</p></div>
+    </div>
 
-      <div id="assignList_${companyId}">
-        ${assigns.length > 0 ? assigns.map(a => `
-          <div class="assign-row">
-            <div class="assign-info">
-              <span class="assign-name">${escapeHtml(getWorkerName(a.worker_id))}</span>
-              ${a.is_primary ? '<span class="badge badge-area">주담당</span>' : ''}
-            </div>
-            <div class="assign-actions">
-              <input type="number" class="assign-share-input" value="${a.share||''}" min="0" max="100" step="1"
-                     onchange="updateShare('${a.id}', this.value)" placeholder="%" style="width:52px;text-align:center">
-              <span class="assign-pay-unit" style="margin-right:4px">%</span>
-              <input type="text" class="assign-pay-input" value="${(a.pay_amount||0).toLocaleString()}" oninput="fmtInput(this)"
-                     onchange="updatePayAmount('${a.id}', this.value)" placeholder="지급액">
-              <span class="assign-pay-unit">원</span>
-              <button class="btn-sm btn-red" style="padding:4px 10px;font-size:11px"
-                      onclick="removeAssignment('${a.id}', '${companyId}')">삭제</button>
-            </div>
-          </div>
-        `).join('') : '<p class="text-muted">배정된 직원이 없습니다.</p>'}
-      </div>
-
-      <div class="admin-add-assign" style="margin-top:12px">
-        <select id="newWorker_${companyId}" class="admin-worker-select">
-          <option value="">직원 선택</option>
-          ${allWorkers.filter(w => !assigns.some(a => a.worker_id === w.id)).map(w =>
-            `<option value="${w.id}">${escapeHtml(w.name)}</option>`
-          ).join('')}
-        </select>
-        <input type="number" id="newShare_${companyId}" class="assign-share-input" placeholder="%" min="0" max="100" step="1" style="width:52px;text-align:center">
-        <input type="text" id="newPay_${companyId}" class="assign-pay-input" placeholder="지급액" value="0">
-        <button class="btn-sm btn-green" onclick="addAssignment('${companyId}')">배정</button>
-      </div>
+    <div class="detail-section">
+      <div class="detail-section-title">👤 담당 배정 <span style="font-weight:400;font-size:11px;color:var(--text2)">(원본 — 바꾸면 적용 월부터 매달 자동 반영)</span></div>
+      <div id="originAssignBox_${companyId}"><p class="text-muted">불러오는 중...</p></div>
     </div>
 
     ${c.contact_name || c.contact_phone ? `
@@ -675,6 +643,7 @@ async function openCompanyDetail(companyId) {
 
   $('modalBody').innerHTML = html;
   $('detailModal').classList.add('show');
+  loadOriginSections(companyId);
 }
 
 
@@ -1197,3 +1166,129 @@ async function saveFeeInfo(companyId) {
     console.error('saveFeeInfo error:', e);
     toast('오류가 발생했습니다', 'error');
   }}
+
+
+// ════════════════════════════════════════════════════
+// P3: 원본(계약·배정) 관리 — contracts / worker_assignments 연동
+// ════════════════════════════════════════════════════
+
+async function loadOriginSections(companyId) {
+  try {
+    const [kRes, aRes] = await Promise.all([
+      sb.from('contracts').select('*').eq('company_id', companyId).order('start_date', { ascending: false }),
+      sb.from('worker_assignments').select('*').eq('company_id', companyId).order('effective_from', { ascending: false }),
+    ]);
+    renderContractBox(companyId, kRes.data || []);
+    renderOriginAssignBox(companyId, aRes.data || []);
+  } catch (e) { console.error('loadOriginSections error:', e); }
+}
+
+function fmtWon(n) { return (n || 0).toLocaleString('ko-KR'); }
+
+function originMonthOptions() {
+  const now = new Date();
+  let html = '';
+  for (let i = 0; i <= 1; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const v = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    html += `<option value="${v}"${i === 1 ? ' selected' : ''}>${d.getMonth() + 1}월부터</option>`;
+  }
+  return html;
+}
+
+function renderContractBox(companyId, contracts) {
+  const el = document.getElementById('contractBox_' + companyId);
+  if (!el) return;
+  const cur = contracts.find(x => x.status === 'active') || contracts[0];
+  const hist = contracts.filter(x => cur && x.id !== cur.id);
+  el.innerHTML = `
+    ${cur ? `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span style="font-weight:800;font-size:16px">${fmtWon(cur.monthly_amount)}원/월</span>
+      <span class="badge badge-area">${cur.start_date} ~ ${cur.end_date || '진행중'}</span>
+    </div>` : '<p class="text-muted">계약 정보가 없습니다.</p>'}
+    <div style="display:flex;gap:6px;margin-top:10px;align-items:center;flex-wrap:wrap">
+      <input type="text" id="ctrNewAmt_${companyId}" class="assign-pay-input" placeholder="새 월 계약금액" style="width:130px" oninput="fmtInput(this)">
+      <select id="ctrFromMonth_${companyId}" class="admin-worker-select" style="width:auto">${originMonthOptions()}</select>
+      <button class="btn-sm btn-blue" onclick="applyContractChange('${companyId}')">금액 변경</button>
+    </div>
+    ${hist.length ? `<div style="margin-top:8px;font-size:12px;color:var(--text2)">이력: ${hist.map(h => `${h.start_date}~${h.end_date || ''} · ${fmtWon(h.monthly_amount)}원`).join(' / ')}</div>` : ''}
+  `;
+}
+
+async function applyContractChange(companyId) {
+  const amtEl = document.getElementById('ctrNewAmt_' + companyId);
+  const amt = parseMoney(amtEl ? amtEl.value : '');
+  const fromM = document.getElementById('ctrFromMonth_' + companyId).value;
+  if (!amt) return toast('새 계약금액을 입력하세요', 'error');
+  if (!confirm(fromM + '부터 월 ' + fmtWon(amt) + '원으로 변경할까요?\n(이전 계약은 이력으로 남고, 적용 월부터 재무·청구가 자동 재계산됩니다)')) return;
+  const { error } = await sb.rpc('change_contract', { p_company_id: companyId, p_new_amount: amt, p_from_month: fromM });
+  if (error) return toast('변경 실패: ' + error.message, 'error');
+  toast('계약 변경 완료 — ' + fromM + '부터 자동 반영');
+  await loadAdminData();
+  openCompanyDetail(companyId);
+}
+
+function renderOriginAssignBox(companyId, assigns) {
+  const el = document.getElementById('originAssignBox_' + companyId);
+  if (!el) return;
+  const today = new Date();
+  const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+  const cur = assigns.filter(a => a.effective_from <= todayStr && (!a.effective_to || a.effective_to >= todayStr));
+  const allWorkers = getActiveWorkers();
+  el.innerHTML = `
+    ${cur.length ? cur.map(a => `
+      <div class="assign-row">
+        <div class="assign-info">
+          <span class="assign-name">${escapeHtml(getWorkerName(a.worker_id))}</span>
+          ${a.is_primary ? '<span class="badge badge-area">주담당</span>' : ''}
+          <span style="font-size:11px;color:var(--text2)">${a.effective_from}~</span>
+        </div>
+        <div class="assign-actions">
+          <span style="font-weight:700">${fmtWon(a.pay_amount)}원</span>
+          <button class="btn-sm btn-red" onclick="endOriginAssignment('${companyId}','${a.id}','${a.worker_id}')">다음달부터 종료</button>
+        </div>
+      </div>`).join('') : '<p class="text-muted">유효한 배정이 없습니다.</p>'}
+    <div class="admin-add-assign" style="margin-top:12px;flex-wrap:wrap">
+      <select id="oaWorker_${companyId}" class="admin-worker-select">
+        <option value="">직원 선택</option>
+        ${allWorkers.map(w => `<option value="${w.id}">${escapeHtml(w.name)}</option>`).join('')}
+      </select>
+      <input type="text" id="oaPay_${companyId}" class="assign-pay-input" placeholder="월 급여" value="0" oninput="fmtInput(this)">
+      <select id="oaFrom_${companyId}" class="admin-worker-select" style="width:auto">${originMonthOptions()}</select>
+      <button class="btn-sm btn-green" onclick="applyAssignChange('${companyId}')">배정/변경</button>
+    </div>
+    <div style="font-size:11px;color:var(--text2);margin-top:6px">같은 직원 선택 = 급여 변경, 새 직원 = 추가 배정. 적용 월부터 매달 자동 반영됩니다.</div>
+  `;
+}
+
+async function applyAssignChange(companyId) {
+  const wid = document.getElementById('oaWorker_' + companyId).value;
+  const pay = parseMoney(document.getElementById('oaPay_' + companyId).value);
+  const fromM = document.getElementById('oaFrom_' + companyId).value;
+  if (!wid) return toast('직원을 선택하세요', 'error');
+  if (!pay) return toast('월 급여를 입력하세요', 'error');
+  if (!confirm(getWorkerName(wid) + ' — ' + fromM + '부터 월 ' + fmtWon(pay) + '원으로 적용할까요?')) return;
+  const { data: curA } = await sb.from('worker_assignments').select('id').eq('company_id', companyId).is('effective_to', null);
+  const isPrimary = !curA || curA.length === 0;
+  const { error } = await sb.rpc('change_assignment', { p_company_id: companyId, p_worker_id: wid, p_pay_amount: pay, p_from_month: fromM, p_is_primary: isPrimary });
+  if (error) return toast('적용 실패: ' + error.message, 'error');
+  toast('배정 적용 완료 — ' + fromM + '부터 자동 반영');
+  await loadAdminData();
+  openCompanyDetail(companyId);
+}
+
+async function endOriginAssignment(companyId, assignId, workerId) {
+  if (!confirm('이 배정을 이번 달까지만 유지하고 다음 달부터 종료할까요?')) return;
+  const now = new Date();
+  const eom = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const eomStr = eom.getFullYear() + '-' + String(eom.getMonth() + 1).padStart(2, '0') + '-' + String(eom.getDate()).padStart(2, '0');
+  const nm = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const nextMonth = nm.getFullYear() + '-' + String(nm.getMonth() + 1).padStart(2, '0');
+  const { error } = await sb.from('worker_assignments').update({ effective_to: eomStr }).eq('id', assignId);
+  if (error) return toast('종료 실패: ' + error.message, 'error');
+  await sb.from('company_workers').delete().eq('company_id', companyId).eq('worker_id', workerId).gte('month', nextMonth);
+  await sb.rpc('materialize_month', { p_month: nextMonth });
+  toast('배정 종료 — 다음 달부터 제외됩니다');
+  await loadAdminData();
+  openCompanyDetail(companyId);
+}
