@@ -958,7 +958,7 @@ function renderAnalysis() {
 
   const pendingRequests = adminData.requests.filter(r => !r.is_resolved && !isExpired(r.expires_at));
 
-  const unpaidBillings = adminData.billings.filter(b => b.status !== 'paid');
+  const unpaidBillings = adminData.billings.filter(b => b.status !== 'paid' && (b.month || '') <= (new Date().getFullYear() + '-' + String(new Date().getMonth()+1).padStart(2,'0')));
   const overdueCount = adminData.billings.filter(b => b.status === 'overdue').length;
 
   const activeLeads = adminData.leads.filter(l => !['won','lost'].includes(l.status));
