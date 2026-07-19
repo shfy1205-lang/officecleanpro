@@ -1347,7 +1347,7 @@ function renderCompanySummary(companyId, s) {
   const el = document.getElementById('companySummary_' + companyId);
   if (!el) return;
   const cleanPct = s.planned > 0 ? Math.round(s.done / s.planned * 100) : 0;
-  el.innerHTML = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:6px 0 14px">'
+  el.innerHTML = '<div class="oc-sum-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:6px 0 14px">'
     + tile('🧹 이번 달 청소', s.done + ' / ' + s.planned + '회', cleanPct >= 100 ? 'good' : (cleanPct > 0 ? 'warn' : 'gray'), cleanPct + '% 완료')
     + tile('💰 수금', s.billLabel.txt, s.billLabel.cls, s.billed ? fmtWon(s.billed) + '원' : '')
     + tile('📩 미처리 민원', s.openReq + '건', s.openReq > 0 ? 'bad' : 'good', s.openReq > 0 ? '확인 필요' : '없음')
