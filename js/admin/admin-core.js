@@ -80,7 +80,7 @@ async function initAdmin() {
 
     await Promise.race([
       loadAdminData(),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('데이터 로딩 시간 초과')), 10000))
+      new Promise((_, reject) => setTimeout(() => reject(new Error('데이터 로딩 시간 초과')), 25000))
     ]);
 
     // 사용자 정보 표시
