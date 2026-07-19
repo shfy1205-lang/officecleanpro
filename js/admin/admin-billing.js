@@ -7,7 +7,7 @@ function renderBilling() {
   const mc = $('mainContent');
 
   // ── 미수금 통계 (뷰 공통) ──
-  const unpaidAll = adminData.billings.filter(b => b.status !== 'paid');
+  const unpaidAll = adminData.billings.filter(b => b.status !== 'paid' && (b.month || '') <= (new Date().getFullYear() + '-' + String(new Date().getMonth()+1).padStart(2,'0')));
   const totalUnpaid = unpaidAll.reduce((s, b) => s + ((b.billed_amount || 0) - (b.paid_amount || 0)), 0);
 
   mc.innerHTML = `
