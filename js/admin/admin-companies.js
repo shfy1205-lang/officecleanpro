@@ -1233,7 +1233,7 @@ function renderOriginAssignBox(companyId, assigns) {
   if (!el) return;
   const today = new Date();
   const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
-  const cur = assigns.filter(a => a.effective_from <= todayStr && (!a.effective_to || a.effective_to >= todayStr));
+  const cur = assigns.filter(a => !a.effective_to || a.effective_to >= todayStr);
   const allWorkers = getActiveWorkers();
   el.innerHTML = `
     ${cur.length ? cur.map(a => `
@@ -1241,7 +1241,7 @@ function renderOriginAssignBox(companyId, assigns) {
         <div class="assign-info">
           <span class="assign-name">${escapeHtml(getWorkerName(a.worker_id))}</span>
           ${a.is_primary ? '<span class="badge badge-area">주담당</span>' : ''}
-          <span style="font-size:11px;color:var(--text2)">${a.effective_from}~</span>
+          ${a.effective_from > todayStr ? '<span class="badge badge-warn">' + a.effective_from + ' 시작 예정</span>' : '<span style="font-size:11px;color:var(--text2)">' + a.effective_from + '~</span>'}
         </div>
         <div class="assign-actions">
           <span style="font-weight:700">${fmtWon(a.pay_amount)}원</span>
