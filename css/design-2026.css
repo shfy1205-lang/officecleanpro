@@ -134,3 +134,23 @@ tbody tr:last-child td{border-bottom:none!important}
 .fin-subtab{border:1px solid var(--border);border-radius:99px;background:var(--bg2);color:var(--text2);font-weight:600;font-size:13px;padding:8px 16px;cursor:pointer;transition:all .12s}
 .fin-subtab:hover{border-color:var(--accent2);color:var(--text)}
 .fin-subtab.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+
+/* ══ P2 모바일(폰) 대응 ══ */
+.oc-sum-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+@media (max-width:640px){
+  /* P2-mobile */
+  .content{padding:14px 12px!important;max-width:100%!important}
+  .stats-grid{grid-template-columns:repeat(2,1fr)!important}
+  .oc-sum-grid{grid-template-columns:repeat(2,1fr)!important}
+  .wk-grid{grid-template-columns:1fr!important}
+  .kpis,.row{flex-direction:column}
+  .card{padding:12px!important}
+  .stat-value{font-size:22px!important}
+  .fin-subtabs{overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}
+  .fin-subtab{flex:0 0 auto}
+  .modal{max-width:100%!important;width:100%!important;margin:0!important;border-radius:14px 14px 0 0!important;padding:18px 16px!important}
+  .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{min-width:560px}
+  .month-selector{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .topbar-title h3{font-size:15px!important}
+}
