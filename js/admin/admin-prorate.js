@@ -73,9 +73,9 @@ function renderProrate() {
   }
 
   const adjustedTotal = Math.max(0, totalProrated - prorateExtraDeduct);
-  const deduction = Math.round(adjustedTotal * 0.10);
+  const deduction = calcDeduction(adjustedTotal).deduction;
   const netPay = adjustedTotal - deduction;
-  const origDeduction = Math.round(totalOriginal * 0.10);
+  const origDeduction = calcDeduction(totalOriginal).deduction;
   const origNet = totalOriginal - origDeduction;
   const diff = netPay - origNet;
 
