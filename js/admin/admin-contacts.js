@@ -71,6 +71,35 @@ function renderContacts(listOnly) {
 // 도급업체(subcontract_from)도 표시하되 체크 비활성화 + 에코 받는 금액 표시
 // ════════════════════════════════════════════════════
 
+// ══ 사업자등록번호 표시 (세금계산서 발행용) ══
+function bizNoOf(c) {
+  return String(c.business_number || c.biz_no || '').trim();
+}
+
+function fmtBizNo(v) {
+  const d = String(v || '').replace(/[^0-9]/g, '');
+  if (d.length === 10) return d.slice(0, 3) + '-' + d.slice(3, 5) + '-' + d.slice(5);
+  return String(v || '');
+}
+
+function bizCell(c) {
+  const t = fmtBizNo(bizNoOf(c));
+  const safe = t.replace(/[^0-9\-]/g, '');
+  if (!safe) return '<span style="font-size:11px;color:var(--text-muted)" title="사업자등록번호 미입력 — 연락처 정보 탭에서 입력하세요">미입력</span>';
+  return '<span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;cursor:pointer;white-space:nowrap" title="클릭하면 복사됩니다" onclick="copyBizNo(this,\'' + safe + '\')">' + escapeHtml(t) + '</span>';
+}
+
+function copyBizNo(el, text) {
+  const done = () => {
+    const old = el.textContent;
+    el.textContent = '복사됨 ✓';
+    setTimeout(() => { el.textContent = old; }, 1000);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(() => {});
+  }
+}
+
 function renderBillingCheckList(filtered) {
   const directCompanies = filtered.filter(c => c.subcontract_from !== '에코오피스클린');
   const subCompanies = filtered.filter(c => c.subcontract_from === '에코오피스클린');
@@ -161,8 +190,9 @@ function renderBillingCheckList(filtered) {
       <table>
         <thead>
           <tr>
-            <th style="width:18%">업체명</th>
-            <th style="width:8%">구분</th>
+            <th style="width:16%">업체명</th>
+            <th style="width:12%">사업자번호</th>
+            <th style="width:7%">구분</th>
             <th style="width:10%">구역</th>
             <th style="width:12%">담당자</th>
             <th style="width:12%">금액</th>
@@ -184,6 +214,7 @@ function renderBillingCheckList(filtered) {
             return `
               <tr>
                 <td class="text-ellipsis" title="${escapeHtml(c.name)}">${escapeHtml(c.name)}</td>
+                <td>${bizCell(c)}</td>
                 <td><span class="badge badge-done" style="font-size:9px">직영</span></td>
                 <td>${escapeHtml(c.area_name || '-')}</td>
                 <td>${escapeHtml(c.contact_name || '-')}</td>
@@ -207,7 +238,7 @@ function renderBillingCheckList(filtered) {
             `;
           }).join('')}
           ${subCompanies.length > 0 ? `
-          <tr><td colspan="8" style="background:rgba(167,139,250,0.06);padding:6px 12px;font-size:11px;color:var(--purple, #a78bfa);font-weight:600">
+          <tr><td colspan="9" style="background:rgba(167,139,250,0.06);padding:6px 12px;font-size:11px;color:var(--purple, #a78bfa);font-weight:600">
             도급 업체 (에코오피스클린) — 계산서/입금 해당 없음
           </td></tr>
           ${subCompanies.map(c => {
@@ -218,6 +249,7 @@ function renderBillingCheckList(filtered) {
             return `
               <tr style="opacity:0.7">
                 <td class="text-ellipsis" title="${escapeHtml(c.name)}">${escapeHtml(c.name)}</td>
+                <td>${bizCell(c)}</td>
                 <td><span class="badge" style="font-size:9px;background:rgba(167,139,250,0.15);color:var(--purple, #a78bfa)">도급</span></td>
                 <td>${escapeHtml(c.area_name || '-')}</td>
                 <td>${escapeHtml(c.contact_name || '-')}</td>
@@ -249,6 +281,7 @@ function renderBillingCheckList(filtered) {
               <div>
                 <strong>${escapeHtml(c.name)}</strong>
                 <span class="text-muted" style="font-size:11px;margin-left:4px">${escapeHtml(c.contact_name || '')}</span>
+                <div style="margin-top:3px">${bizCell(c)}</div>
               </div>
               ${statusBadge}
             </div>
@@ -286,6 +319,7 @@ function renderBillingCheckList(filtered) {
               <div>
                 <strong>${escapeHtml(c.name)}</strong>
                 <span style="font-size:10px;margin-left:4px;color:var(--purple, #a78bfa)">도급</span>
+                <div style="margin-top:3px">${bizCell(c)}</div>
               </div>
               <span class="badge" style="font-size:9px;background:rgba(167,139,250,0.15);color:var(--purple, #a78bfa)">도급</span>
             </div>
