@@ -510,8 +510,10 @@ function openStaffPayDetail(workerId) {
     <div style="margin-top:12px;font-size:11px;color:var(--text2);line-height:1.6">
       <strong>계산 방식:</strong> 계약금액 - 오피스수수료 - 에코수수료 = 작업자풀 → 작업자풀 × 배분율(%) = 급여<br>
       배분율 미설정 시 수동 입력 금액(pay_amount)을 사용합니다.<br>
-      <strong>공제 방식(2단계):</strong> ① 총급여 × ${baseDeductLabel()} = 기본 공제 → ② (총급여 − 기본 공제) × ${taxWithholdLabel(month)} = 원천징수<br>
-      실지급액 = 총급여 − (기본 공제 + 원천징수)${withholding > 0 ? '' : ' · 이 급여월은 기본 공제만 적용됩니다'}
+      <strong>공제 방식:</strong> ${withholding > 0
+        ? `(2단계) ① 총급여 × ${baseDeductLabel()} = 기본 공제 → ② (총급여 − 기본 공제) × ${taxWithholdLabel(month)} = 원천징수<br>
+      실지급액 = 총급여 − (기본 공제 + 원천징수)`
+        : `총급여 × ${baseDeductLabel()} = 공제액, 실지급액 = 총급여 − 공제액 (${TAX_WITHHOLD_START_MONTH} 이전 급여월은 원천징수 미적용)`}
     </div>
   `;
 
