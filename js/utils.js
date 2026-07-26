@@ -129,8 +129,31 @@ function taxWithholdLabel(month) {
   return (Math.round(pct * 100) / 100) + '%';
 }
 
-/** 전체 공제 표기용 라벨 (예: '10% + 3.3%' 또는 '10%') */
-function deductionRateLabel(month) {
+/**
+ * 세금계산서 발행 사업자 직원 여부 (workers.is_business)
+ *
+ * ★ 사업자로 지정된 직원은 급여에서 기본 공제(10%)와 원천징수(3.3%)를
+ *   모두 적용하지 않고 총급여 전액을 지급한다.
+ *   수취한 세금계산서는 부가세 신고 시 매입세액으로 처리한다.
+ *
+ * 관리자 화면은 adminData.workers, 직원 화면은 currentWorker에서 조회한다.
+ * 컬럼이 없거나 조회 실패 시 false(일반 공제 대상)로 안전하게 처리한다.
+ */
+function isBusinessWorker(workerId) {
+  if (!workerId) return false;
+  if (typeof adminData !== 'undefined' && adminData && Array.isArray(adminData.workers)) {
+    const w = adminData.workers.find(x => x.id === workerId);
+    if (w) return w.is_business === true;
+  }
+  if (typeof currentWorker !== 'undefined' && currentWorker && currentWorker.id === workerId) {
+    return currentWorker.is_business === true;
+  }
+  return false;
+}
+
+/** 전체 공제 표기용 라벨 (예: '10% + 3.3%', '10%', '공제 없음') */
+function deductionRateLabel(month, isBusiness) {
+  if (isBusiness) return '공제 없음';
   return taxWithholdRate(month) > 0
     ? baseDeductLabel() + ' + ' + taxWithholdLabel(month)
     : baseDeductLabel();
@@ -138,18 +161,28 @@ function deductionRateLabel(month) {
 
 /**
  * 2단계 공제 계산
- * @returns {{deduction, netPay, baseDeduction, afterBase, withholding, withholdRate, rate}}
+ * @param {number}  totalPay   총급여
+ * @param {string}  month      급여월 'YYYY-MM'
+ * @param {boolean} isBusiness 세금계산서 발행 사업자 여부 (true면 공제 없음)
+ * @returns {{deduction, netPay, baseDeduction, afterBase, withholding, withholdRate, rate, isBusiness}}
  *   deduction  = 총 공제액 (1차 + 2차)
  *   netPay     = 실지급액
  */
-function calcDeduction(totalPay, month) {
+function calcDeduction(totalPay, month, isBusiness) {
+  // ★ 세금계산서 발행 사업자: 기본 공제·원천징수 모두 미적용 (전액 지급)
+  if (isBusiness) {
+    return {
+      deduction: 0, netPay: totalPay, baseDeduction: 0, afterBase: totalPay,
+      withholding: 0, withholdRate: 0, rate: 0, isBusiness: true,
+    };
+  }
   const baseDeduction = Math.round(totalPay * BASE_DEDUCT_RATE);   // 1차 10%
   const afterBase = totalPay - baseDeduction;
   const withholdRate = taxWithholdRate(month);
   const withholding = Math.round(afterBase * withholdRate);        // 2차 3.3%
   const deduction = baseDeduction + withholding;
   const netPay = totalPay - deduction;
-  return { deduction, netPay, baseDeduction, afterBase, withholding, withholdRate, rate: BASE_DEDUCT_RATE };
+  return { deduction, netPay, baseDeduction, afterBase, withholding, withholdRate, rate: BASE_DEDUCT_RATE, isBusiness: false };
 }
 
 /**
@@ -421,8 +454,8 @@ function escapeHtml(text) {
  * @param {number} params.totalPay - 총급여
  */
 function generatePayImage(params) {
-  const { workerName, month, companies, totalPay } = params;
-  const { deduction, netPay, baseDeduction, withholding } = calcDeduction(totalPay, month);
+  const { workerName, month, companies, totalPay, isBusiness } = params;
+  const { deduction, netPay, baseDeduction, withholding } = calcDeduction(totalPay, month, isBusiness);
   const monthLabel = month.replace('-', '년 ') + '월';
 
   // 캔버스 크기 계산
@@ -525,14 +558,14 @@ function generatePayImage(params) {
   ctx.textAlign = 'left';
   y += 30;
 
-  // 1차 공제 (기본 10%)
+  // 1차 공제 (기본 10%) — 세금계산서 발행 사업자는 공제 없음
   ctx.fillStyle = '#5f6368';
   ctx.font = '13px -apple-system, BlinkMacSystemFont, sans-serif';
-  ctx.fillText(baseDeductLabel() + ' 공제액', padding + 10, y);
+  ctx.fillText(isBusiness ? '세금계산서 발행 (공제 없음)' : baseDeductLabel() + ' 공제액', padding + 10, y);
   ctx.textAlign = 'right';
-  ctx.fillStyle = '#d93025';
+  ctx.fillStyle = isBusiness ? '#5f6368' : '#d93025';
   ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, sans-serif';
-  ctx.fillText('-' + fmt(baseDeduction) + '원', col2X - 10, y);
+  ctx.fillText(isBusiness ? '0원' : '-' + fmt(baseDeduction) + '원', col2X - 10, y);
   ctx.textAlign = 'left';
   y += 30;
 
