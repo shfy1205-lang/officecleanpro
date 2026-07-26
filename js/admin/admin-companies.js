@@ -393,7 +393,7 @@ async function _saveCompanyInner(companyId) {
       p_area_name: payload.area_name || null,
       p_contact_name: payload.contact_name || null,
       p_contact_phone: payload.contact_phone || null,
-      p_start_date: payload.clean_start_date || new Date().toISOString().slice(0, 10),
+      p_start_date: payload.clean_start_date || today(),
       p_monthly_amount: payload.contract_amount || 0,
       p_weekdays: wd.length ? wd : null,
       p_start_time: ($('fRegStart') && $('fRegStart').value) || null,
