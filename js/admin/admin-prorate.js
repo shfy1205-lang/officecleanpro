@@ -78,7 +78,7 @@ function renderProrate() {
   const origDeduction = calcDeduction(totalOriginal, month).deduction;
   const origNet = totalOriginal - origDeduction;
   const diff = netPay - origNet;
-  const rateLabel = taxWithholdLabel(month);
+  const rateLabel = deductionRateLabel(month);
 
   mc.innerHTML = `
     <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
