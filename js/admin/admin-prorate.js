@@ -73,12 +73,13 @@ function renderProrate() {
   }
 
   const adjustedTotal = Math.max(0, totalProrated - prorateExtraDeduct);
-  const deduction = calcDeduction(adjustedTotal, month).deduction;
+  const prorateIsBiz = isBusinessWorker(prorateWorkerId);   // 세금계산서 발행 사업자는 공제 없음
+  const deduction = calcDeduction(adjustedTotal, month, prorateIsBiz).deduction;
   const netPay = adjustedTotal - deduction;
-  const origDeduction = calcDeduction(totalOriginal, month).deduction;
+  const origDeduction = calcDeduction(totalOriginal, month, prorateIsBiz).deduction;
   const origNet = totalOriginal - origDeduction;
   const diff = netPay - origNet;
-  const rateLabel = deductionRateLabel(month);
+  const rateLabel = deductionRateLabel(month, prorateIsBiz);
 
   mc.innerHTML = `
     <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
