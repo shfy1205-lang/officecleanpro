@@ -31,6 +31,7 @@ function calcStaffPayData(month) {
       workerMap[wid] = {
         workerId: wid,
         name: getWorkerName(wid),
+        isBusiness: isBusinessWorker(wid),   // 세금계산서 발행 사업자 → 공제 없음
         totalPay: 0,
         companies: [],
       };
@@ -85,8 +86,9 @@ function calcStaffPayData(month) {
   return { rows, grandTotal, avgPay };
 }
 
-// ★ calcDeduction(totalPay, month)은 utils.js에 공통 함수로 정의됨
+// ★ calcDeduction(totalPay, month, isBusiness)은 utils.js에 공통 함수로 정의됨
 // 모든 화면에서 동일한 2단계 공제(기본 10% → 원천징수 3.3%)를 사용
+// 단, 세금계산서 발행 사업자(workers.is_business)는 공제 없이 전액 지급
 
 /**
  * 해당 직원의 해당 월 확정 여부 조회
@@ -115,9 +117,10 @@ function renderStaffPay() {
   const { rows, grandTotal, avgPay } = calcStaffPayData(month);
   const monthLabel = month.split('-')[1];
   const rateLabel = deductionRateLabel(month);
+  const bizCount = rows.filter(r => r.isBusiness).length;
 
   // 전체 공제 합계 (직원별 공제액의 합 — 표 합계와 정확히 일치)
-  const totalDeduction = rows.reduce((s, r) => s + calcDeduction(r.totalPay, month).deduction, 0);
+  const totalDeduction = rows.reduce((s, r) => s + calcDeduction(r.totalPay, month, r.isBusiness).deduction, 0);
   const totalNetPay = grandTotal - totalDeduction;
 
   // 확정 현황
@@ -187,7 +190,7 @@ function renderStaffPay() {
                 <th>직원명</th>
                 <th>담당업체수</th>
                 <th>총급여</th>
-                <th>공제액<br><span style="font-weight:400;font-size:10px;color:var(--text2)">${rateLabel}</span></th>
+                <th>공제액<br><span style="font-weight:400;font-size:10px;color:var(--text2)">${rateLabel}${bizCount > 0 ? ' · 계산서 발행 제외' : ''}</span></th>
                 <th>실지급액</th>
                 <th>상태</th>
                 <th>상세</th>
@@ -195,13 +198,13 @@ function renderStaffPay() {
             </thead>
             <tbody>
               ${rows.map(r => {
-                const { deduction, netPay } = calcDeduction(r.totalPay, month);
+                const { deduction, netPay } = calcDeduction(r.totalPay, month, r.isBusiness);
                 const confirmed = isPayConfirmed(r.workerId, month);
                 return `<tr class="sp-row">
-                  <td style="font-weight:600;text-align:left;padding-left:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.name)}</td>
+                  <td style="font-weight:600;text-align:left;padding-left:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.name)}${r.isBusiness ? ' <span class="badge" style="font-size:9px;padding:1px 5px;background:#e3f2fd;color:#1565c0;font-weight:600">계산서</span>' : ''}</td>
                   <td>${r.companies.length}개</td>
                   <td class="admin-pay-cell">${fmt(r.totalPay)}원</td>
-                  <td style="color:var(--red)">${fmt(deduction)}원</td>
+                  <td style="color:${r.isBusiness ? 'var(--text2)' : 'var(--red)'}">${r.isBusiness ? '-' : fmt(deduction) + '원'}</td>
                   <td class="admin-pay-cell" style="font-weight:700">${fmt(netPay)}원</td>
                   <td>
                     ${confirmed
@@ -234,14 +237,14 @@ function renderStaffPay() {
       <!-- 모바일 카드 -->
       <div class="sp-cards-mobile">
         ${rows.map(r => {
-          const { deduction, netPay } = calcDeduction(r.totalPay, month);
+          const { deduction, netPay } = calcDeduction(r.totalPay, month, r.isBusiness);
           const confirmed = isPayConfirmed(r.workerId, month);
           return `
             <div class="card pay-card" onclick="openStaffPayDetail('${r.workerId}')" style="cursor:pointer">
               <div class="card-header">
                 <div>
                   <div class="card-title">
-                    ${escapeHtml(r.name)}
+                    ${escapeHtml(r.name)}${r.isBusiness ? ' <span class="badge" style="font-size:9px;padding:1px 5px;background:#e3f2fd;color:#1565c0;font-weight:600">계산서</span>' : ''}
                     ${confirmed
                       ? '<span class="badge badge-done" style="margin-left:6px;font-size:10px">확정</span>'
                       : '<span class="badge badge-warn" style="margin-left:6px;font-size:10px">미확정</span>'
@@ -253,7 +256,7 @@ function renderStaffPay() {
               </div>
               <div class="sp-deduction-info">
                 <span>총급여 ${fmt(r.totalPay)}원</span>
-                <span style="color:var(--red)">공제 ${fmt(deduction)}원</span>
+                <span style="color:${r.isBusiness ? 'var(--text2)' : 'var(--red)'}">${r.isBusiness ? '세금계산서 발행 · 공제 없음' : '공제 ' + fmt(deduction) + '원'}</span>
               </div>
               <div class="pay-bar-wrap">
                 <div class="pay-bar" style="width:${grandTotal > 0 ? (r.totalPay / grandTotal * 100).toFixed(1) : 0}%"></div>
@@ -400,8 +403,8 @@ function openStaffPayDetail(workerId) {
   if (!worker) return;
 
   const monthLabel = month.split('-')[1];
-  const rateLabel = deductionRateLabel(month);
-  const { deduction, netPay, baseDeduction, withholding } = calcDeduction(worker.totalPay, month);
+  const rateLabel = deductionRateLabel(month, worker.isBusiness);
+  const { deduction, netPay, baseDeduction, withholding } = calcDeduction(worker.totalPay, month, worker.isBusiness);
   const confirmed = isPayConfirmed(workerId, month);
 
   const html = `
@@ -432,9 +435,10 @@ function openStaffPayDetail(workerId) {
         <div class="sp-detail-label">총급여</div>
         <div class="sp-detail-value">${fmt(worker.totalPay)}원</div>
       </div>
-      <div class="sp-detail-card sp-detail-red">
-        <div class="sp-detail-label">${rateLabel} 공제</div>
-        <div class="sp-detail-value">-${fmt(deduction)}원</div>
+      <div class="sp-detail-card${worker.isBusiness ? '' : ' sp-detail-red'}">
+        <div class="sp-detail-label">${worker.isBusiness ? '공제' : rateLabel + ' 공제'}</div>
+        <div class="sp-detail-value">${worker.isBusiness ? '0원' : '-' + fmt(deduction) + '원'}</div>
+        ${worker.isBusiness ? `<div style="font-size:11px;color:var(--text2);margin-top:3px;line-height:1.4">세금계산서 발행 사업자<br>공제 없이 전액 지급</div>` : ''}
         ${withholding > 0 ? `<div style="font-size:11px;color:var(--text2);margin-top:3px;line-height:1.4">기본 ${baseDeductLabel()} -${fmt(baseDeduction)}원<br>원천징수 ${taxWithholdLabel(month)} -${fmt(withholding)}원</div>` : ''}
       </div>
       <div class="sp-detail-card sp-detail-green">
@@ -510,7 +514,10 @@ function openStaffPayDetail(workerId) {
     <div style="margin-top:12px;font-size:11px;color:var(--text2);line-height:1.6">
       <strong>계산 방식:</strong> 계약금액 - 오피스수수료 - 에코수수료 = 작업자풀 → 작업자풀 × 배분율(%) = 급여<br>
       배분율 미설정 시 수동 입력 금액(pay_amount)을 사용합니다.<br>
-      <strong>공제 방식:</strong> ${withholding > 0
+      <strong>공제 방식:</strong> ${worker.isBusiness
+        ? `세금계산서 발행 사업자로 등록된 직원입니다. 기본 공제(${baseDeductLabel()})와 원천징수(${Math.round(TAX_WITHHOLD_RATE * 10000) / 100}%)를 적용하지 않고 총급여 전액을 지급하며,<br>
+      수취한 세금계산서는 부가세 신고 시 매입세액으로 처리합니다.`
+        : withholding > 0
         ? `(2단계) ① 총급여 × ${baseDeductLabel()} = 기본 공제 → ② (총급여 − 기본 공제) × ${taxWithholdLabel(month)} = 원천징수<br>
       실지급액 = 총급여 − (기본 공제 + 원천징수)`
         : `총급여 × ${baseDeductLabel()} = 공제액, 실지급액 = 총급여 − 공제액 (${TAX_WITHHOLD_START_MONTH} 이전 급여월은 원천징수 미적용)`}
@@ -698,7 +705,7 @@ function downloadPayslipExcel(workerId) {
     return toast('급여가 확정된 후에만 명세서를 다운로드할 수 있습니다', 'error');
   }
 
-  const { deduction, netPay, baseDeduction, withholding } = calcDeduction(worker.totalPay, month);
+  const { deduction, netPay, baseDeduction, withholding } = calcDeduction(worker.totalPay, month, worker.isBusiness);
 
   // 시트1: 급여 요약
   const summaryHeaders = ['항목', '금액'];
@@ -707,8 +714,12 @@ function downloadPayslipExcel(workerId) {
     ['대상 월', month],
     ['담당 업체 수', worker.companies.length + '개'],
     ['총급여', worker.totalPay],
-    [baseDeductLabel() + ' 기본 공제액', baseDeduction],
-    ['원천징수 ' + taxWithholdLabel(month) + ' 공제액', withholding],
+    ...(worker.isBusiness
+      ? [['공제 구분', '세금계산서 발행 사업자 (공제 없음)']]
+      : [
+          [baseDeductLabel() + ' 기본 공제액', baseDeduction],
+          ['원천징수 ' + taxWithholdLabel(month) + ' 공제액', withholding],
+        ]),
     ['총 공제액', deduction],
     ['실지급액', netPay],
   ];
@@ -738,7 +749,7 @@ function downloadPayslipPDF(workerId) {
     return toast('급여가 확정된 후에만 명세서를 다운로드할 수 있습니다', 'error');
   }
 
-  const { deduction, netPay, baseDeduction, withholding } = calcDeduction(worker.totalPay, month);
+  const { deduction, netPay, baseDeduction, withholding } = calcDeduction(worker.totalPay, month, worker.isBusiness);
 
   if (typeof jspdf === 'undefined' && typeof window.jspdf === 'undefined') {
     toast('PDF 라이브러리를 불러오지 못했습니다. 엑셀 다운로드를 이용해주세요.', 'error');
@@ -772,9 +783,13 @@ function downloadPayslipPDF(workerId) {
 
   doc.setFontSize(10);
   doc.text(`Total Pay: ${fmt(worker.totalPay)} KRW`, 25, y); y += 6;
-  doc.text(`Deduction (${baseDeductLabel()}): -${fmt(baseDeduction)} KRW`, 25, y); y += 6;
-  if (withholding > 0) { doc.text(`Withholding (${taxWithholdLabel(month)}): -${fmt(withholding)} KRW`, 25, y); y += 6; }
-  doc.text(`Total Deduction: -${fmt(deduction)} KRW`, 25, y); y += 6;
+  if (worker.isBusiness) {
+    doc.text('Deduction: none (tax invoice issued)', 25, y); y += 6;
+  } else {
+    doc.text(`Deduction (${baseDeductLabel()}): -${fmt(baseDeduction)} KRW`, 25, y); y += 6;
+    if (withholding > 0) { doc.text(`Withholding (${taxWithholdLabel(month)}): -${fmt(withholding)} KRW`, 25, y); y += 6; }
+    doc.text(`Total Deduction: -${fmt(deduction)} KRW`, 25, y); y += 6;
+  }
   doc.text(`Net Pay: ${fmt(netPay)} KRW`, 25, y); y += 10;
 
   // 업체별 내역 테이블
@@ -826,6 +841,7 @@ function downloadPayImage(workerId) {
     month: month,
     companies: worker.companies.map(c => ({ companyName: c.companyName, finalPay: c.finalPay })),
     totalPay: worker.totalPay,
+    isBusiness: worker.isBusiness,
   });
 }
 
@@ -840,7 +856,7 @@ function downloadAllPayslips() {
   }
 
   const sheets = confirmedRows.map(worker => {
-    const { deduction, netPay, baseDeduction, withholding } = calcDeduction(worker.totalPay, month);
+    const { deduction, netPay, baseDeduction, withholding } = calcDeduction(worker.totalPay, month, worker.isBusiness);
 
     const headers = ['항목', '내용'];
     const dataRows = [
@@ -857,8 +873,12 @@ function downloadAllPayslips() {
 
     dataRows.push(['', '']);
     dataRows.push(['총급여', worker.totalPay]);
-    dataRows.push([baseDeductLabel() + ' 기본 공제액', baseDeduction]);
-    if (withholding > 0) dataRows.push(['원천징수 ' + taxWithholdLabel(month) + ' 공제액', withholding]);
+    if (worker.isBusiness) {
+      dataRows.push(['공제 구분', '세금계산서 발행 사업자 (공제 없음)']);
+    } else {
+      dataRows.push([baseDeductLabel() + ' 기본 공제액', baseDeduction]);
+      if (withholding > 0) dataRows.push(['원천징수 ' + taxWithholdLabel(month) + ' 공제액', withholding]);
+    }
     dataRows.push(['총 공제액', deduction]);
     dataRows.push(['실지급액', netPay]);
 
