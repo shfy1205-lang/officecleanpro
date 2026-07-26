@@ -124,7 +124,10 @@ function getCompanyRequests(companyId) {
 
 /** Supabase Storage 공개 URL 생성 */
 function getStorageUrl(path) {
-  const base = localStorage.getItem('supa_url');
+  if (!path) return '';
+  const stored = localStorage.getItem('supa_url');
+  const base = (stored || (typeof DEFAULT_SUPA_URL !== 'undefined' ? DEFAULT_SUPA_URL : '')).replace(/\/+$/, '');
+  if (!base) return '';
   return `${base}/storage/v1/object/public/note-photos/${path}`;
 }
 
