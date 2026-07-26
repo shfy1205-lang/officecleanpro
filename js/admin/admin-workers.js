@@ -128,7 +128,7 @@ function calcWorkersData() {
       var fin = finMap[a.company_id] || {};
       var schedules = getCompanySchedules(a.company_id);
       var note = (adminData.notes || []).find(function(n) { return n.company_id === a.company_id; });
-      var pay = a.pay_amount || 0;
+      var pay = calcAssignmentFinalPay(a, finMap);
       var contract = fin.contract_amount || 0;
       var ocp = fin.ocp_amount || 0;
 
@@ -142,11 +142,11 @@ function calcWorkersData() {
         companyId: a.company_id,
         companyName: co ? co.name : '알 수 없음',
         companyStatus: co ? co.status : '',
-        address: co ? (co.address || '') : '',
+        address: co ? (co.location || '') : '',
         areaName: co ? (co.area_name || '') : '',
-        phone: co ? (co.phone || '') : '',
-        contractType: co ? (co.contract_type || '') : '',
-        cleaningType: co ? (co.cleaning_type || '') : '',
+        phone: co ? (co.contact_phone || '') : '',
+        contractType: co ? (co.subcontract_from === '에코오피스클린' ? '도급' : '직영') : '',
+        cleaningCycle: schedules.some(function(s) { return s.frequency === 'biweekly'; }) ? '격주' : (schedules.length > 0 ? '매주' : ''),
         contractAmount: contract,
         ocpAmount: ocp,
         payAmount: pay,
@@ -520,7 +520,7 @@ function renderWorkerDetail() {
             + '<div class="wk-co-detail-row"><span class="wk-dl">주소</span>' + renderAddressLink(co.address, co.companyId) + '</div>'
             + '<div class="wk-co-detail-row"><span class="wk-dl">연락처</span><span class="wk-dv">' + escapeHtml(co.phone || '-') + '</span></div>'
             + '<div class="wk-co-detail-row"><span class="wk-dl">주차</span><span class="wk-dv">' + escapeHtml(co.parkingInfo || '-') + '</span></div>'
-            + '<div class="wk-co-detail-row"><span class="wk-dl">청소유형</span><span class="wk-dv">' + escapeHtml(co.cleaningType || '-') + '</span></div>'
+            + '<div class="wk-co-detail-row"><span class="wk-dl">청소주기</span><span class="wk-dv">' + escapeHtml(co.cleaningCycle || '-') + '</span></div>'
             + '<div class="wk-co-detail-row"><span class="wk-dl">계약유형</span><span class="wk-dv">' + escapeHtml(co.contractType || '-') + '</span></div>'
             + '</div>'
             + '<div class="wk-co-detail-col">'
