@@ -36,16 +36,32 @@ function isAwaitingBilling(b) {
     && String(b.month || '') <= currentMonth();
 }
 
+/**
+ * 에코 도급 업체 여부.
+ * 도급은 에코가 업체에서 수금해 한 번에 정산해 주므로
+ * 업체별 세금계산서를 발행하지 않는다 → 청구/미수금 집계에서 제외한다.
+ */
+function isSubcontractCompanyId(companyId) {
+  const c = (adminData.companies || []).find(x => x.id === companyId);
+  return !!c && c.subcontract_from === '에코오피스클린';
+}
+
+/** 청구/미수금 집계 대상 = 직영 건만 */
+function isDirectBilling(b) {
+  return !isSubcontractCompanyId(b.company_id);
+}
+
 function renderBilling() {
   const mc = $('mainContent');
 
   // ── 미수금 통계 (뷰 공통) ──
   // 입금 기한(청구월 다음 달 10일)이 지난 건만 미수금으로 집계한다.
-  const unpaidAll = adminData.billings.filter(isOverdueBilling);
+  // 도급(에코 일괄 정산) 건은 제외한다.
+  const unpaidAll = adminData.billings.filter(b => isDirectBilling(b) && isOverdueBilling(b));
   const totalUnpaid = unpaidAll.reduce((s, b) => s + billingUnpaidAmount(b), 0);
 
   // 아직 기한 전인 건 (연체 아님)
-  const awaitingAll = adminData.billings.filter(isAwaitingBilling);
+  const awaitingAll = adminData.billings.filter(b => isDirectBilling(b) && isAwaitingBilling(b));
   const totalAwaiting = awaitingAll.reduce((s, b) => s + billingUnpaidAmount(b), 0);
 
   mc.innerHTML = `
@@ -388,11 +404,107 @@ function renderBillingOverviewCard(r, type) {
    월별 정산 뷰 (기존)
    ═══════════════════════════════════════════════════ */
 
+/**
+ * 에코 도급 일괄 정산 섹션.
+ * 도급 업체는 에코가 업체에서 수금해 한 번에 보내주므로
+ * 업체별 청구가 아니라 ‘에코 → OCP’ 한 건으로 본다.
+ * 에코 수령액 = 도급 계약 합계 − 에코 수수료 합계
+ */
+function renderEcoLumpHTML(month) {
+  const subs = (adminData.companies || []).filter(c => c.subcontract_from === '에코오피스클린');
+  if (!subs.length) return '';
+
+  const subMap = {};
+  subs.forEach(c => { subMap[c.id] = c; });
+
+  const fins = (adminData.financials || []).filter(f => f.month === month && subMap[f.company_id]);
+  if (!fins.length) return '';
+
+  let contract = 0, eco = 0, ocp = 0, worker = 0;
+  fins.forEach(f => {
+    contract += f.contract_amount || 0;
+    eco += f.eco_amount || 0;
+    ocp += f.ocp_amount || 0;
+    worker += f.worker_pay_total || 0;
+  });
+  const receive = contract - eco;
+
+  const rows = fins
+    .slice()
+    .sort((a, b) => (b.contract_amount || 0) - (a.contract_amount || 0))
+    .map(f => `<tr>
+      <td>${escapeHtml((subMap[f.company_id] || {}).name || '-')}</td>
+      <td>${fmt(f.contract_amount || 0)}원</td>
+      <td>${fmt(f.eco_amount || 0)}원</td>
+      <td>${fmt(f.worker_pay_total || 0)}원</td>
+      <td>${fmt(f.ocp_amount || 0)}원</td>
+    </tr>`)
+    .join('');
+
+  return `
+    <div class="section-title" style="margin-top:24px">에코 도급 일괄 정산 (${month})</div>
+    <p class="text-muted" style="margin-bottom:12px">
+      도급 업체는 업체에 세금계산서를 발행하지 않고 에코가 일괄 정산합니다.
+      아래 ‘에코 입금 예정액’이 에코에서 통으로 받는 금액이며, 위 업체별 청구 목록과 미수금에는 포함되지 않습니다.
+    </p>
+
+    <div class="admin-row-2" style="margin-bottom:12px">
+      <div class="stat-card">
+        <div class="stat-label">에코 입금 예정액</div>
+        <div class="stat-value green">${fmt(receive)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">도급 업체 수</div>
+        <div class="stat-value">${fins.length}</div>
+      </div>
+    </div>
+
+    <div class="admin-row-2" style="margin-bottom:12px">
+      <div class="stat-card">
+        <div class="stat-label">도급 계약 합계</div>
+        <div class="stat-value blue">${fmt(contract)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">에코 수수료</div>
+        <div class="stat-value yellow">${fmt(eco)}</div>
+      </div>
+    </div>
+
+    <div class="admin-row-2" style="margin-bottom:16px">
+      <div class="stat-card">
+        <div class="stat-label">직원 지급</div>
+        <div class="stat-value">${fmt(worker)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">OCP 수수료</div>
+        <div class="stat-value green">${fmt(ocp)}</div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>업체</th>
+            <th>계약금액</th>
+            <th>에코 수수료</th>
+            <th>직원 지급</th>
+            <th>OCP 수수료</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
 function renderBillingMonthly(unpaidAll, totalUnpaid) {
   const container = document.getElementById('billingContent');
   if (!container) return;
 
-  let list = adminData.billings.filter(b => b.month === billingMonth);
+  // 도급은 에코가 일괄 정산하므로 업체별 청구 목록에서 제외하고
+  // 아래 ‘에코 도급 일괄 정산’ 섹션에서 따로 보여준다.
+  let list = adminData.billings.filter(b => b.month === billingMonth && isDirectBilling(b));
 
   const monthTotal = list.reduce((s, b) => s + (b.billed_amount || 0), 0);
   const monthPaid = list.reduce((s, b) => s + (b.paid_amount || 0), 0);
@@ -413,11 +525,11 @@ function renderBillingMonthly(unpaidAll, totalUnpaid) {
 
     <div class="admin-row-2" style="margin-bottom:16px">
       <div class="stat-card">
-        <div class="stat-label">${billingMonth.split('-')[1]}월 청구 총액</div>
+        <div class="stat-label">${billingMonth.split('-')[1]}월 직영 청구 총액</div>
         <div class="stat-value blue">${fmt(monthTotal)}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">${billingMonth.split('-')[1]}월 입금 총액</div>
+        <div class="stat-label">${billingMonth.split('-')[1]}월 직영 입금 총액</div>
         <div class="stat-value green">${fmt(monthPaid)}</div>
       </div>
     </div>
@@ -472,9 +584,11 @@ function renderBillingMonthly(unpaidAll, totalUnpaid) {
     ` : `
       <div class="empty-state">
         <div class="empty-icon">💳</div>
-        <p>이 달의 정산 데이터가 없습니다</p>
+        <p>이 달의 직영 정산 데이터가 없습니다</p>
       </div>
     `}
+
+    ${renderEcoLumpHTML(billingMonth)}
   `;
 }
 
@@ -510,7 +624,7 @@ function renderBillingUnpaid(unpaidAll, totalUnpaid, awaitingAll, totalAwaiting)
       </div>
     </div>
 
-    <p class="text-muted" style="margin-bottom:12px">입금 기한(청구월 다음 달 10일)이 지난 미납 건만 미수금으로 표시합니다. 기한 전인 건은 입금 대기로 분리됩니다.</p>
+    <p class="text-muted" style="margin-bottom:12px">입금 기한(청구월 다음 달 10일)이 지난 미납 건만 미수금으로 표시합니다. 기한 전인 건은 입금 대기로 분리됩니다. 도급(에코 일괄 정산) 건은 제외되며 ‘월별 정산’ 탭 하단에서 확인합니다.</p>
 
     ${unpaidAll.length > 0 ? `
       <div class="bu-table-pc">
