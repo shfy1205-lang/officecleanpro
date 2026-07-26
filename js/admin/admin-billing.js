@@ -3,12 +3,50 @@
  * 3개 뷰: 정산 현황(overview) | 월별 정산(all) | 미수금 목록(unpaid)
  */
 
+/**
+ * 청구월의 입금 기한 = 다음 달 10일
+ * 업체 입금 주기가 '청구월 말 ~ 익월 10일'이므로,
+ * 그 전까지는 연체가 아니라 정상 진행 상태다.
+ */
+function billingDueDate(month) {
+  const [y, m] = String(month || '').split('-').map(Number);
+  if (!y || !m) return '9999-12-31';
+  const ny = m === 12 ? y + 1 : y;
+  const nm = m === 12 ? 1 : m + 1;
+  return `${ny}-${String(nm).padStart(2, '0')}-10`;
+}
+
+/** 미납 잔액 */
+function billingUnpaidAmount(b) {
+  return (b.billed_amount || 0) - (b.paid_amount || 0);
+}
+
+/** 입금 기한이 지난 미납 건 = 실제 미수금(연체) */
+function isOverdueBilling(b) {
+  return b.status !== 'paid'
+    && billingUnpaidAmount(b) > 0
+    && billingDueDate(b.month) < today();
+}
+
+/** 아직 입금 기한 전인 미납 건 = 정상 진행 (당월 이하만) */
+function isAwaitingBilling(b) {
+  return b.status !== 'paid'
+    && billingUnpaidAmount(b) > 0
+    && billingDueDate(b.month) >= today()
+    && String(b.month || '') <= currentMonth();
+}
+
 function renderBilling() {
   const mc = $('mainContent');
 
   // ── 미수금 통계 (뷰 공통) ──
-  const unpaidAll = adminData.billings.filter(b => b.status !== 'paid' && (b.month || '') <= (new Date().getFullYear() + '-' + String(new Date().getMonth()+1).padStart(2,'0')));
-  const totalUnpaid = unpaidAll.reduce((s, b) => s + ((b.billed_amount || 0) - (b.paid_amount || 0)), 0);
+  // 입금 기한(청구월 다음 달 10일)이 지난 건만 미수금으로 집계한다.
+  const unpaidAll = adminData.billings.filter(isOverdueBilling);
+  const totalUnpaid = unpaidAll.reduce((s, b) => s + billingUnpaidAmount(b), 0);
+
+  // 아직 기한 전인 건 (연체 아님)
+  const awaitingAll = adminData.billings.filter(isAwaitingBilling);
+  const totalAwaiting = awaitingAll.reduce((s, b) => s + billingUnpaidAmount(b), 0);
 
   mc.innerHTML = `
     <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
@@ -35,7 +73,7 @@ function renderBilling() {
   if (billingView === 'overview') {
     renderBillingOverview();
   } else if (billingView === 'unpaid') {
-    renderBillingUnpaid(unpaidAll, totalUnpaid);
+    renderBillingUnpaid(unpaidAll, totalUnpaid, awaitingAll, totalAwaiting);
   } else {
     renderBillingMonthly(unpaidAll, totalUnpaid);
   }
@@ -362,7 +400,7 @@ function renderBillingMonthly(unpaidAll, totalUnpaid) {
   container.innerHTML = `
     <div class="stats-grid" style="margin-bottom:16px">
       <div class="stat-card">
-        <div class="stat-label">미수금 총액</div>
+        <div class="stat-label">미수금 총액 (기한 경과)</div>
         <div class="stat-value red">${fmt(totalUnpaid)}</div>
       </div>
       <div class="stat-card">
@@ -445,23 +483,34 @@ function renderBillingMonthly(unpaidAll, totalUnpaid) {
    미수금 목록 뷰 (기존)
    ═══════════════════════════════════════════════════ */
 
-function renderBillingUnpaid(unpaidAll, totalUnpaid) {
+function renderBillingUnpaid(unpaidAll, totalUnpaid, awaitingAll, totalAwaiting) {
   const container = document.getElementById('billingContent');
   if (!container) return;
+
+  awaitingAll = awaitingAll || [];
+  totalAwaiting = totalAwaiting || 0;
 
   container.innerHTML = `
     <div class="stats-grid" style="margin-bottom:16px">
       <div class="stat-card">
-        <div class="stat-label">미수금 총액</div>
+        <div class="stat-label">미수금 총액 (기한 경과)</div>
         <div class="stat-value red">${fmt(totalUnpaid)}</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">미수건수</div>
         <div class="stat-value yellow">${unpaidAll.length}</div>
       </div>
+      <div class="stat-card">
+        <div class="stat-label">입금 대기 (기한 전)</div>
+        <div class="stat-value">${fmt(totalAwaiting)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">입금 대기 건수</div>
+        <div class="stat-value">${awaitingAll.length}</div>
+      </div>
     </div>
 
-    <p class="text-muted" style="margin-bottom:12px">입금 완료되지 않은 모든 정산 건을 표시합니다.</p>
+    <p class="text-muted" style="margin-bottom:12px">입금 기한(청구월 다음 달 10일)이 지난 미납 건만 미수금으로 표시합니다. 기한 전인 건은 입금 대기로 분리됩니다.</p>
 
     ${unpaidAll.length > 0 ? `
       <div class="bu-table-pc">
@@ -511,7 +560,7 @@ function renderBillingUnpaid(unpaidAll, totalUnpaid) {
     ` : `
       <div class="empty-state">
         <div class="empty-icon">💳</div>
-        <p>미수금이 없습니다</p>
+        <p>기한이 지난 미수금이 없습니다</p>
       </div>
     `}
   `;
