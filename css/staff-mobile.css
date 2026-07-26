@@ -168,7 +168,10 @@
 
 /* --- 콘텐츠 영역 --- */
 .content {
-  padding-bottom: 72px;
+  /* design-2026.css 의 .content{padding:...!important} 뒤에 오면서
+     하단 네비게이션 가림 방지를 위해 !important 유지 */
+  max-width: none !important;
+  padding: 14px 14px 72px !important;
   min-height: calc(100vh - 52px);
   background: #f8fafc;
 }
