@@ -95,37 +95,61 @@ function closeModal() {
 }
 
 /**
- * 원천징수 공제 계산 (공통)
+ * 급여 공제 계산 (공통)
  * 모든 화면에서 동일한 공제 계산을 사용하도록 통일
  *
- * ★ 요율은 급여월 기준으로 적용된다.
+ * ★ 공제는 2단계로 적용된다.
+ *   1차: 총급여 × 10%                        (기본 공제)
+ *   2차: (총급여 - 1차공제) × 3.3%           (사업소득 원천징수)
+ *   실지급액 = 총급여 - (1차 + 2차)
+ *
+ * ★ 2차 원천징수는 급여월 기준으로 적용된다.
  *   과거 급여월의 명세서가 소급 변경되지 않도록,
- *   변경월(TAX_WITHHOLD_RATE_CHANGE_MONTH) 이전은 예전 요율을 그대로 쓴다.
+ *   시작월(TAX_WITHHOLD_START_MONTH) 이전 급여는 1차 공제만 적용한다.
  */
-// ★ 원천징수 요율 단일 소스 — 요율 변경은 이 블록만 수정
-var TAX_WITHHOLD_RATE = 0.033;               // 현행: 사업소득 원천징수 3.3%
-var TAX_WITHHOLD_RATE_LEGACY = 0.10;         // 변경월 이전 급여에 적용 (소급 방지)
-var TAX_WITHHOLD_RATE_CHANGE_MONTH = '2026-07';
+// ★ 공제 요율 단일 소스 — 요율 변경은 이 블록만 수정
+var BASE_DEDUCT_RATE = 0.10;                 // 1차: 기본 공제 10%
+var TAX_WITHHOLD_RATE = 0.033;               // 2차: 사업소득 원천징수 3.3%
+var TAX_WITHHOLD_START_MONTH = '2026-07';    // 2차 공제 시작 급여월
 
-/** 해당 급여월(YYYY-MM)에 적용할 원천징수 요율 */
+/** 해당 급여월(YYYY-MM)에 적용할 2차 원천징수 요율 (시작월 이전은 0) */
 function taxWithholdRate(month) {
   if (!month) return TAX_WITHHOLD_RATE;
-  return String(month) < TAX_WITHHOLD_RATE_CHANGE_MONTH
-    ? TAX_WITHHOLD_RATE_LEGACY
-    : TAX_WITHHOLD_RATE;
+  return String(month) < TAX_WITHHOLD_START_MONTH ? 0 : TAX_WITHHOLD_RATE;
 }
 
-/** 화면/명세서 표기용 요율 문자열 (예: '3.3%', '10%') */
+/** 1차 기본 공제 표기용 요율 문자열 (예: '10%') */
+function baseDeductLabel() {
+  return (Math.round(BASE_DEDUCT_RATE * 10000) / 100) + '%';
+}
+
+/** 2차 원천징수 표기용 요율 문자열 (예: '3.3%') */
 function taxWithholdLabel(month) {
   const pct = taxWithholdRate(month) * 100;
   return (Math.round(pct * 100) / 100) + '%';
 }
 
+/** 전체 공제 표기용 라벨 (예: '10% + 3.3%' 또는 '10%') */
+function deductionRateLabel(month) {
+  return taxWithholdRate(month) > 0
+    ? baseDeductLabel() + ' + ' + taxWithholdLabel(month)
+    : baseDeductLabel();
+}
+
+/**
+ * 2단계 공제 계산
+ * @returns {{deduction, netPay, baseDeduction, afterBase, withholding, withholdRate, rate}}
+ *   deduction  = 총 공제액 (1차 + 2차)
+ *   netPay     = 실지급액
+ */
 function calcDeduction(totalPay, month) {
-  const rate = taxWithholdRate(month);
-  const deduction = Math.round(totalPay * rate);
+  const baseDeduction = Math.round(totalPay * BASE_DEDUCT_RATE);   // 1차 10%
+  const afterBase = totalPay - baseDeduction;
+  const withholdRate = taxWithholdRate(month);
+  const withholding = Math.round(afterBase * withholdRate);        // 2차 3.3%
+  const deduction = baseDeduction + withholding;
   const netPay = totalPay - deduction;
-  return { deduction, netPay, rate };
+  return { deduction, netPay, baseDeduction, afterBase, withholding, withholdRate, rate: BASE_DEDUCT_RATE };
 }
 
 /**
@@ -398,14 +422,14 @@ function escapeHtml(text) {
  */
 function generatePayImage(params) {
   const { workerName, month, companies, totalPay } = params;
-  const { deduction, netPay } = calcDeduction(totalPay, month);
+  const { deduction, netPay, baseDeduction, withholding } = calcDeduction(totalPay, month);
   const monthLabel = month.replace('-', '년 ') + '월';
 
   // 캔버스 크기 계산
   const padding = 40;
   const headerH = 100;
   const rowH = 44;
-  const summaryH = 140;
+  const summaryH = 140 + (withholding > 0 ? 30 : 0);
   const footerH = 30;
   const width = 600;
   const height = headerH + (companies.length * rowH) + summaryH + footerH + padding * 2;
@@ -501,16 +525,29 @@ function generatePayImage(params) {
   ctx.textAlign = 'left';
   y += 30;
 
-  // 원천징수 공제
+  // 1차 공제 (기본 10%)
   ctx.fillStyle = '#5f6368';
   ctx.font = '13px -apple-system, BlinkMacSystemFont, sans-serif';
-  ctx.fillText(taxWithholdLabel(month) + ' 공제액', padding + 10, y);
+  ctx.fillText(baseDeductLabel() + ' 공제액', padding + 10, y);
   ctx.textAlign = 'right';
   ctx.fillStyle = '#d93025';
   ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, sans-serif';
-  ctx.fillText('-' + fmt(deduction) + '원', col2X - 10, y);
+  ctx.fillText('-' + fmt(baseDeduction) + '원', col2X - 10, y);
   ctx.textAlign = 'left';
   y += 30;
+
+  // 2차 공제 (원천징수) — 시행월부터
+  if (withholding > 0) {
+    ctx.fillStyle = '#5f6368';
+    ctx.font = '13px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillText('원천징수 ' + taxWithholdLabel(month) + ' 공제액', padding + 10, y);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#d93025';
+    ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillText('-' + fmt(withholding) + '원', col2X - 10, y);
+    ctx.textAlign = 'left';
+    y += 30;
+  }
 
   // 실지급액 (강조)
   ctx.fillStyle = '#1a73e8';
