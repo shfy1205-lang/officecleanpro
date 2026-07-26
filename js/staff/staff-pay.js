@@ -36,9 +36,10 @@ function renderMyPay() {
 
   const totalPay = payList.reduce((sum, a) => sum + a.finalPay, 0);
   const companyCount = payList.length;
-  const { deduction, netPay, baseDeduction, withholding } = calcDeduction(totalPay, selectedMonth);
+  const isBusiness = !!(currentWorker && currentWorker.is_business === true);
+  const { deduction, netPay, baseDeduction, withholding } = calcDeduction(totalPay, selectedMonth, isBusiness);
   const monthLabel = selectedMonth.split('-')[1];
-  const rateLabel = deductionRateLabel(selectedMonth);
+  const rateLabel = deductionRateLabel(selectedMonth, isBusiness);
   const confirmed = isMyPayConfirmed(selectedMonth);
 
   let html = `
@@ -76,10 +77,15 @@ function renderMyPay() {
         <span class="sp-pay-breakdown-label">총급여</span>
         <span class="sp-pay-breakdown-value">${fmt(totalPay)}원</span>
       </div>
+      ${isBusiness ? `
+      <div class="sp-pay-breakdown-item">
+        <span class="sp-pay-breakdown-label">공제 (세금계산서 발행)</span>
+        <span class="sp-pay-breakdown-value">0원</span>
+      </div>` : `
       <div class="sp-pay-breakdown-item sp-pay-minus">
         <span class="sp-pay-breakdown-label">${baseDeductLabel()} 기본 공제액</span>
         <span class="sp-pay-breakdown-value">-${fmt(baseDeduction)}원</span>
-      </div>
+      </div>`}
       ${withholding > 0 ? `
       <div class="sp-pay-breakdown-item sp-pay-minus">
         <span class="sp-pay-breakdown-label">원천징수 ${taxWithholdLabel(selectedMonth)} 공제액</span>
@@ -163,6 +169,7 @@ function downloadMyPayImage() {
     month: month,
     companies: companies,
     totalPay: totalPay,
+    isBusiness: !!(currentWorker && currentWorker.is_business === true),
   });
 }
 
@@ -179,7 +186,8 @@ function downloadMyPayslipExcel() {
 
   const payList = calcMyPayList(month);
   const totalPay = payList.reduce((sum, a) => sum + a.finalPay, 0);
-  const { deduction, netPay, baseDeduction, withholding } = calcDeduction(totalPay, month);
+  const isBusiness = !!(currentWorker && currentWorker.is_business === true);
+  const { deduction, netPay, baseDeduction, withholding } = calcDeduction(totalPay, month, isBusiness);
 
   if (typeof XLSX === 'undefined') {
     toast('엑셀 라이브러리를 불러오지 못했습니다', 'error');
@@ -193,8 +201,12 @@ function downloadMyPayslipExcel() {
     ['대상 월', month],
     ['담당 업체 수', payList.length + '개'],
     ['총급여', totalPay],
-    [baseDeductLabel() + ' 기본 공제액', baseDeduction],
-    ['원천징수 ' + taxWithholdLabel(month) + ' 공제액', withholding],
+    ...(isBusiness
+      ? [['공제 구분', '세금계산서 발행 사업자 (공제 없음)']]
+      : [
+          [baseDeductLabel() + ' 기본 공제액', baseDeduction],
+          ['원천징수 ' + taxWithholdLabel(month) + ' 공제액', withholding],
+        ]),
     ['총 공제액', deduction],
     ['실지급액', netPay],
   ];
@@ -236,7 +248,8 @@ function downloadMyPayslipPDF() {
 
   const payList = calcMyPayList(month);
   const totalPay = payList.reduce((sum, a) => sum + a.finalPay, 0);
-  const { deduction, netPay, baseDeduction, withholding } = calcDeduction(totalPay, month);
+  const isBusiness = !!(currentWorker && currentWorker.is_business === true);
+  const { deduction, netPay, baseDeduction, withholding } = calcDeduction(totalPay, month, isBusiness);
 
   if (typeof jspdf === 'undefined' && typeof window.jspdf === 'undefined') {
     toast('PDF 라이브러리를 불러오지 못했습니다. 엑셀 다운로드를 이용해주세요.', 'error');
@@ -266,9 +279,13 @@ function downloadMyPayslipPDF() {
 
   doc.setFontSize(10);
   doc.text(`Total Pay: ${fmt(totalPay)} KRW`, 25, y); y += 6;
-  doc.text(`Deduction (${baseDeductLabel()}): -${fmt(baseDeduction)} KRW`, 25, y); y += 6;
-  if (withholding > 0) { doc.text(`Withholding (${taxWithholdLabel(month)}): -${fmt(withholding)} KRW`, 25, y); y += 6; }
-  doc.text(`Total Deduction: -${fmt(deduction)} KRW`, 25, y); y += 6;
+  if (isBusiness) {
+    doc.text('Deduction: none (tax invoice issued)', 25, y); y += 6;
+  } else {
+    doc.text(`Deduction (${baseDeductLabel()}): -${fmt(baseDeduction)} KRW`, 25, y); y += 6;
+    if (withholding > 0) { doc.text(`Withholding (${taxWithholdLabel(month)}): -${fmt(withholding)} KRW`, 25, y); y += 6; }
+    doc.text(`Total Deduction: -${fmt(deduction)} KRW`, 25, y); y += 6;
+  }
   doc.text(`Net Pay: ${fmt(netPay)} KRW`, 25, y); y += 10;
 
   // 업체별 내역 테이블
