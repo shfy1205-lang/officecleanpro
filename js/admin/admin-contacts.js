@@ -100,6 +100,17 @@ function copyBizNo(el, text) {
   }
 }
 
+function amtCell(b) {
+  if (!b) return '-';
+  const v = b.billed_amount || 0;
+  if (v > 0) return fmt(v) + '원';
+  const checked = !!(b.billed_at || b.paid_at || b.status === 'billed' || b.status === 'paid');
+  const tip = checked
+    ? '발행/입금 체크는 되어 있으나 청구금액이 0원입니다 — 정산 집계에서 누락됩니다'
+    : '청구금액이 0원입니다 — 계약금액을 확인하세요';
+  return '<span style="color:var(--red, #ef4444);font-weight:600;cursor:help" title="' + tip + '">0원 &#9888;</span>';
+}
+
 function renderBillingCheckList(filtered) {
   const directCompanies = filtered.filter(c => c.subcontract_from !== '에코오피스클린');
   const subCompanies = filtered.filter(c => c.subcontract_from === '에코오피스클린');
@@ -218,7 +229,7 @@ function renderBillingCheckList(filtered) {
                 <td><span class="badge badge-done" style="font-size:9px">직영</span></td>
                 <td>${escapeHtml(c.area_name || '-')}</td>
                 <td>${escapeHtml(c.contact_name || '-')}</td>
-                <td>${b ? fmt(b.billed_amount) + '원' : '-'}</td>
+                <td>${amtCell(b)}</td>
                 <td>
                   <label class="billing-check">
                     <input type="checkbox" ${hasInvoice ? 'checked' : ''} ${!b ? 'disabled' : ''}
@@ -286,7 +297,7 @@ function renderBillingCheckList(filtered) {
               ${statusBadge}
             </div>
             ${b ? `
-              <div class="billing-card-amount">${fmt(b.billed_amount)}원</div>
+              <div class="billing-card-amount">${amtCell(b)}</div>
               <div class="billing-card-checks">
                 <label class="billing-check-card">
                   <input type="checkbox" ${hasInvoice ? 'checked' : ''}
