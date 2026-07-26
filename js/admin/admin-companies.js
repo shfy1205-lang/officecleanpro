@@ -334,6 +334,32 @@ async function saveCompany(companyId) {
   }
 }
 
+// ══ 종료 처리 시 미래 청구건 정리 안내 ══
+// 업체를 '종료'로 저장할 때, 종료월 이후에 이미 생성돼 남아 있는 청구건이 있으면 알려준다.
+// (청구건은 월초에 미리 생성되므로, 월중에 종료하면 익월 청구건이 그대로 남아 매출이 과다 계상됨)
+async function warnFutureBillings(companyId, name) {
+  try {
+    const endStr = ($('fTerminatedAt') && $('fTerminatedAt').value) || today();
+    const endMonth = String(endStr).slice(0, 7);
+    const { data, error } = await sb.from('billing_records')
+      .select('month,billed_amount,status')
+      .eq('company_id', companyId)
+      .gt('month', endMonth)
+      .order('month');
+    if (error || !data) return;
+    const left = data.filter(b => b.status !== 'paid');
+    if (!left.length) return;
+    const sum = left.reduce((s, b) => s + (b.billed_amount || 0), 0);
+    const months = left.map(b => b.month).join(', ');
+    setTimeout(() => {
+      toast(name + ': 종료월(' + endMonth + ') 이후 청구건 ' + left.length + '건(' + months + ') '
+        + sum.toLocaleString() + '원이 남아 있습니다. 정산 목록에서 정리하세요.', 'error');
+    }, 1500);
+  } catch (e) {
+    console.error('warnFutureBillings', e);
+  }
+}
+
 async function _saveCompanyInner(companyId) {
   try {
   const name = $('fName').value.trim();
@@ -395,6 +421,8 @@ async function _saveCompanyInner(companyId) {
   closeModal();
   await loadAdminData();
   renderAllClients();
+
+  if (status === 'terminated' && companyId) warnFutureBillings(companyId, name);
 
   } catch (e) {
     console.error('_saveCompanyInner error:', e);
