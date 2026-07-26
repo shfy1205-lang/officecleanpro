@@ -1,6 +1,6 @@
 /**
  * staff-pay.js - 내 급여 탭
- * 총급여, 10% 공제액, 실지급액 표시
+ * 총급여, 원천징수 공제액, 실지급액 표시
  * 업체별 지급금액 목록
  * 급여 확정 상태 표시
  * 급여명세서 다운로드 (엑셀/PDF)
@@ -36,8 +36,9 @@ function renderMyPay() {
 
   const totalPay = payList.reduce((sum, a) => sum + a.finalPay, 0);
   const companyCount = payList.length;
-  const { deduction, netPay } = calcDeduction(totalPay);
+  const { deduction, netPay } = calcDeduction(totalPay, selectedMonth);
   const monthLabel = selectedMonth.split('-')[1];
+  const rateLabel = taxWithholdLabel(selectedMonth);
   const confirmed = isMyPayConfirmed(selectedMonth);
 
   let html = `
@@ -76,7 +77,7 @@ function renderMyPay() {
         <span class="sp-pay-breakdown-value">${fmt(totalPay)}원</span>
       </div>
       <div class="sp-pay-breakdown-item sp-pay-minus">
-        <span class="sp-pay-breakdown-label">10% 공제액</span>
+        <span class="sp-pay-breakdown-label">${rateLabel} 공제액</span>
         <span class="sp-pay-breakdown-value">-${fmt(deduction)}원</span>
       </div>
       <div class="sp-pay-breakdown-item sp-pay-result">
@@ -169,7 +170,7 @@ function downloadMyPayslipExcel() {
 
   const payList = calcMyPayList(month);
   const totalPay = payList.reduce((sum, a) => sum + a.finalPay, 0);
-  const { deduction, netPay } = calcDeduction(totalPay);
+  const { deduction, netPay } = calcDeduction(totalPay, month);
 
   if (typeof XLSX === 'undefined') {
     toast('엑셀 라이브러리를 불러오지 못했습니다', 'error');
@@ -183,7 +184,7 @@ function downloadMyPayslipExcel() {
     ['대상 월', month],
     ['담당 업체 수', payList.length + '개'],
     ['총급여', totalPay],
-    ['10% 공제액', deduction],
+    [taxWithholdLabel(month) + ' 공제액', deduction],
     ['실지급액', netPay],
   ];
 
@@ -224,7 +225,7 @@ function downloadMyPayslipPDF() {
 
   const payList = calcMyPayList(month);
   const totalPay = payList.reduce((sum, a) => sum + a.finalPay, 0);
-  const { deduction, netPay } = calcDeduction(totalPay);
+  const { deduction, netPay } = calcDeduction(totalPay, month);
 
   if (typeof jspdf === 'undefined' && typeof window.jspdf === 'undefined') {
     toast('PDF 라이브러리를 불러오지 못했습니다. 엑셀 다운로드를 이용해주세요.', 'error');
@@ -254,7 +255,7 @@ function downloadMyPayslipPDF() {
 
   doc.setFontSize(10);
   doc.text(`Total Pay: ${fmt(totalPay)} KRW`, 25, y); y += 6;
-  doc.text(`Tax (10%): -${fmt(deduction)} KRW`, 25, y); y += 6;
+  doc.text(`Tax (${taxWithholdLabel(month)}): -${fmt(deduction)} KRW`, 25, y); y += 6;
   doc.text(`Net Pay: ${fmt(netPay)} KRW`, 25, y); y += 10;
 
   // 업체별 내역 테이블
