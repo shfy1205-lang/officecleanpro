@@ -423,9 +423,9 @@ function renderBillingMonthly(unpaidAll, totalUnpaid) {
               <span class="badge ${bst.badge}">${bst.label}</span>
             </div>
             <div class="bo-card-body">
-              <div class="bo-card-row"><span>ì²­êµ¬ì¡</span><span>${fmt(b.billed_amount)}ì</span></div>
-              <div class="bo-card-row"><span>ìê¸ì¡</span><span style="color:var(--green)">${fmt(b.paid_amount)}ì</span></div>
-              <div class="bo-card-row"><span>ë¯¸ìê¸</span><span style="color:${unpaid > 0 ? 'var(--red)' : 'var(--text2)'};font-weight:${unpaid > 0 ? '600' : '400'}">${unpaid > 0 ? fmt(unpaid) + 'ì' : '-'}</span></div>
+              <div class="bo-card-row"><span>청구액</span><span>${fmt(b.billed_amount)}원</span></div>
+              <div class="bo-card-row"><span>입금액</span><span style="color:var(--green)">${fmt(b.paid_amount)}원</span></div>
+              <div class="bo-card-row"><span>미수금</span><span style="color:${unpaid > 0 ? 'var(--red)' : 'var(--text2)'};font-weight:${unpaid > 0 ? '600' : '400'}">${unpaid > 0 ? fmt(unpaid) + '원' : '-'}</span></div>
             </div>
           </div>`;
         }).join('')}
@@ -500,9 +500,9 @@ function renderBillingUnpaid(unpaidAll, totalUnpaid) {
               <span class="badge badge-area">${b.month}</span>
             </div>
             <div class="bo-card-body">
-              <div class="bo-card-row"><span>ì²­êµ¬ì¡</span><span>${fmt(b.billed_amount)}ì</span></div>
-              <div class="bo-card-row"><span>ìê¸ì¡</span><span style="color:var(--green)">${fmt(b.paid_amount)}ì</span></div>
-              <div class="bo-card-row"><span>ë¯¸ìê¸</span><span style="color:var(--red);font-weight:600">${unpaid > 0 ? fmt(unpaid) + 'ì' : '-'}</span></div>
+              <div class="bo-card-row"><span>청구액</span><span>${fmt(b.billed_amount)}원</span></div>
+              <div class="bo-card-row"><span>입금액</span><span style="color:var(--green)">${fmt(b.paid_amount)}원</span></div>
+              <div class="bo-card-row"><span>미수금</span><span style="color:var(--red);font-weight:600">${unpaid > 0 ? fmt(unpaid) + '원' : '-'}</span></div>
             </div>
           </div>`;
         }).join('')}
