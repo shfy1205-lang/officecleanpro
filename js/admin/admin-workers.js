@@ -167,6 +167,7 @@ function calcWorkersData() {
       name: w.name || '',
       phone: w.phone || '',
       status: w.status || 'active',
+      isBusiness: w.is_business === true,
       areas: [...areas],
       companyCount: companies.length,
       totalPay: totalPay,
@@ -312,7 +313,8 @@ function renderAllView(allRows) {
           + '<div class="wk-card-top">'
           + '<div class="wk-avatar">' + escapeHtml(r.name.charAt(0)) + '</div>'
           + '<div class="wk-card-info">'
-          + '<div class="wk-card-name">' + escapeHtml(r.name) + ' ' + statusBadge + '</div>'
+          + '<div class="wk-card-name">' + escapeHtml(r.name) + ' ' + statusBadge
+          + (r.isBusiness ? ' <span class="wk-badge" style="background:#e3f2fd;color:#1565c0">계산서</span>' : '') + '</div>'
           + '<div class="wk-card-meta">📍 ' + areaText + '</div>'
           + '</div></div>'
           + '<div class="wk-card-stats">'
@@ -457,7 +459,8 @@ function renderWorkerDetail() {
     + '<div class="wk-profile-top">'
     + '<div class="wk-avatar lg">' + escapeHtml(row.name.charAt(0)) + '</div>'
     + '<div class="wk-profile-info">'
-    + '<div class="wk-profile-name">' + escapeHtml(row.name) + ' ' + statusBadge + '</div>'
+    + '<div class="wk-profile-name">' + escapeHtml(row.name) + ' ' + statusBadge
+    + (row.isBusiness ? ' <span class="wk-badge" style="background:#e3f2fd;color:#1565c0">세금계산서 발행</span>' : '') + '</div>'
     + '<div class="wk-profile-meta">'
     + (row.areas.length > 0 ? '📍 ' + escapeHtml(row.areas.join(', ')) : '')
     + (worker && worker.phone ? ' &nbsp;📞 ' + escapeHtml(worker.phone) : '')
@@ -465,6 +468,9 @@ function renderWorkerDetail() {
     + '</div>'
     + '<div class="wk-profile-actions">'
     + '<button class="wk-btn" onclick="switchTab(\'staffPay\')">💰 급여 상세</button>'
+    + '<button class="wk-btn" onclick="toggleWorkerBusiness(\'' + row.id + '\')">'
+    + (row.isBusiness ? '🧾 계산서 발행 해제' : '🧾 계산서 발행으로 지정')
+    + '</button>'
     + '</div>'
     + '</div>'
     + '<div class="wk-detail-stats">'
@@ -573,6 +579,40 @@ function renderWorkerDetail() {
 }
 
 // ─── 인터랙션 핸들러 ───
+
+/**
+ * 세금계산서 발행 사업자 지정 토글 (workers.is_business)
+ *
+ * 지정된 직원은 급여에서 기본 공제(10%)와 원천징수(3.3%)를 적용하지 않고
+ * 총급여 전액을 지급한다. 수취한 세금계산서는 부가세 신고 시 매입세액으로 처리한다.
+ */
+async function toggleWorkerBusiness(workerId) {
+  var worker = (adminData.workers || []).find(function(w) { return w.id === workerId; });
+  if (!worker) return toast('직원 정보를 찾을 수 없습니다', 'error');
+
+  var next = !(worker.is_business === true);
+  var msg = worker.name + ' 직원을 '
+    + (next ? '세금계산서 발행 사업자로 지정' : '일반 공제 대상으로 변경') + '하시겠습니까?\n\n'
+    + (next
+        ? '→ 앞으로 급여에서 기본 공제(10%)와 원천징수(3.3%)를 떼지 않고 전액 지급합니다.'
+        : '→ 앞으로 급여에서 기본 공제(10%)와 원천징수(3.3%)를 다시 공제합니다.');
+  if (!confirm(msg)) return;
+
+  var res = await sb.from('workers').update({ is_business: next }).eq('id', workerId).select();
+  if (res.error) {
+    console.error('is_business 저장 실패:', res.error);
+    return toast('저장에 실패했습니다: ' + res.error.message, 'error');
+  }
+
+  worker.is_business = next;
+
+  await logChange('workers', workerId, 'update',
+    [{ field: 'is_business', oldVal: !next, newVal: next }],
+    next ? '세금계산서 발행 사업자 지정 (급여 공제 제외)' : '세금계산서 발행 사업자 해제 (급여 공제 적용)');
+
+  toast(worker.name + ' — ' + (next ? '세금계산서 발행 사업자로 지정했습니다' : '일반 공제 대상으로 변경했습니다'), 'success');
+  renderWorkerDetail();
+}
 
 function switchWorkersMode(mode) {
   _workersListMode = mode;
