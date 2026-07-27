@@ -511,7 +511,8 @@ async function openCompanyDetail(companyId) {
 
   // 수수료 계산
   const fin = adminData.financials.find(f => f.company_id === companyId && f.month === selectedMonth);
-  const contractAmt = c.contract_amount || 0;
+  // 월별 계약금액: 해당 월 재무행에 값이 있으면 그 값, 없으면 업체 기본 계약금액
+  const contractAmt = (fin && fin.contract_amount != null) ? fin.contract_amount : (c.contract_amount || 0);
   const ocpAmt = fin?.ocp_amount || 0;
   const ecoAmt = fin?.eco_amount || 0;
   const finMap = buildFinMap(adminData.financials, selectedMonth);
@@ -535,8 +536,10 @@ async function openCompanyDetail(companyId) {
       <div class="detail-section-title" style="display:flex;justify-content:space-between;align-items:center"><span>💰 ${selectedMonth.split('-')[1]}월 수수료 현황</span><div>${monthSelectorHTML(selectedMonth, 'changeCompanyDetailMonth')}</div></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px">
-          <div style="font-size:11px;color:var(--text2);margin-bottom:4px">계약금액</div>
-          <div style="font-size:15px;font-weight:700;color:var(--primary);padding:5px 8px;text-align:right">${fmt(contractAmt)}원</div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:4px">계약금액 <span style="font-size:10px;color:var(--text3)">(이 달만 적용)</span></div>
+          <input type="text" id="feeContract_${companyId}" value="${contractAmt.toLocaleString()}" oninput="fmtInput(this)"
+                 style="width:100%;font-size:15px;font-weight:700;color:var(--primary);background:transparent;border:1px solid var(--border);border-radius:6px;padding:4px 8px;text-align:right">
+          ${(c.contract_amount || 0) !== contractAmt ? `<div style="font-size:10px;color:var(--text3);margin-top:3px;text-align:right">기본 ${fmt(c.contract_amount || 0)}원</div>` : ''}
         </div>
         <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px">
           <div style="font-size:11px;color:var(--text2);margin-bottom:4px">직원 지급 합계</div>
@@ -1151,7 +1154,11 @@ function getCompanyTotalCost(companyId, month) {
 
 async function saveFeeInfo(companyId) {
   try {
-  const contractAmt = getCompanyContractAmount(companyId);
+  // 월별 계약금액은 입력칸 값을 우선 사용 (입력칸이 없으면 업체 기본 계약금액)
+  const _cEl = $(`feeContract_${companyId}`);
+  const contractAmt = _cEl
+    ? (parseInt((_cEl.value || '0').replace(/,/g, ''), 10) || 0)
+    : getCompanyContractAmount(companyId);
   const ocpAmt = parseInt(($(`feeOcp_${companyId}`)?.value||'0').replace(/,/g,''), 10) || 0;
   const ecoAmt = parseInt(($(`feeEco_${companyId}`)?.value||'0').replace(/,/g,''), 10) || 0;
 
@@ -1188,6 +1195,14 @@ async function saveFeeInfo(companyId) {
   }
 
   if (error) return toast('저장 실패: ' + error.message, 'error');
+
+  // 월별 계약금액이 바뀐 경우 변경 이력 기록
+  const _prevContract = existing ? (existing.contract_amount != null ? existing.contract_amount : null) : null;
+  if (_prevContract !== contractAmt) {
+    await logChange('company_financials', existing ? existing.id : companyId, 'update',
+      [{ field: 'contract_amount', oldVal: _prevContract, newVal: contractAmt }],
+      selectedMonth + ' 월별 계약금액 수정');
+  }
 
   toast('수수료 저장 완료');
   await loadAdminData();
