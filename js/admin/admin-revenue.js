@@ -50,14 +50,8 @@ function getContractType(meta) {
 function renderRevenue() {
   const mc = $('mainContent');
 
-    const activeCompanies = adminData.companies.filter(c => {
-          if (c.status === 'active') return true;
-              if (c.status === 'terminated' && c.terminated_at) {
-                      const termMonth = c.terminated_at.substring(0, 7);
-                            return revenueMonth <= termMonth;
-              }
-                  return false;
-            });
+    // 해지 당월 0원 업체(레코드 이관 잔재)는 제외 — isCompanyInMonth() 참고
+    const activeCompanies = adminData.companies.filter(c => isCompanyInMonth(c, revenueMonth));
 
   // 월별 재무 데이터 매핑
   const finMap = {};
