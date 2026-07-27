@@ -130,6 +130,36 @@ function taxWithholdLabel(month) {
 }
 
 /**
+ * 해당 월에 정산·집계 대상인 업체인지 판정 (공통 헬퍼)
+ *
+ * - active     : 항상 포함
+ * - paused 등  : 제외
+ * - terminated : 해지일이 속한 달까지 포함, 다음 달부터 제외
+ *   ★ 단, 해지 당월인데 그 달 금액(계약·에코·OCP·급여)이 전부 0이면 제외한다.
+ *     월 중간에 새 업체 레코드로 이관한 경우(예: 구 레코드 7/12 해지 →
+ *     신 레코드 7/13 시작) 이관월에 같은 업체가 두 줄로 보이는 것을 막는다.
+ *     재무 행 자체가 없으면 기존 동작대로 포함한다.
+ */
+function isCompanyInMonth(c, month, fins) {
+  if (!c || !month) return false;
+  if (c.status === 'active') return true;
+  if (c.status !== 'terminated' || !c.terminated_at) return false;
+  const termMonth = c.terminated_at.substring(0, 7);
+  if (month > termMonth) return false;
+  if (month === termMonth) {
+    const list = fins
+      || ((typeof adminData !== 'undefined' && adminData && Array.isArray(adminData.financials))
+            ? adminData.financials : null);
+    if (list) {
+      const f = list.find(x => x.company_id === c.id && x.month === month);
+      if (f && !((f.contract_amount || 0) + (f.eco_amount || 0)
+               + (f.ocp_amount || 0) + (f.worker_pay_total || 0))) return false;
+    }
+  }
+  return true;
+}
+
+/**
  * 세금계산서 발행 사업자 직원 여부 (workers.is_business)
  *
  * ★ 사업자로 지정된 직원은 급여에서 기본 공제(10%)와 원천징수(3.3%)를
