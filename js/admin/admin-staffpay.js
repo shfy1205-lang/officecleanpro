@@ -904,12 +904,8 @@ function renderAreaSummary() {
 
   const areaMap = {};
   adminData.companies.forEach(c => {
-            if (c.status === 'paused') return;
-                    if (c.status === 'terminated') {
-                                  if (!c.terminated_at) return;
-                                              const termMonth = c.terminated_at.substring(0, 7);
-                                                          if (selectedMonth > termMonth) return;
-                    }
+    // 해지 당월 0원 업체(레코드 이관 잔재)는 제외 — isCompanyInMonth() 참고
+    if (!isCompanyInMonth(c, selectedMonth)) return;
     const area = c.area_name || '기타';
     if (!areaMap[area]) areaMap[area] = { companies: 0, totalPay: 0 };
     areaMap[area].companies += 1;
