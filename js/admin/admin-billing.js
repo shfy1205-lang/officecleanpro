@@ -103,14 +103,8 @@ function renderBillingOverview() {
   const container = document.getElementById('billingContent');
   if (!container) return;
 
-  const activeCompanies = adminData.companies.filter(c => {
-    if (c.status === 'active') return true;
-    if (c.status === 'terminated' && c.terminated_at) {
-      const termMonth = c.terminated_at.substring(0, 7);
-      return billingMonth <= termMonth;
-    }
-    return false;
-  });
+  // 해지 당월 0원 업체(레코드 이관 잔재)는 제외 — isCompanyInMonth() 참고
+  const activeCompanies = adminData.companies.filter(c => isCompanyInMonth(c, billingMonth));
   const finMap = {};
   adminData.financials
     .filter(f => f.month === billingMonth)
