@@ -139,9 +139,15 @@ function taxWithholdLabel(month) {
  *     월 중간에 새 업체 레코드로 이관한 경우(예: 구 레코드 7/12 해지 →
  *     신 레코드 7/13 시작) 이관월에 같은 업체가 두 줄로 보이는 것을 막는다.
  *     재무 행 자체가 없으면 기존 동작대로 포함한다.
+ * - 계약기간 : 계약 시작월 이전 / 계약 종료월 이후는 상태와 무관하게 제외.
+ *     (예: 2026-08-03 계약 시작 업체는 7월 정산·수익 목록에 나오지 않는다.
+ *      업체를 미리 등록하면서 실수로 이전 달에 금액을 넣어도 그 달에는 잡히지 않음)
  */
 function isCompanyInMonth(c, month, fins) {
   if (!c || !month) return false;
+  // 계약 시작 전 / 종료 후인 달은 제외
+  if (c.contract_start_date && c.contract_start_date.substring(0, 7) > month) return false;
+  if (c.contract_end_date && c.contract_end_date.substring(0, 7) < month) return false;
   if (c.status === 'active') return true;
   if (c.status !== 'terminated' || !c.terminated_at) return false;
   const termMonth = c.terminated_at.substring(0, 7);
