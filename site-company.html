@@ -99,26 +99,6 @@
       display: flex; align-items: center; gap: 6px;
     }
 
-    /* 청소 상태 */
-    .clean-status {
-      display: flex; align-items: center; gap: 12px;
-      padding: 16px;
-      border-radius: 12px;
-    }
-    .clean-status.done { background: #ecfdf5; }
-    .clean-status.pending { background: #fef3c7; }
-    .clean-status.none { background: #f3f4f6; }
-    .clean-status-icon { font-size: 32px; }
-    .clean-status-text {
-      font-size: 16px; font-weight: 600;
-    }
-    .clean-status.done .clean-status-text { color: #16a34a; }
-    .clean-status.pending .clean-status-text { color: #d97706; }
-    .clean-status.none .clean-status-text { color: #9ca3af; }
-    .clean-status-sub {
-      font-size: 12px; color: #888; margin-top: 2px;
-    }
-
     /* 전달사항 */
     .message-box {
       background: #f0f4ff;
@@ -267,12 +247,6 @@
       <div class="qr-header-company" id="companyName"></div>
     </div>
 
-    <!-- 청소 완료 상태 -->
-    <div class="qr-card" id="cleanStatusCard">
-      <div class="qr-card-title">🧹 청소 상태</div>
-      <div id="cleanStatus"></div>
-    </div>
-
     <!-- 직원 전달사항 -->
     <div class="qr-card">
       <div class="qr-card-title">📋 청소직원 전달사항</div>
@@ -395,49 +369,7 @@ function renderPage(data) {
   document.getElementById('companyName').textContent = data.company_name;
   document.title = data.company_name + ' - 오피스클린프로';
 
-  // 청소 상태
-  const statusEl = document.getElementById('cleanStatus');
-  if (data.is_today && data.is_completed) {
-    statusEl.innerHTML = `
-      <div class="clean-status done">
-        <div class="clean-status-icon">✅</div>
-        <div>
-          <div class="clean-status-text">오늘 청소 완료</div>
-          <div class="clean-status-sub">금일 청소가 정상적으로 완료되었습니다</div>
-        </div>
-      </div>
-    `;
-  } else if (data.is_today && !data.is_completed) {
-    statusEl.innerHTML = `
-      <div class="clean-status pending">
-        <div class="clean-status-icon">⏳</div>
-        <div>
-          <div class="clean-status-text">오늘 청소 예정</div>
-          <div class="clean-status-sub">아직 청소가 완료되지 않았습니다</div>
-        </div>
-      </div>
-    `;
-  } else if (!data.is_today && data.is_completed) {
-    statusEl.innerHTML = `
-      <div class="clean-status done">
-        <div class="clean-status-icon">✅</div>
-        <div>
-          <div class="clean-status-text">최근 청소 완료</div>
-          <div class="clean-status-sub">가장 최근 청소가 정상적으로 완료되었습니다</div>
-        </div>
-      </div>
-    `;
-  } else {
-    statusEl.innerHTML = `
-      <div class="clean-status none">
-        <div class="clean-status-icon">📋</div>
-        <div>
-          <div class="clean-status-text">청소 기록 없음</div>
-          <div class="clean-status-sub">아직 등록된 청소 기록이 없습니다</div>
-        </div>
-      </div>
-    `;
-  }
+  // 청소 상태(청소 완료 확인) 카드는 표시하지 않는다 — 업체용 QR에서는 제거됨
 
   // 직원 전달사항
   const msgEl = document.getElementById('staffMessage');
