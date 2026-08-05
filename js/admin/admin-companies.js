@@ -952,6 +952,9 @@ async function updatePayAmount(assignId, value) {
 
   if (local) local.pay_amount = payAmount;
 
+  // 재무행의 직원지급 합계도 함께 맞춘다 (정산·수익·대시보드가 이 값을 읽는다)
+  if (local) await recalcMonthWorkerPayTotal(local.company_id, local.month || selectedMonth);
+
   toast('지급액 수정됨');
 
   } catch (e) {
@@ -1307,6 +1310,61 @@ function renderOriginAssignBox(companyId, assigns) {
   `;
 }
 
+/**
+ * 해당 월의 company_financials.worker_pay_total을 월별 배정 합계로 다시 계산한다.
+ * 정산·수익·대시보드 화면은 worker_pay_total을 읽으므로, 배정만 바꾸고 이 값을
+ * 그대로 두면 화면마다 숫자가 어긋난다. 재무행이 없으면 새로 만들지 않는다.
+ */
+async function recalcMonthWorkerPayTotal(companyId, month) {
+  const { data: rows, error: eR } = await sb.from('company_workers')
+    .select('*').eq('company_id', companyId).eq('month', month);
+  if (eR) { console.error('recalcMonthWorkerPayTotal read error:', eR); return null; }
+  const { data: fins, error: eF } = await sb.from('company_financials')
+    .select('*').eq('company_id', companyId).eq('month', month);
+  if (eF) { console.error('recalcMonthWorkerPayTotal fin error:', eF); return null; }
+  const fin = (fins || [])[0];
+  if (!fin) return null;
+  const finMap = {}; finMap[companyId] = fin;
+  const total = (rows || []).reduce((s, a) => s + calcAssignmentFinalPay(a, finMap), 0);
+  if ((fin.worker_pay_total || 0) === total) return total;
+  const { error: eU } = await sb.from('company_financials')
+    .update({ worker_pay_total: total }).eq('id', fin.id);
+  if (eU) { console.error('recalcMonthWorkerPayTotal update error:', eU); return null; }
+  return total;
+}
+
+/**
+ * 원본 배정(worker_assignments)의 급여를 적용 월 이후의 월별 배정에 반영한다.
+ * change_assignment RPC는 worker_assignments만 갱신하기 때문에, 이미 만들어져 있는
+ * 달(company_workers)의 지급액은 예전 값 그대로 남아 "적용 월부터 매달 자동 반영"
+ * 약속이 깨진다. 적용 월보다 과거 달은 건드리지 않으므로 지난달 수동 조정값은 보존된다.
+ */
+async function syncOriginPayToMonths(companyId, workerId, pay, fromMonth) {
+  try {
+    const { data: rows, error } = await sb.from('company_workers')
+      .select('*').eq('company_id', companyId).eq('worker_id', workerId).gte('month', fromMonth);
+    if (error) { console.error('syncOriginPayToMonths read error:', error); return 0; }
+    let changed = 0;
+    for (const r of (rows || [])) {
+      if ((r.pay_amount || 0) !== pay) {
+        const { error: eU } = await sb.from('company_workers')
+          .update({ pay_amount: pay }).eq('id', r.id);
+        if (eU) { console.error('syncOriginPayToMonths update error:', eU); continue; }
+        await logChange('company_workers', r.id, 'update',
+          [{ field: 'pay_amount', oldVal: r.pay_amount, newVal: pay }],
+          `${getWorkerName(workerId)} - ${getCompanyName(companyId)} (${r.month}) 원본 배정 변경 자동 반영`
+        );
+        changed++;
+      }
+      await recalcMonthWorkerPayTotal(companyId, r.month);
+    }
+    return changed;
+  } catch (e) {
+    console.error('syncOriginPayToMonths error:', e);
+    return 0;
+  }
+}
+
 async function applyAssignChange(companyId) {
   const wid = document.getElementById('oaWorker_' + companyId).value;
   const pay = parseMoney(document.getElementById('oaPay_' + companyId).value);
@@ -1318,7 +1376,10 @@ async function applyAssignChange(companyId) {
   const isPrimary = !curA || curA.length === 0;
   const { error } = await sb.rpc('change_assignment', { p_company_id: companyId, p_worker_id: wid, p_pay_amount: pay, p_from_month: fromM, p_is_primary: isPrimary });
   if (error) return toast('적용 실패: ' + error.message, 'error');
-  toast('배정 적용 완료 — ' + fromM + '부터 자동 반영');
+  // 원본 배정 변경을 이미 만들어져 있는 월별 배정에도 반영
+  const syncedCount = await syncOriginPayToMonths(companyId, wid, pay, fromM);
+  toast('배정 적용 완료 — ' + fromM + '부터 자동 반영'
+        + (syncedCount > 0 ? ' (기존 ' + syncedCount + '개월 갱신)' : ''));
   await loadAdminData();
   openCompanyDetail(companyId);
 }
