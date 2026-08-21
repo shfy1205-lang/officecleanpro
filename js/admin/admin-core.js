@@ -282,9 +282,10 @@ function switchTab(tabName, el) {
   if (!groupName) return;
   currentGroup = groupName;
 
-  // 1. 사이드바 활성 상태 업데이트
+  // 1. 사이드바 활성 상태 업데이트 (재무 서브탭이면 '재무' 항목을 표시)
+  var sbTab = (groupName === 'finance') ? 'finance' : tabName;
   document.querySelectorAll('.sb-item').forEach(function(item) {
-    item.classList.toggle('active', item.getAttribute('data-tab') === tabName);
+    item.classList.toggle('active', item.getAttribute('data-tab') === sbTab);
   });
 
   // 2. 페이지 제목 업데이트
@@ -529,6 +530,15 @@ function getUniqueAreas() {
 function showFinanceSub(sub) {
   window._financeSub = sub;
   var labels = { billing: '정산', staffPay: '담당자급여', revenue: '수익', prorate: '일할계산', taxInvoice: '세금계산서' };
+
+  // 재무 서브탭 간 기준월 공유 — 마지막으로 본 월을 그대로 이어간다
+  var fm = window._financeMonth || billingMonth || selectedMonth || currentMonth();
+  window._financeMonth = fm;
+  billingMonth = fm;
+  revenueMonth = fm;
+  selectedMonth = fm;
+  if (typeof prorateMonth !== 'undefined') prorateMonth = fm;
+  if (typeof _tax !== 'undefined' && _tax) _tax.month = fm;
   var st = document.getElementById('subTabs');
   if (st) {
     st.innerHTML = '<div class="fin-subtabs">' + Object.keys(labels).map(function(k){
@@ -539,8 +549,17 @@ function showFinanceSub(sub) {
   var realMap = { billing: window.renderBilling, staffPay: window.renderStaffPay, revenue: window.renderRevenue, prorate: window.renderProrate, taxInvoice: window.renderTaxInvoice };
   var fn = realMap[sub] || window.renderBilling;
   if (typeof fn === 'function') fn();
+
+  // 지금 어느 서브탭인지 제목·주소에 반영 (새로고침해도 같은 서브탭으로 복귀)
   var titleEl = document.getElementById('pageTitle');
-  if (titleEl) titleEl.textContent = '재무';
+  if (titleEl) titleEl.textContent = '재무 · ' + (labels[sub] || sub);
+  currentTab = sub === 'billing' ? 'finance' : sub;
+  var wantHash = '#' + (sub === 'billing' ? 'finance' : sub);
+  if (location.hash !== wantHash) history.replaceState(null, '', wantHash);
+  // 사이드바에서는 항상 '재무' 항목을 활성 표시
+  document.querySelectorAll('.sb-item').forEach(function(item) {
+    item.classList.toggle('active', item.getAttribute('data-tab') === 'finance');
+  });
 }
 
 function renderFinance() {
