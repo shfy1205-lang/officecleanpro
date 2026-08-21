@@ -66,6 +66,10 @@ async function loadTodayCleaning(dateStr) {
 
   const _lcMap = _dashCompanyMap();
 
+  // 업체명 가나다순으로 고정 정렬 (DB 반환 순서에 의존하지 않도록)
+  scheduledCompanyIds.sort((a, b) =>
+    (((_lcMap[a] || {}).name) || '').localeCompare((((_lcMap[b] || {}).name) || ''), 'ko'));
+
   const result = scheduledCompanyIds.map(companyId => {
     const company = _lcMap[companyId];
     if (!company || company.status === 'paused') return null;
