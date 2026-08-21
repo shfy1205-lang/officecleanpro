@@ -576,6 +576,7 @@ async function savePayAmount(assignId, workerId) {
 async function changePayMonth(month) {
   try {
   selectedMonth = month;
+  window._financeMonth = month;
   await ensureMonthData(month);
   renderStaffPay();
 
@@ -680,6 +681,7 @@ async function generateNextMonth() {
 
     await loadAdminData();
     selectedMonth = nextMonth;
+    window._financeMonth = nextMonth;
     renderStaffPay();
 
     toast(`${nextLabel} 생성 완료! (정산 ${finCount}건, 급여 ${assignCount}건)`, 'success');
