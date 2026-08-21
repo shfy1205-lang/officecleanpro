@@ -200,6 +200,7 @@ function renderProrate() {
 
 function changeProrateMonth(month) {
   prorateMonth = month;
+  window._financeMonth = month;
   prorateAbsences = {};
   prorateExtraDeduct = 0;
   renderProrate();
