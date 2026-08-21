@@ -105,6 +105,7 @@ function renderAllClients(listOnly) {
       <p class="text-muted" style="margin:0">총 ${filtered.length}개 업체</p>
     </div>
     ${filtered.length === 0 ? '<div class="card" style="text-align:center;color:var(--text2);padding:32px 16px">조건에 맞는 업체가 없습니다.<br><span style="font-size:12px">검색어나 필터를 확인해 주세요.</span></div>' : ''}
+    <div class="client-grid">
     ${filtered.map(c => {
       const scheds = _schedMap[c.id] || [];
       // 빈도 표시: 요일 + 빈도
@@ -149,6 +150,7 @@ function renderAllClients(listOnly) {
         </div>
       `;
     }).join('')}
+    </div>
   `;
 
   // 검색 시: 목록 컨테이너만 갱신 (input 보존 → IME 유지)
