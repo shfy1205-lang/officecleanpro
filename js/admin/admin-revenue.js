@@ -211,6 +211,7 @@ function renderRevenue() {
 async function changeRevenueMonth(month) {
   try {
   revenueMonth = month;
+  window._financeMonth = month;
   await ensureMonthData(month);
   renderRevenue();
 
