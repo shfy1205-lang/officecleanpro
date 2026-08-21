@@ -459,7 +459,14 @@ document.addEventListener('keydown', function(e) {
   }
 
   var overlay = document.getElementById('searchOverlay');
-  if (!overlay || !overlay.classList.contains('show')) return;
+  if (!overlay || !overlay.classList.contains('show')) {
+    // 검색이 닫혀 있을 때: ESC → 열려 있는 상세 모달 닫기
+    if (e.key === 'Escape') {
+      var dm = document.getElementById('detailModal');
+      if (dm && dm.classList.contains('show')) closeModal();
+    }
+    return;
+  }
 
   if (e.key === 'Escape') {
     closeSearch();
