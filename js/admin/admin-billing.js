@@ -57,11 +57,13 @@ function renderBilling() {
   // ── 미수금 통계 (뷰 공통) ──
   // 입금 기한(청구월 다음 달 10일)이 지난 건만 미수금으로 집계한다.
   // 도급(에코 일괄 정산) 건은 제외한다.
-  const unpaidAll = adminData.billings.filter(b => isDirectBilling(b) && isOverdueBilling(b));
+  const unpaidAll = adminData.billings.filter(b => isDirectBilling(b) && isOverdueBilling(b))
+    .sort((a, b) => billingUnpaidAmount(b) - billingUnpaidAmount(a)); // 미수금 큰 순
   const totalUnpaid = unpaidAll.reduce((s, b) => s + billingUnpaidAmount(b), 0);
 
   // 아직 기한 전인 건 (연체 아님)
-  const awaitingAll = adminData.billings.filter(b => isDirectBilling(b) && isAwaitingBilling(b));
+  const awaitingAll = adminData.billings.filter(b => isDirectBilling(b) && isAwaitingBilling(b))
+    .sort((a, b) => billingUnpaidAmount(b) - billingUnpaidAmount(a));
   const totalAwaiting = awaitingAll.reduce((s, b) => s + billingUnpaidAmount(b), 0);
 
   mc.innerHTML = `
@@ -498,7 +500,8 @@ function renderBillingMonthly(unpaidAll, totalUnpaid) {
 
   // 도급은 에코가 일괄 정산하므로 업체별 청구 목록에서 제외하고
   // 아래 ‘에코 도급 일괄 정산’ 섹션에서 따로 보여준다.
-  let list = adminData.billings.filter(b => b.month === billingMonth && isDirectBilling(b));
+  let list = adminData.billings.filter(b => b.month === billingMonth && isDirectBilling(b))
+    .sort((a, b) => getCompanyName(a.company_id).localeCompare(getCompanyName(b.company_id), 'ko')); // 업체명순
 
   const monthTotal = list.reduce((s, b) => s + (b.billed_amount || 0), 0);
   const monthPaid = list.reduce((s, b) => s + (b.paid_amount || 0), 0);
