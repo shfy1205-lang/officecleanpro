@@ -30,7 +30,7 @@ td,.stat-value,.card-amount,.pay-total-value,.amount{font-variant-numeric:tabula
 .stat-value.green{color:var(--green)}
 .stat-value.yellow{color:var(--yellow)}
 .stat-value.red{color:var(--red)}
-.table-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+.table-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm);max-height:72vh;overflow-y:auto}
 table{font-size:13.5px}
 th{background:#fafbfd!important;color:var(--text3)!important;font-size:11.5px!important;font-weight:700!important;letter-spacing:.03em;padding:10px 14px!important;border-bottom:1px solid var(--border)!important;position:sticky;top:0;z-index:2}
 td{padding:11px 14px!important;border-bottom:1px solid var(--border-soft)!important;background:transparent!important}
