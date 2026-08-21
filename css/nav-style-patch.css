@@ -21,7 +21,7 @@
   --border: #e0e4ea;
   --text: #1a1d23;
   --text2: #6b7280;
-  --accent: #6c5ce7;
+  --accent: #4f46e5;
   --accent2: #7c6ff0;
   --green: #10b981;
   --red: #ef4444;
@@ -136,7 +136,7 @@
 }
 
 .sb-item.active {
-  background: rgba(108, 92, 231, 0.08);
+  background: rgba(79, 70, 229, 0.08);
   color: var(--accent);
   border-left-color: var(--accent);
   font-weight: 600;
@@ -165,7 +165,7 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: rgba(108, 92, 231, 0.12);
+  background: rgba(79, 70, 229, 0.12);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -650,7 +650,7 @@
 .wk-stat-icon.avg { background: #eff6ff; }
 .wk-stat-label { font-size: 12px; color: #6b7280; }
 .wk-stat-value { font-size: 20px; font-weight: 600; }
-.wk-stat-value.purple { color: #6c5ce7; }
+.wk-stat-value.purple { color: var(--accent, #4f46e5); }
 .wk-stat-unit { font-size: 13px; font-weight: 400; color: #6b7280; margin-left: 2px; }
 
 /* 툴바 */
@@ -673,7 +673,7 @@
   background: #fff;
   outline: none;
 }
-.wk-search:focus { border-color: #6c5ce7; box-shadow: 0 0 0 2px rgba(108,92,231,0.1); }
+.wk-search:focus { border-color: var(--accent, #4f46e5); box-shadow: 0 0 0 2px rgba(79,70,229,0.1); }
 .wk-filter-select {
   padding: 8px 12px;
   border: 1px solid var(--border1, #e5e7eb);
@@ -698,8 +698,8 @@
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .wk-card:hover {
-  border-color: #6c5ce7;
-  box-shadow: 0 2px 8px rgba(108,92,231,0.08);
+  border-color: var(--accent, #4f46e5);
+  box-shadow: 0 2px 8px rgba(79,70,229,0.08);
 }
 .wk-card-top { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
 .wk-avatar {
@@ -707,7 +707,7 @@
   border-radius: 50%;
   background: #f0edff;
   display: flex; align-items: center; justify-content: center;
-  font-weight: 600; font-size: 16px; color: #6c5ce7;
+  font-weight: 600; font-size: 16px; color: var(--accent, #4f46e5);
   flex-shrink: 0;
 }
 .wk-avatar.lg { width: 52px; height: 52px; font-size: 20px; }
@@ -722,7 +722,7 @@
 }
 .wk-card-stat-label { font-size: 11px; color: #9ca3af; margin-bottom: 2px; }
 .wk-card-stat-val { font-size: 14px; font-weight: 600; }
-.wk-card-stat-val.purple { color: #6c5ce7; }
+.wk-card-stat-val.purple { color: var(--accent, #4f46e5); }
 .wk-card-stat-val.high { color: #ef4444; }
 .wk-card-stat-val.mid { color: #f59e0b; }
 .wk-card-stat-val.low { color: #10b981; }
@@ -802,7 +802,7 @@
 }
 .wk-dstat-label { font-size: 12px; color: #6b7280; margin-bottom: 2px; }
 .wk-dstat-value { font-size: 20px; font-weight: 600; }
-.wk-dstat-value.purple { color: #6c5ce7; }
+.wk-dstat-value.purple { color: var(--accent, #4f46e5); }
 
 /* 업체 카드 섹션 */
 .wk-co-section { margin-top: 0; }
@@ -825,7 +825,7 @@
   transition: border-color 0.15s;
 }
 .wk-co-card:hover { border-color: #d1d5db; }
-.wk-co-card.expanded { border-color: #6c5ce7; }
+.wk-co-card.expanded { border-color: var(--accent, #4f46e5); }
 .wk-co-card.warning { border-left: 3px solid #ef4444; }
 .wk-co-card-header {
   display: flex;
@@ -858,7 +858,7 @@
   margin-top: 2px;
 }
 .wk-co-pay { text-align: right; flex-shrink: 0; }
-.wk-co-pay-amt { font-size: 14px; font-weight: 600; color: #6c5ce7; }
+.wk-co-pay-amt { font-size: 14px; font-weight: 600; color: var(--accent, #4f46e5); }
 .wk-co-pay-sub { font-size: 11px; color: #9ca3af; }
 .wk-co-chevron { font-size: 12px; color: #9ca3af; flex-shrink: 0; }
 
@@ -890,7 +890,7 @@
 .wk-dl { color: #9ca3af; }
 .wk-dv { font-weight: 500; text-align: right; max-width: 60%; }
 .wk-dv.blue { color: #3b82f6; }
-.wk-dv.purple { color: #6c5ce7; }
+.wk-dv.purple { color: var(--accent, #4f46e5); }
 
 /* 요일 pills */
 .wk-day-pills { display: flex; gap: 4px; margin-top: 4px; }
@@ -905,7 +905,7 @@
 }
 .wk-day-pill.on {
   background: #f0edff;
-  color: #6c5ce7;
+  color: var(--accent, #4f46e5);
   border-color: #c4b5fd;
   font-weight: 600;
 }
@@ -922,7 +922,7 @@
 .wk-fin-bar-fill {
   height: 100%;
   border-radius: 3px;
-  background: #6c5ce7;
+  background: var(--accent, #4f46e5);
 }
 .wk-fin-pct { font-size: 10px; color: #9ca3af; }
 
@@ -995,11 +995,11 @@
 .wk-view-tab:last-child { border-radius: 0 8px 8px 0; border-left: none; }
 .wk-view-tab.active {
   background: #f0edff;
-  color: #6c5ce7;
-  border-color: #6c5ce7;
+  color: var(--accent, #4f46e5);
+  border-color: var(--accent, #4f46e5);
   font-weight: 500;
 }
-.wk-view-tab.active + .wk-view-tab { border-left-color: #6c5ce7; }
+.wk-view-tab.active + .wk-view-tab { border-left-color: var(--accent, #4f46e5); }
 .wk-default-map {
   font-size: 12px;
   color: #6b7280;
@@ -1034,12 +1034,12 @@
   cursor: pointer;
   transition: border-color 0.15s;
 }
-.wk-area-card:hover { border-color: #6c5ce7; }
-.wk-area-card.selected { border-color: #6c5ce7; border-width: 2px; background: #faf9ff; }
+.wk-area-card:hover { border-color: var(--accent, #4f46e5); }
+.wk-area-card.selected { border-color: var(--accent, #4f46e5); border-width: 2px; background: #f7f8ff; }
 .wk-area-name { font-size: 15px; font-weight: 500; margin-bottom: 6px; }
 .wk-area-stats { display: flex; gap: 10px; font-size: 12px; color: #6b7280; }
 .wk-area-bar { height: 4px; border-radius: 2px; background: #e5e7eb; margin-top: 8px; overflow: hidden; }
-.wk-area-bar div { height: 100%; border-radius: 2px; background: #6c5ce7; }
+.wk-area-bar div { height: 100%; border-radius: 2px; background: var(--accent, #4f46e5); }
 .wk-area-detail-header { margin-bottom: 12px; display: flex; align-items: baseline; gap: 10px; }
 .wk-area-detail-title { font-size: 15px; font-weight: 500; }
 .wk-area-detail-sub { font-size: 13px; color: #6b7280; }
@@ -1059,13 +1059,13 @@
   padding: 12px 16px;
   cursor: pointer;
 }
-.wk-area-worker-header:hover { background: #faf9ff; }
+.wk-area-worker-header:hover { background: #f7f8ff; }
 .wk-avatar.sm { width: 36px; height: 36px; font-size: 14px; }
 .wk-area-worker-info { flex: 1; min-width: 0; }
 .wk-area-worker-name { font-size: 14px; font-weight: 500; }
 .wk-area-worker-sub { font-size: 12px; color: #6b7280; margin-top: 1px; }
 .wk-area-worker-right { text-align: right; flex-shrink: 0; }
-.wk-area-worker-pay { font-size: 14px; font-weight: 500; color: #6c5ce7; }
+.wk-area-worker-pay { font-size: 14px; font-weight: 500; color: var(--accent, #4f46e5); }
 .wk-area-worker-freq { font-size: 11px; color: #9ca3af; }
 
 .wk-area-co-list {
@@ -1090,7 +1090,7 @@
 .wk-area-co-body { flex: 1; min-width: 0; }
 .wk-area-co-name { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
 .wk-area-co-right { text-align: right; flex-shrink: 0; }
-.wk-area-co-pay { font-size: 13px; font-weight: 500; color: #6c5ce7; }
+.wk-area-co-pay { font-size: 13px; font-weight: 500; color: var(--accent, #4f46e5); }
 .wk-area-co-row-action { padding: 8px 16px 8px 56px; }
 
 /* ─── 주소 → 지도 연동 ─── */
