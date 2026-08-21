@@ -568,6 +568,7 @@ function _buildTaxWarning(supOk, missCnt, cnt) {
 
 async function changeTaxMonth(month) {
   _tax.month = month;
+  window._financeMonth = month;
   try {
     await ensureMonthData(month);
     renderTaxInvoiceHTML();
