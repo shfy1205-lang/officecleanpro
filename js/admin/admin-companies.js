@@ -64,8 +64,11 @@ function renderAllClients(listOnly) {
     }
   }
 
-  // 구역코드 순 정렬 (한글 지역명 → 숫자 순)
+  // 정렬 (기본: 구역코드 순 / 드롭다운으로 업체명·계약금액 선택 가능)
+  const sortBy = _comp.sortBy || 'area';
   filtered = [...filtered].sort((a, b) => {
+    if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '', 'ko');
+    if (sortBy === 'amount') return (b.contract_amount || 0) - (a.contract_amount || 0);
     const codeA = (a.area_code || '').replace(/[0-9]/g, '');
     const codeB = (b.area_code || '').replace(/[0-9]/g, '');
     if (codeA !== codeB) return codeA.localeCompare(codeB, 'ko');
@@ -101,6 +104,7 @@ function renderAllClients(listOnly) {
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
       <p class="text-muted" style="margin:0">총 ${filtered.length}개 업체</p>
     </div>
+    ${filtered.length === 0 ? '<div class="card" style="text-align:center;color:var(--text2);padding:32px 16px">조건에 맞는 업체가 없습니다.<br><span style="font-size:12px">검색어나 필터를 확인해 주세요.</span></div>' : ''}
     ${filtered.map(c => {
       const scheds = _schedMap[c.id] || [];
       // 빈도 표시: 요일 + 빈도
@@ -180,6 +184,11 @@ function renderAllClients(listOnly) {
       <select class="admin-area-select" onchange="clientAreaFilter=this.value;renderAllClients()">
         <option value="">전체 구역</option>
         ${areas.map(a => `<option value="${escapeHtml(a)}"${a === clientAreaFilter ? ' selected' : ''}>${escapeHtml(a)}</option>`).join('')}
+      </select>
+      <select class="admin-area-select" onchange="_comp.sortBy=this.value;renderAllClients()">
+        <option value="area"${(_comp.sortBy || 'area') === 'area' ? ' selected' : ''}>구역순</option>
+        <option value="name"${_comp.sortBy === 'name' ? ' selected' : ''}>업체명순</option>
+        <option value="amount"${_comp.sortBy === 'amount' ? ' selected' : ''}>계약금액순</option>
       </select>
     </div>
 
