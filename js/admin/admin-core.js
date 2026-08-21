@@ -26,11 +26,11 @@ let currentGroup = 'home';
 
 const NAV_GROUPS = {
   home:    { label: '홈',   icon: '🏠', tabs: ['dashboard'] },
-  ops:     { label: '운영', icon: '📋', tabs: ['allClients', 'requests', 'notices', 'calendar', 'supplies'] },
+  ops:     { label: '운영', icon: '📋', tabs: ['allClients', 'requests', 'notices', 'contacts', 'calendar', 'supplies'] },
   hr:      { label: '인사', icon: '👥', tabs: ['workers', 'chat'] },
   finance: { label: '재무', icon: '💰', tabs: ['finance'] },
   sales:   { label: '영업', icon: '📊', tabs: ['leads', 'quote', 'eco'] },
-  mgmt:    { label: '관리', icon: '⚙️', tabs: ['analysis', 'areaSummary', 'contacts', 'scheduleLog', 'changeLog'] },
+  mgmt:    { label: '관리', icon: '⚙️', tabs: ['analysis', 'areaSummary', 'scheduleLog', 'changeLog'] },
 };
 
 const TAB_LABELS = {
@@ -88,9 +88,6 @@ async function initAdmin() {
     $('userName').textContent = currentWorker.name;
     var avatarEl = document.getElementById('userAvatar');
     if (avatarEl) avatarEl.textContent = (currentWorker.name || '?').charAt(0);
-
-    // 글로벌 필터 초기화
-    initGlobalFilters();
 
     $('loading').classList.add('hidden');
     $('app').style.display = 'block';
@@ -352,36 +349,7 @@ function closeSidebar() {
   if (overlay) overlay.classList.remove('show');
 }
 
-// ─── 글로벌 필터 ───
-
-function initGlobalFilters() {
-  var areaFilter = document.getElementById('globalAreaFilter');
-  var workerFilter = document.getElementById('globalWorkerFilter');
-  if (!areaFilter || !workerFilter) return;
-
-  var areas = getUniqueAreas();
-  areaFilter.innerHTML = '<option value="">전체 구역</option>' + areas.map(function(a) {
-    return '<option value="' + escapeHtml(a) + '">' + escapeHtml(a) + '</option>';
-  }).join('');
-
-  var workers = getActiveWorkers();
-  workerFilter.innerHTML = '<option value="">전체 직원</option>' + workers.map(function(w) {
-    return '<option value="' + w.id + '">' + escapeHtml(w.name) + '</option>';
-  }).join('');
-}
-
-function applyGlobalFilter() {
-  if (currentTab) switchTab(currentTab);
-}
-
-function getGlobalFilters() {
-  var areaFilter = document.getElementById('globalAreaFilter');
-  var workerFilter = document.getElementById('globalWorkerFilter');
-  return {
-    area: areaFilter ? areaFilter.value : '',
-    worker: workerFilter ? workerFilter.value : '',
-  };
-}
+// ─── (제거됨) 상단 글로벌 필터 — 어떤 화면도 값을 읽지 않는 죽은 UI였음 ───
 
 // ─── URL 해시 라우팅 ───
 
@@ -578,3 +546,29 @@ function showFinanceSub(sub) {
 function renderFinance() {
   showFinanceSub(window._financeSub || 'billing');
 }
+
+// ─── 숫자 셀 자동 우측 정렬 (표 가독성) ───
+// 내용이 숫자·금액뿐인 <td>를 오른쪽 정렬해 자릿수를 맞춘다.
+var _numCellRe = /^[+\-]?\d[\d,\.]*\s*(원|%|회|건|개|명|kg)?$/;
+function _alignNumericCells() {
+  var tds = document.querySelectorAll('td');
+  for (var i = 0; i < tds.length; i++) {
+    var td = tds[i];
+    if (td._numChecked) continue;
+    td._numChecked = true;
+    if (td.children.length === 0 && _numCellRe.test((td.textContent || '').trim())) {
+      td.style.textAlign = 'right';
+    }
+  }
+}
+var _numAlignPending = false;
+try {
+  new MutationObserver(function() {
+    if (_numAlignPending) return;
+    _numAlignPending = true;
+    requestAnimationFrame(function() {
+      _numAlignPending = false;
+      _alignNumericCells();
+    });
+  }).observe(document.body, { childList: true, subtree: true });
+} catch (e) { console.error('numAlign observer:', e); }
