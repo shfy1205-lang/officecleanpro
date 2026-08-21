@@ -685,6 +685,7 @@ function renderBillingUnpaid(unpaidAll, totalUnpaid, awaitingAll, totalAwaiting)
 async function changeBillingMonth(month) {
   try {
   billingMonth = month;
+  window._financeMonth = month;
   await ensureMonthData(month);
   renderBilling();
 
