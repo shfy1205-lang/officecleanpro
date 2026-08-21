@@ -260,11 +260,20 @@ function renderWorkersList() {
 
   html += '</div>';
   mc.innerHTML = html;
+
+  // 검색: 포커스를 잃지 않도록 목록 영역만 부분 갱신 (한글 IME 조합 보호 포함)
+  _wkRowsCache = allRows;
+  bindSearchInput('wkSearchBox', function(v) {
+    _workersSearch = v;
+    var area = document.getElementById('wkListArea');
+    if (area) area.innerHTML = buildWkGrid(_wkRowsCache);
+    else renderWorkersList();
+  });
 }
 
 // ─── 전체 목록 뷰 ───
 
-function renderAllView(allRows) {
+function _wkFilteredRows(allRows) {
   var rows = allRows;
   if (_workersStatusFilter) {
     rows = rows.filter(function(r) { return r.status === _workersStatusFilter; });
@@ -284,25 +293,12 @@ function renderAllView(allRows) {
     rows.sort(function(a, b) { return a.name.localeCompare(b.name, 'ko'); });
   }
 
-  var html = '<div class="wk-toolbar">'
-    + '<div class="wk-toolbar-left">'
-    + '<input type="text" class="wk-search" placeholder="직원명 / 구역 검색..." value="' + escapeHtml(_workersSearch) + '" oninput="workerSearchInput(this.value)">'
-    + '<select class="wk-filter-select" onchange="workerStatusFilter(this.value)">'
-    + '<option value=""' + (!_workersStatusFilter ? ' selected' : '') + '>전체 상태</option>'
-    + '<option value="active"' + (_workersStatusFilter === 'active' ? ' selected' : '') + '>활성</option>'
-    + '<option value="inactive"' + (_workersStatusFilter === 'inactive' ? ' selected' : '') + '>비활성</option>'
-    + '<option value="terminated"' + (_workersStatusFilter === 'terminated' ? ' selected' : '') + '>퇴사</option>'
-    + '</select>'
-    + '</div>'
-    + '<div class="wk-toolbar-right">'
-    + '<select class="wk-filter-select" onchange="workerSortChange(this.value)">'
-    + '<option value="name"' + (_workersSortBy === 'name' ? ' selected' : '') + '>이름순</option>'
-    + '<option value="pay"' + (_workersSortBy === 'pay' ? ' selected' : '') + '>급여순</option>'
-    + '<option value="companies"' + (_workersSortBy === 'companies' ? ' selected' : '') + '>업체수순</option>'
-    + '</select>'
-    + '</div>'
-    + '</div>'
-    + '<div class="wk-grid">'
+  return rows;
+}
+
+function buildWkGrid(allRows) {
+  var rows = _wkFilteredRows(allRows);
+  return '<div class="wk-grid">'
     + rows.map(function(r) {
         var statusBadge = r.status === 'active' ? '<span class="wk-badge active">활성</span>'
           : r.status === 'inactive' ? '<span class="wk-badge inactive">비활성</span>'
@@ -326,6 +322,28 @@ function renderAllView(allRows) {
     }).join('')
     + '</div>'
     + (rows.length === 0 ? '<div class="wk-empty">조건에 맞는 직원이 없습니다</div>' : '');
+}
+
+function renderAllView(allRows) {
+  var html = '<div class="wk-toolbar">'
+    + '<div class="wk-toolbar-left">'
+    + '<input type="text" class="wk-search" id="wkSearchBox" placeholder="직원명 / 구역 검색..." value="' + escapeHtml(_workersSearch) + '">'
+    + '<select class="wk-filter-select" onchange="workerStatusFilter(this.value)">'
+    + '<option value=""' + (!_workersStatusFilter ? ' selected' : '') + '>전체 상태</option>'
+    + '<option value="active"' + (_workersStatusFilter === 'active' ? ' selected' : '') + '>활성</option>'
+    + '<option value="inactive"' + (_workersStatusFilter === 'inactive' ? ' selected' : '') + '>비활성</option>'
+    + '<option value="terminated"' + (_workersStatusFilter === 'terminated' ? ' selected' : '') + '>퇴사</option>'
+    + '</select>'
+    + '</div>'
+    + '<div class="wk-toolbar-right">'
+    + '<select class="wk-filter-select" onchange="workerSortChange(this.value)">'
+    + '<option value="name"' + (_workersSortBy === 'name' ? ' selected' : '') + '>이름순</option>'
+    + '<option value="pay"' + (_workersSortBy === 'pay' ? ' selected' : '') + '>급여순</option>'
+    + '<option value="companies"' + (_workersSortBy === 'companies' ? ' selected' : '') + '>업체수순</option>'
+    + '</select>'
+    + '</div>'
+    + '</div>'
+    + '<div id="wkListArea">' + buildWkGrid(allRows) + '</div>';
   return html;
 }
 
@@ -633,10 +651,7 @@ function toggleAreaWorker(workerId) {
   renderWorkersList();
 }
 
-function workerSearchInput(val) {
-  _workersSearch = val;
-  renderWorkersList();
-}
+var _wkRowsCache = [];
 
 function workerStatusFilter(val) {
   _workersStatusFilter = val;
