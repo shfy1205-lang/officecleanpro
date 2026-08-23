@@ -288,7 +288,7 @@ function updateQuotePreview() {
       <table style="width:100%;border-collapse:collapse;margin-bottom:12px;font-size:13px">
         <tr style="border:2px solid #333;background:#f0f0f0">
           <td style="border:2px solid #333;padding:10px;text-align:center;font-weight:700;width:100px">합 계 금 액</td>
-          <td style="border:2px solid #333;padding:10px;text-align:center;font-weight:700;width:50px">일금</td>
+          <td style="border:2px solid #333;padding:10px;text-align:center;font-weight:700;width:64px;white-space:nowrap">일금</td>
           <td style="border:2px solid #333;padding:10px;text-align:center;font-size:11px">${koreanAmount}원정</td>
           <td style="border:2px solid #333;padding:10px;text-align:right;font-weight:700;font-size:16px;width:160px">${fmt(d.total)}원</td>
         </tr>
@@ -335,8 +335,26 @@ function updateQuotePreview() {
 2. 작업내용
 ${workContent ? workContent.split('\n').map(l => escapeHtml(l)).join('\n') : '(선택된 작업내용 없음)'}
       </div>
+
+      <!-- 유효기간 · 기타사항 -->
+      <div style="border:1px solid #333;border-top:none;padding:10px 14px;font-size:11px;line-height:1.7">
+        <div><strong>견적 유효기간</strong> : 견적일로부터 ${escapeHtml(d.validDays)}일${quoteExpiryStr(d)}</div>
+        ${d.etcNote ? `<div><strong>기타사항</strong> : ${escapeHtml(d.etcNote)}</div>` : ''}
+      </div>
     </div>
   `;
+}
+
+/** 유효기간 만료일 문자열 (날짜 계산 가능할 때만 " (YYYY-MM-DD까지)" 붙임) */
+function quoteExpiryStr(d) {
+  const days = parseInt(d.validDays);
+  const base = new Date(d.date);
+  if (!days || isNaN(base.getTime())) return '';
+  base.setDate(base.getDate() + days);
+  const y = base.getFullYear();
+  const m = String(base.getMonth() + 1).padStart(2, '0');
+  const dd = String(base.getDate()).padStart(2, '0');
+  return ` (${y}-${m}-${dd}까지)`;
 }
 
 
@@ -413,9 +431,9 @@ async function exportQuoteExcel() {
       ws.getCell('A16').value = workContent;
       ws.getCell('A16').alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
 
-      // A33-A35: 하단 참고사항 제거
-      ws.getCell('A33').value = '';
-      ws.getCell('A34').value = '';
+      // A33-A35: 하단 참고사항 → 유효기간·기타사항 기입
+      ws.getCell('A33').value = `견적 유효기간 : 견적일로부터 ${d.validDays}일${quoteExpiryStr(d)}`;
+      ws.getCell('A34').value = d.etcNote ? `기타사항 : ${d.etcNote}` : '';
       ws.getCell('A35').value = '';
 
       const outBuf = await wb.xlsx.writeBuffer();
