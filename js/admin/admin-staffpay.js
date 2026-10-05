@@ -1042,8 +1042,8 @@ function renderAnalysis() {
       <h4>📊 견적 현황 (진행중 ${activeLeads.length}건, 성공 ${wonLeads.length}건)</h4>
       <p>${activeLeads.length > 0
         ? activeLeads.slice(0, 5).map(l => {
-            const st = LEAD_STATUS_MAP[l.status];
-            return `${escapeHtml(l.company_name)}(${st.label})`;
+            const st = LEAD_STATUS_MAP[l.status] || LEAD_STATUS_MAP.new;
+            return `${escapeHtml(l.company_name || '')}(${st.label})`;
           }).join(', ') + (activeLeads.length > 5 ? ` 외 ${activeLeads.length - 5}건` : '')
         : '진행중인 견적이 없습니다.'}</p>
     </div>
