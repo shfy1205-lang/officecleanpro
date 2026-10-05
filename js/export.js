@@ -316,7 +316,7 @@ function exportRequests() {
 function exportLeads() {
   const headers = [
     '업체명', '담당자명', '연락처', '위치',
-    '견적금액(원)', '상태', '담당직원', '메모', '등록일'
+    '견적금액(VAT별도,원)', '견적서합계(VAT포함,원)', '견적서작성일', '상태', '담당직원', '메모', '등록일'
   ];
 
   const rows = adminData.leads.map(l => {
@@ -326,7 +326,9 @@ function exportLeads() {
       l.contact_name || '',
       l.contact_phone || '',
       l.location || '',
-      l.estimated_amount || 0,
+      typeof leadSupplyAmount === 'function' ? leadSupplyAmount(l) : (l.estimated_amount || 0),
+      l.quote_amount || 0,
+      l.quote_date || '',
       st.label,
       l.assigned_to ? getWorkerName(l.assigned_to) : '미지정',
       l.notes || '',
@@ -339,7 +341,7 @@ function exportLeads() {
     '견적목록',
     headers,
     rows,
-    [16, 10, 14, 20, 14, 10, 10, 24, 12]
+    [16, 10, 14, 20, 16, 16, 12, 10, 10, 24, 12]
   );
 }
 
@@ -601,11 +603,11 @@ async function exportAll() {
   // 5. 견적 목록
   sheets.push({
     name: '견적목록',
-    headers: ['업체명', '담당자명', '연락처', '위치', '견적금액(원)', '상태', '담당직원', '메모', '등록일'],
+    headers: ['업체명', '담당자명', '연락처', '위치', '견적금액(VAT별도,원)', '상태', '담당직원', '메모', '등록일'],
     rows: adminData.leads.map(l => {
       const st = LEAD_STATUS_MAP[l.status] || LEAD_STATUS_MAP.new;
       return [l.company_name, l.contact_name || '', l.contact_phone || '', l.location || '',
-        l.estimated_amount || 0, st.label, l.assigned_to ? getWorkerName(l.assigned_to) : '미지정',
+        typeof leadSupplyAmount === 'function' ? leadSupplyAmount(l) : (l.estimated_amount || 0), st.label, l.assigned_to ? getWorkerName(l.assigned_to) : '미지정',
         l.notes || '', formatDateShort(l.created_at)];
     }),
   });
