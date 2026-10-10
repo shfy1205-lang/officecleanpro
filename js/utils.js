@@ -637,15 +637,58 @@ function generatePayImage(params) {
   ctx.fillText(new Date().toLocaleDateString('ko-KR'), width - padding, y);
   ctx.textAlign = 'left';
 
-  // PNG 다운로드
-  const link = document.createElement('a');
-  link.download = `급여명세_${workerName}_${month}.png`;
-  link.href = canvas.toDataURL('image/png');
-  link.click();
+  // PNG 저장 (모바일 공유 시트 / Blob 다운로드 / iOS 새 탭 폴백)
+  saveCanvasAsPng(canvas, `급여명세_${workerName}_${month}.png`);
+}
 
-  if (typeof toast === 'function') {
-    toast(`급여명세_${workerName}_${month}.png 저장됨`);
-  }
+/**
+ * Canvas를 PNG 파일로 저장한다.
+ * - 기존 방식(toDataURL + 미부착 <a>.click())은 iOS Safari·카카오/인스타 인앱 브라우저에서
+ *   download 속성이 무시되거나 data: URL이 차단돼 아무 일도 일어나지 않는 문제가 있었다.
+ * - 모바일에서 Web Share API(파일 공유)가 되면 공유 시트를 띄워 "이미지 저장"으로 바로 저장하게 하고,
+ *   그 외에는 Blob URL을 DOM에 붙인 <a>로 다운로드한다. iOS에서 download 미지원이면 새 탭으로 연다.
+ */
+function saveCanvasAsPng(canvas, filename) {
+  const ua = navigator.userAgent || '';
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(ua);
+  const isIOS = /iPhone|iPad|iPod/i.test(ua);
+  const say = (msg, type) => { if (typeof toast === 'function') toast(msg, type); };
+
+  canvas.toBlob(async (blob) => {
+    if (!blob) { say('이미지 생성에 실패했습니다', 'error'); return; }
+
+    // 1) 모바일: 공유 시트 → 사진 앱에 저장 / 카톡 전송 가능
+    if (isMobile && navigator.canShare) {
+      try {
+        const file = new File([blob], filename, { type: 'image/png' });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: filename });
+          return;
+        }
+      } catch (e) {
+        if (e && e.name === 'AbortError') return;   // 사용자가 취소
+        // 공유 실패 → 아래 다운로드로 폴백
+      }
+    }
+
+    // 2) 데스크톱/안드로이드: Blob URL 다운로드 (<a>를 DOM에 붙여야 일부 브라우저에서 동작)
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.rel = 'noopener';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+
+    if (isIOS && !('download' in HTMLAnchorElement.prototype)) {
+      // 3) 구형 iOS: 새 탭으로 열어 길게 눌러 저장
+      window.open(url, '_blank');
+    } else {
+      a.click();
+    }
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 2000);
+    say(`${filename} 저장됨`);
+  }, 'image/png');
 }
 
 /** Canvas 라운드 사각형 헬퍼 */
