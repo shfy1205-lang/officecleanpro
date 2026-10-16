@@ -126,6 +126,8 @@
 .qf-preview-title { margin:0; padding:12px 18px; border-bottom:1px solid var(--border); }
 .qf-preview-scroll { width:0; min-width:100%; box-sizing:border-box; /* 720px 문서가 모바일에서 화면 전체를 밀어내지 않게 */ padding:16px; overflow-x:auto; -webkit-overflow-scrolling:touch; background:var(--bg); }
 .qf-preview-scroll #quotePrintArea { margin:0 auto; box-shadow:var(--shadow-md); }
+/* 폰 글자 자동확대(안드로이드 크롬) 차단 — 견적서 문서와 그 캡처(html2canvas 복제본) 모두에 적용 */
+#quotePrintArea, #quotePrintArea * { -webkit-text-size-adjust:100% !important; text-size-adjust:100% !important; }
 
 @media (max-width:640px) {
   .qf-grid, .qf-work-grid, .lead-stats-grid { grid-template-columns:1fr; }
