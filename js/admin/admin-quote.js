@@ -230,6 +230,9 @@ function updateQuotePreview() {
       font-size:12px;
       padding:40px 36px;
       box-sizing:border-box;
+      -webkit-text-size-adjust:100%;
+      text-size-adjust:100%;
+      transform-origin:top left;
     ">
       <!-- 제목 -->
       <div style="text-align:center;margin-bottom:20px">
@@ -239,7 +242,7 @@ function updateQuotePreview() {
       <!-- 상단: 날짜+수신 / 공급자 -->
       <div style="display:flex;gap:16px;margin-bottom:16px">
         <!-- 왼쪽: 수신 -->
-        <div style="flex:0.8">
+        <div style="flex:0 0 250px;min-width:0;padding-right:4px">
           <div style="font-size:12px;color:#666;margin-bottom:8px">${escapeHtml(d.date)}</div>
           <div style="font-size:16px;font-weight:700;margin-bottom:2px">
             ${escapeHtml(d.clientName || '(업체명)')}
@@ -249,7 +252,7 @@ function updateQuotePreview() {
           <div style="font-size:12px;margin-top:12px">아래와 같이 견적합니다.</div>
         </div>
         <!-- 오른쪽: 공급자 -->
-        <div style="flex:1.2">
+        <div style="flex:1 1 auto;min-width:0">
           <table style="width:100%;border-collapse:collapse;font-size:11px">
             <tr>
               <td rowspan="4" style="border:1px solid #333;text-align:center;padding:4px 4px;font-size:12px;background:#f8f8f8;vertical-align:middle;width:24px;line-height:1.8">공<br>급<br>자</td>
@@ -337,6 +340,62 @@ ${workContent ? workContent.split('\n').map(l => escapeHtml(l)).join('\n') : '(�
       </div>
     </div>
   `;
+  fitQuotePreview();
+}
+
+/**
+ * 모바일 미리보기: 720px 문서를 화면 폭에 맞춰 축소 표시 (저장은 원본 크기로).
+ * 예전엔 폰에서 오른쪽이 잘려 옆으로 밀어야 했고, 안드로이드 크롬은 글자를 멋대로 키워 표가 틀어졌음.
+ */
+function fitQuotePreview() {
+  const el = document.getElementById('quotePrintArea');
+  const wrap = document.getElementById('quotePreview');
+  const scroll = wrap && wrap.parentElement;
+  if (!el || !wrap || !scroll) return;
+  const avail = scroll.clientWidth - 2 * (parseFloat(getComputedStyle(scroll).paddingLeft) || 0);
+  const scale = Math.min(1, avail / el.offsetWidth);
+  if (scale < 1) {
+    el.style.transform = `scale(${scale})`;
+    wrap.style.width = Math.round(el.offsetWidth * scale) + 'px';
+    wrap.style.height = Math.round(el.offsetHeight * scale) + 'px';
+    wrap.style.margin = '0 auto';
+    wrap.style.overflow = 'hidden';
+  } else {
+    el.style.transform = '';
+    wrap.style.width = '';
+    wrap.style.height = '';
+    wrap.style.margin = '';
+    wrap.style.overflow = '';
+  }
+}
+let _fitQuoteTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(_fitQuoteTimer);
+  _fitQuoteTimer = setTimeout(fitQuotePreview, 120);
+});
+
+/** 견적서 DOM → canvas (이미지/PDF 공용). 폰에서도 PC 와 같은 720px 레이아웃으로 그린다. */
+async function renderQuoteCanvas(el) {
+  if (typeof html2canvas === 'undefined') {
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+  }
+  const w = el.offsetWidth, h = el.offsetHeight;
+  return html2canvas(el, {
+    scale: 2,
+    backgroundColor: '#ffffff',
+    useCORS: true,
+    width: w,
+    height: h,
+    windowWidth: Math.max(document.documentElement.clientWidth, w + 120),
+    onclone: (doc) => {
+      doc.documentElement.style.webkitTextSizeAdjust = '100%';
+      doc.documentElement.style.textSizeAdjust = '100%';
+      const c = doc.getElementById('quotePrintArea');
+      if (c) { c.style.transform = 'none'; c.style.margin = '0'; c.style.boxShadow = 'none'; }
+      const p = doc.getElementById('quotePreview');
+      if (p) { p.style.width = ''; p.style.height = ''; p.style.overflow = ''; p.style.margin = ''; }
+    },
+  });
 }
 
 /** 유효기간 만료일 문자열 (날짜 계산 가능할 때만 " (YYYY-MM-DD까지)" 붙임) */
@@ -468,22 +527,19 @@ async function exportQuoteExcel() {
     toast('이미지 생성 중...', 'info');
 
     try {
-      if (typeof html2canvas === 'undefined') {
-        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+      const canvas = await renderQuoteCanvas(el);
+      const filename = `견적서_${d.clientName}_${d.date}.png`;
+      if (typeof saveCanvasAsPng === 'function') {
+        saveCanvasAsPng(canvas, filename); // 폰: 공유 시트 / PC: 다운로드 (급여 이미지와 동일)
+      } else {
+        const link = document.createElement('a');
+        link.download = filename;
+        link.href = canvas.toDataURL('image/png');
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        toast('이미지 다운로드 완료');
       }
-
-      const canvas = await html2canvas(el, {
-        scale: 2,
-        backgroundColor: '#ffffff',
-        useCORS: true,
-      });
-
-      const link = document.createElement('a');
-      link.download = `견적서_${d.clientName}_${d.date}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-
-      toast('이미지 다운로드 완료');
     } catch (err) {
       console.error('Image export error:', err);
       toast('이미지 생성 실패: ' + err.message, 'error');
@@ -506,20 +562,12 @@ async function exportQuoteExcel() {
     toast('PDF 생성 중...', 'info');
 
     try {
-      if (typeof html2canvas === 'undefined') {
-        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
-      }
-
       // jsPDF 로드 확인
       if (!window.jspdf && !window.jsPDF) {
         await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
       }
 
-      const canvas = await html2canvas(el, {
-        scale: 2,
-        backgroundColor: '#ffffff',
-        useCORS: true,
-      });
+      const canvas = await renderQuoteCanvas(el);
 
       const imgData = canvas.toDataURL('image/png');
 
