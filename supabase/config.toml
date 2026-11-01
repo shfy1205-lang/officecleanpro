@@ -1,0 +1,4 @@
+# Supabase GitHub 통합용 설정 (최소 구성)
+# - supabase/migrations/*.sql 이 main 브랜치에 push 되면 Supabase 가 운영 DB에 자동 적용
+# - 파일명: YYYYMMDDHHMMSS_설명.sql (타임스탬프 순서대로 적용, 이미 적용된 버전은 건너뜀)
+project_id = "gcbgzfrffekgcaktspyj"
