@@ -99,28 +99,16 @@ function openRequestDetail(requestId) {
   const company = adminData.companies.find(c => c.id === r.company_id);
   const isQr = r.request_source === 'client_qr';
 
-  // QR 사진 표시
+  // QR 사진 표시 (썸네일 + 저장 버튼: 폰은 공유 시트, PC는 다운로드)
   let photoHtml = '';
-  if (r.photo_path) {
-    const paths = r.photo_path.split(',').filter(Boolean);
-    if (paths.length > 0) {
-      const baseUrl = `${localStorage.getItem('supa_url') || 'https://gcbgzfrffekgcaktspyj.supabase.co'}/storage/v1/object/public/qr-photos/`;
-      photoHtml = `
+  if (r.photo_path && r.photo_path.split(',').filter(Boolean).length > 0) {
+    const label = `${company?.name || '업체'}_${String(r.created_at).slice(0, 10)}`;
+    photoHtml = `
         <div class="detail-section">
-          <div class="detail-section-title">📷 첨부 사진</div>
-          <div style="display:flex;flex-wrap:wrap;gap:8px">
-            ${paths.map(p => {
-              const safeUrl = escapeHtml(baseUrl + encodeURI(p));
-              return `
-              <div style="width:80px;height:80px;border-radius:8px;overflow:hidden;cursor:pointer"
-                   onclick="window.open('${safeUrl}', '_blank')">
-                <img src="${safeUrl}" style="width:100%;height:100%;object-fit:cover" loading="lazy">
-              </div>
-            `; }).join('')}
-          </div>
+          <div class="detail-section-title">📷 첨부 사진 <span class="text-muted" style="font-size:11px;font-weight:400">(눌러서 크게 보기 · 저장)</span></div>
+          ${qrPhotoThumbsHtml(r.photo_path, label, 96)}
         </div>
       `;
-    }
   }
 
   const html = `
