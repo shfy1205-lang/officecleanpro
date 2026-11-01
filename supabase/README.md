@@ -10,3 +10,6 @@
 2. 스키마 변경(ALTER/CREATE/함수/RLS)만 넣기. 특정 행 삭제·수정 같은 데이터 변경은 SQL Editor 에서 직접 실행.
 3. 가능하면 `if not exists` / `create or replace` 로 재실행 안전하게.
 4. push 후 Supabase 대시보드 > Branches(또는 Integrations) 에서 배포 로그 확인.
+
+## 상태
+- 2026-11-01: GitHub 통합 활성화 (저장소 shfy1205-lang/officecleanpro, 작업 디렉토리 `.`, 운영 브랜치 `main`, Deploy to production ON)
