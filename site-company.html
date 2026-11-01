@@ -268,7 +268,7 @@
         <div class="photo-attach-area" id="photoAttachArea" onclick="document.getElementById('qrPhotoInput').click()">
           <div class="photo-attach-icon">📷</div>
           <div class="photo-attach-text">탭하여 사진 첨부</div>
-          <div class="photo-attach-hint">최대 3장, 각 10MB 이하</div>
+          <div class="photo-attach-hint">최대 3장, 각 5MB 이하</div>
         </div>
         <div class="photo-preview-grid" id="photoPreviewGrid"></div>
         <input type="file" id="qrPhotoInput" accept="image/*" multiple style="display:none" onchange="handleQrPhotos(event)">
@@ -400,9 +400,9 @@ function handleQrPhotos(event) {
   const newFiles = files.slice(0, remaining);
 
   for (const file of newFiles) {
-    // 10MB 체크
-    if (file.size > 10 * 1024 * 1024) {
-      qrToast('사진 크기는 10MB 이하여야 합니다', 'error');
+    // 5MB 체크 (qr-photos 버킷 제한과 동일)
+    if (file.size > 5 * 1024 * 1024) {
+      qrToast('사진 크기는 5MB 이하여야 합니다', 'error');
       continue;
     }
     if (!file.type.startsWith('image/')) {
