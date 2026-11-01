@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   await loadStaffData();
   renderTodayTasks();
+  subscribeQrRequests();
 });
 
 // ─── 데이터 로드 (RLS가 자동으로 본인 데이터만 반환) ───
@@ -120,6 +121,123 @@ function getCompanyRequests(companyId) {
   return staffData.requests
     .filter(r => r.company_id === companyId && !r.is_resolved)
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+}
+
+// ════════════════════════════════════════════════════
+// 업체(QR) 요청 — 작업자 확인/처리/알림
+// ════════════════════════════════════════════════════
+
+/** 내 담당 업체에서 들어온 미처리 QR 요청 (RLS가 담당 업체만 내려줌) */
+function getPendingQrRequests(companyId) {
+  return staffData.requests
+    .filter(r => r.request_source === 'client_qr' && !r.is_resolved && !isExpired(r.expires_at)
+              && (!companyId || r.company_id === companyId))
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+}
+
+/** 미처리 업체 요청 배너 HTML (오늘 할 일·내 업체 상단) */
+function qrPendingBannerHtml() {
+  const list = getPendingQrRequests();
+  if (list.length === 0) return '';
+  const names = [...new Set(list.map(r => getCompanyById(r.company_id)?.name).filter(Boolean))];
+  const label = names.length > 2 ? `${names.slice(0, 2).join(', ')} 외 ${names.length - 2}곳` : names.join(', ');
+  return `
+    <div class="qr-pending-banner" onclick="staffRequestFilter='qr';switchFromAnywhere('myRequests')"
+         style="display:flex;align-items:center;gap:10px;background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:10px 12px;margin-bottom:12px;cursor:pointer">
+      <span style="font-size:20px">🏢</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:13px;color:#9a3412">업체 요청 ${list.length}건이 기다리고 있어요</div>
+        <div style="font-size:12px;color:#c2410c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(label)}</div>
+      </div>
+      <span style="font-size:12px;color:#9a3412;white-space:nowrap">확인 ›</span>
+    </div>`;
+}
+
+/** 탭 전환 (하단 네비 active까지 맞춤) */
+function switchFromAnywhere(tabName) {
+  const overlay = document.getElementById('moreOverlay');
+  if (overlay) overlay.classList.remove('open');
+  const items = document.querySelectorAll('.bnav-item');
+  items.forEach(i => i.classList.remove('active'));
+  const map = { todayTasks: 0, myCompanies: 1, myPay: 2, chat: 3 };
+  const idx = tabName in map ? map[tabName] : items.length - 1;
+  if (items[idx]) items[idx].classList.add('active');
+  switchTab(tabName);
+}
+
+/** QR 요청 처리 완료 (RPC: 담당 업체 요청만, 완료 플래그만 변경) */
+async function resolveQrRequest(requestId, afterRender) {
+  const r = staffData.requests.find(x => x.id === requestId);
+  if (!r) return;
+  if (!confirm('이 업체 요청을 처리 완료로 표시할까요?\n(업체 QR 페이지에서도 완료로 바뀝니다)')) return;
+  const btns = document.querySelectorAll(`[data-qr-resolve="${requestId}"]`);
+  btns.forEach(b => { b.disabled = true; b.textContent = '처리 중...'; });
+  try {
+    const { error } = await sb.rpc('resolve_qr_request', { p_request_id: requestId, p_resolved: true });
+    if (error) throw error;
+    r.is_resolved = true;
+    r.updated_at = new Date().toISOString();
+    toast('처리 완료로 표시했습니다 ✓');
+    updateQrBadge();
+    if (typeof afterRender === 'function') afterRender();
+  } catch (e) {
+    console.error('resolveQrRequest error:', e);
+    btns.forEach(b => { b.disabled = false; b.textContent = '✓ 처리 완료'; });
+    toast('처리 실패: ' + (e.message || e), 'error');
+  }
+}
+
+/** 하단 네비 '더보기'와 상단 '내 요청' 탭에 미처리 업체 요청 수 배지 */
+function updateQrBadge() {
+  const n = getPendingQrRequests().length;
+  document.querySelectorAll('.tab').forEach(t => {
+    if (!/내 요청/.test(t.textContent)) return;
+    t.textContent = n > 0 ? `내 요청 (${n})` : '내 요청';
+  });
+  const more = document.querySelector('.more-item[onclick*="myRequests"]');
+  if (more) {
+    let b = more.querySelector('.qr-more-badge');
+    if (n > 0) {
+      if (!b) { b = document.createElement('span'); b.className = 'qr-more-badge'; b.style.cssText = 'margin-left:6px;background:#f97316;color:#fff;border-radius:999px;font-size:11px;padding:1px 7px;font-weight:700'; more.appendChild(b); }
+      b.textContent = n;
+    } else if (b) b.remove();
+  }
+}
+
+/** 실시간: 업체 QR 요청이 새로 오면 바로 목록에 넣고 알림 */
+let _qrChannel = null;
+function subscribeQrRequests() {
+  updateQrBadge();
+  if (_qrChannel || typeof sb === 'undefined' || !sb.channel) return;
+  try {
+    _qrChannel = sb.channel('qr-requests-staff')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'requests' }, (payload) => {
+        const r = payload.new;
+        if (!r || r.request_source !== 'client_qr') return;
+        if (!staffData.requests.some(x => x.id === r.id)) staffData.requests.push(r);
+        const name = getCompanyById(r.company_id)?.name || '업체';
+        toast(`🏢 ${name} 새 요청: ${String(r.content || '').slice(0, 40)}`);
+        notifyQrRequest(name, r.content);
+        updateQrBadge();
+        if (['todayTasks', 'myCompanies', 'myRequests'].includes(currentTab)) switchTab(currentTab);
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'requests' }, (payload) => {
+        const r = payload.new; if (!r) return;
+        const local = staffData.requests.find(x => x.id === r.id);
+        if (local) Object.assign(local, r);
+        updateQrBadge();
+      })
+      .subscribe();
+  } catch (e) { console.warn('qr realtime subscribe failed', e); }
+}
+
+function notifyQrRequest(companyName, content) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  if (document.visibilityState === 'visible') return; // 앱 보고 있으면 토스트로 충분
+  try {
+    const n = new Notification('업체 요청 · ' + companyName, { body: String(content || '').slice(0, 80), tag: 'qr-request' });
+    n.onclick = () => { window.focus(); staffRequestFilter = 'qr'; switchFromAnywhere('myRequests'); n.close(); };
+  } catch (e) {}
 }
 
 /** Supabase Storage 공개 URL 생성 */
