@@ -49,7 +49,7 @@ function renderQuote() {
     <div class="section-title qf-header">
       <span>견적서 생성</span>
       <div class="qf-actions">
-        ${lead ? `<button class="btn-sm qf-btn-save" id="qSaveBtn" onclick="saveQuoteToLead()">💾 견적 저장</button>` : ''}
+        <button class="btn-sm qf-btn-save" id="qSaveBtn" onclick="saveQuoteToLead()">💾 견적 저장</button>
         <button class="btn-sm btn-blue" onclick="exportQuoteExcel()">📊 엑셀</button>
         <button class="btn-sm btn-green" onclick="exportQuoteImage()">🖼️ 이미지</button>
         <button class="btn-sm qf-btn-pdf" onclick="exportQuotePDF()">📄 PDF</button>
@@ -123,6 +123,8 @@ function renderQuote() {
     $('qSpec').value = lead.spec || '사무실전체';
     if (lead.quoteDate) $('qDate').value = lead.quoteDate;
     if (lead.amount) $('qAmount').value = Number(lead.amount).toLocaleString('ko-KR');
+    if (lead.validDays) $('qValidDays').value = lead.validDays;
+    if (lead.etcNote) $('qEtcNote').value = lead.etcNote;
 
     // 저장된 견적서 작업내용 복원 (표준 항목은 체크, 나머지는 기타 칸으로 — 이전엔 기타 항목이 사라졌음)
     if (lead.quoteWorkItems && lead.quoteWorkItems.length > 0) {
@@ -613,11 +615,11 @@ async function exportQuoteExcel() {
   // 견적관리 연동: 저장/해제
   // ════════════════════════════════════════════════════
 
+  /**
+   * 견적 저장: 견적관리에서 연결해 들어온 경우 해당 건을 갱신하고,
+   * 견적서 메뉴에서 바로 만든 경우 견적관리에 새 건으로 등록한다 (이전엔 연결된 경우에만 저장 가능했음).
+   */
   async function saveQuoteToLead() {
-    if (!pendingQuoteLead || !pendingQuoteLead.id) {
-      return toast('연동된 견적 정보가 없습니다', 'error');
-    }
-
     const d = getQuoteFormData();
     if (!d.clientName) return toast('업체명을 입력해주세요', 'error');
     if (!d.amount) return toast('금액을 입력해주세요', 'error');
@@ -627,33 +629,60 @@ async function exportQuoteExcel() {
     if (btn) { btn.disabled = true; btn.textContent = '저장 중...'; }
 
     try {
-      const local = adminData.leads.find(l => l.id === pendingQuoteLead.id);
-      const curStatus = local ? local.status : pendingQuoteLead.status;
+      const isLinked = !!(pendingQuoteLead && pendingQuoteLead.id);
+      const local = isLinked ? adminData.leads.find(l => l.id === pendingQuoteLead.id) : null;
+      const curStatus = local ? local.status : (isLinked ? pendingQuoteLead.status : null);
 
       const payload = {
+        company_name:     d.clientName,
+        location:         d.address,
         quote_date:       d.date,
         quote_amount:     d.total,     // VAT 포함 합계
         estimated_amount: d.amount,    // 예상금액은 VAT 별도 공급가로 통일
         quote_spec:       d.spec,
         quote_frequency:  d.frequency,
         quote_work_items: d.workItems,
+        quote_valid_days: parseInt(d.validDays) || null,
+        quote_note:       d.etcNote || null,
       };
       // 견적 제출 전 단계일 때만 '견적제출'로 변경 (이전엔 성공/실패 건도 견적제출로 되돌려 통계가 틀어졌음)
       if (!curStatus || LEAD_PRE_PROPOSAL.includes(curStatus)) payload.status = 'proposal';
 
-      const { error } = await sb.from('leads')
-        .update(payload)
-        .eq('id', pendingQuoteLead.id);
+      if (isLinked) {
+        const { error } = await sb.from('leads')
+          .update(payload)
+          .eq('id', pendingQuoteLead.id);
+        if (error) return toast('저장 실패: ' + error.message, 'error');
 
-      if (error) return toast('저장 실패: ' + error.message, 'error');
+        if (local) Object.assign(local, payload);
+        Object.assign(pendingQuoteLead, {
+          clientName: d.clientName, address: d.address,
+          amount: d.amount, quoteDate: d.date, quoteWorkItems: d.workItems,
+          validDays: d.validDays, etcNote: d.etcNote,
+          status: payload.status || curStatus,
+        });
+        toast('견적서가 저장되었습니다 ✓');
+      } else {
+        const { data, error } = await sb.from('leads')
+          .insert(payload)
+          .select()
+          .single();
+        if (error) return toast('저장 실패: ' + error.message, 'error');
 
-      if (local) Object.assign(local, payload);
-      Object.assign(pendingQuoteLead, {
-        amount: d.amount, quoteDate: d.date, quoteWorkItems: d.workItems,
-        status: payload.status || curStatus,
-      });
-
-      toast('견적서가 저장되었습니다 ✓');
+        if (data) {
+          adminData.leads.unshift(data);
+          // 이후 저장은 같은 건을 갱신하도록 연결 (배너 표시를 위해 다시 그림)
+          pendingQuoteLead = {
+            id: data.id, status: data.status,
+            clientName: d.clientName, address: d.address,
+            amount: d.amount, quoteDate: d.date, frequency: d.frequency, spec: d.spec,
+            workItems: [], quoteWorkItems: d.workItems,
+            validDays: d.validDays, etcNote: d.etcNote,
+          };
+          renderQuote();
+        }
+        toast('견적관리에 등록되었습니다 ✓');
+      }
     } catch (e) {
       console.error('saveQuoteToLead error:', e);
       toast('견적 저장 중 오류가 발생했습니다', 'error');

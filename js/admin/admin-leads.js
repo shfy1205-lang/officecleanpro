@@ -517,6 +517,8 @@ function openLeadDetail(leadId) {
         </div>
       </div>
       ${(l.quote_spec || l.quote_frequency) ? `<p class="text-muted" style="font-size:12px;margin-top:4px">규격: ${escapeHtml(l.quote_spec || '-')} / 횟수: ${escapeHtml(l.quote_frequency || '-')}</p>` : ''}
+      ${l.quote_valid_days ? `<p class="text-muted" style="font-size:12px;margin-top:4px">유효기간: 견적일로부터 ${escapeHtml(String(l.quote_valid_days))}일</p>` : ''}
+      ${l.quote_note ? `<p class="text-muted" style="font-size:12px;margin-top:4px">기타사항: ${escapeHtml(l.quote_note)}</p>` : ''}
     </div>
     ` : ''}
 
@@ -596,6 +598,8 @@ function goToQuoteFromLead(leadId) {
     spec:           l.quote_spec || '사무실전체',
     workItems:      l.work_items || [],
     quoteWorkItems: l.quote_work_items || null,
+    validDays:      l.quote_valid_days || null,
+    etcNote:        l.quote_note || '',
   };
 
   closeModal();
