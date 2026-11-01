@@ -106,6 +106,7 @@ function renderLeads(listOnly) {
       (l.company_name || '').toLowerCase().includes(q) ||
       (l.contact_name || '').toLowerCase().includes(q) ||
       (l.location || '').toLowerCase().includes(q) ||
+      (l.building || '').toLowerCase().includes(q) ||
       (qDigits.length >= 3 && (l.contact_phone || '').replace(/\D/g, '').includes(qDigits))
     );
   }
@@ -134,7 +135,9 @@ function renderLeads(listOnly) {
           <div class="lead-card-info">
             ${amount ? `<span class="info-chip">💰 ${fmt(amount)}원 <small>(VAT별도)</small></span>` : ''}
             ${wi.length > 0 ? `<span class="info-chip">📋 작업 ${wi.length}건</span>` : ''}
+            ${l.building ? `<span class="info-chip">🏢 ${escapeHtml(l.building)}</span>` : ''}
             ${l.location ? `<span class="info-chip">📍 ${escapeHtml(l.location)}</span>` : ''}
+            ${l.contract_end_month ? `<span class="info-chip">⏳ 계약만료 ${escapeHtml(l.contract_end_month)}</span>` : ''}
             ${l.assigned_to ? `<span class="info-chip">👤 ${escapeHtml(getWorkerName(l.assigned_to))}</span>` : ''}
             ${l.quote_date ? `<span class="info-chip lead-chip-quoted">📄 견적서 ${escapeHtml(l.quote_date)}</span>` : ''}
           </div>
@@ -266,6 +269,16 @@ function openLeadForm(leadId) {
       <label>위치</label>
       <input id="lLocation" value="${escapeHtml(l.location || '')}" placeholder="주소 입력">
     </div>
+    <div class="admin-row-2">
+      <div class="field">
+        <label>건물</label>
+        <input id="lBuilding" value="${escapeHtml(l.building || '')}" placeholder="예: 우림라이온스밸리 A동">
+      </div>
+      <div class="field">
+        <label>현재 계약 만료월</label>
+        <input id="lContractEnd" type="month" value="${escapeHtml(l.contract_end_month || '')}">
+      </div>
+    </div>
 
     <div class="field lead-wi-field">
       <label class="lead-wi-label">
@@ -378,6 +391,8 @@ async function saveLead(leadId) {
       contact_name:  $('lContact').value.trim(),
       contact_phone: $('lPhone').value.trim(),
       location:      $('lLocation').value.trim(),
+      building:      $('lBuilding').value.trim() || null,
+      contract_end_month: $('lContractEnd').value || null,
       status:        $('lStatus').value,
       assigned_to:   $('lAssigned').value || null,
       notes:         $('lNotes').value.trim(),
@@ -458,6 +473,17 @@ function openLeadDetail(leadId) {
           <p class="text-muted">${escapeHtml(l.location || '-')}</p>
         </div>
       </div>
+      ${(l.building || l.contract_end_month) ? `
+      <div class="admin-row-2" style="margin-top:8px">
+        <div>
+          <div class="stat-label">건물</div>
+          <p class="text-muted">${escapeHtml(l.building || '-')}</p>
+        </div>
+        <div>
+          <div class="stat-label">현재 계약 만료월</div>
+          <p class="text-muted">${escapeHtml(l.contract_end_month || '-')}</p>
+        </div>
+      </div>` : ''}
     </div>
 
     <div class="detail-section">

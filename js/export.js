@@ -315,7 +315,7 @@ function exportRequests() {
 
 function exportLeads() {
   const headers = [
-    '업체명', '담당자명', '연락처', '위치',
+    '업체명', '담당자명', '연락처', '위치', '건물', '계약만료월',
     '견적금액(VAT별도,원)', '견적서합계(VAT포함,원)', '견적서작성일', '상태', '담당직원', '메모', '등록일'
   ];
 
@@ -326,6 +326,8 @@ function exportLeads() {
       l.contact_name || '',
       l.contact_phone || '',
       l.location || '',
+      l.building || '',
+      l.contract_end_month || '',
       typeof leadSupplyAmount === 'function' ? leadSupplyAmount(l) : (l.estimated_amount || 0),
       l.quote_amount || 0,
       l.quote_date || '',
@@ -341,7 +343,7 @@ function exportLeads() {
     '견적목록',
     headers,
     rows,
-    [16, 10, 14, 20, 16, 16, 12, 10, 10, 24, 12]
+    [16, 10, 14, 20, 18, 10, 16, 16, 12, 10, 10, 24, 12]
   );
 }
 
