@@ -98,6 +98,7 @@ function renderTodayTasks() {
     <div class="sttoday-progress">
       <div class="sttoday-progress-bar" style="width:${pct}%"></div>
     </div>
+    ${qrPendingBannerHtml()}
   `;
 
   if (taskItems.length === 0) {
@@ -143,7 +144,7 @@ function buildTodayTaskCard(item, dateStr) {
       <div style="display:flex;gap:4px;flex-shrink:0">
         ${isCompleted
           ? '<span class="badge badge-done">완료</span>'
-          : (requestCount > 0 ? `<span class="badge badge-warn">요청 ${requestCount}건</span>` : '')
+          : (requestCount > 0 ? `<span class="badge badge-warn" style="cursor:pointer" onclick="openCompanyDetail('${cid}')">요청 ${requestCount}건 ›</span>` : '')
         }
       </div>
     </div>
