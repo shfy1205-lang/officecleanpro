@@ -1,5 +1,7 @@
 /**
  * staff-requests.js - 요청사항 작성 + 내 요청 탭
+ *  - 내가 관리자에게 보낸 요청(기존)
+ *  - 업체가 QR 페이지로 보낸 요청(client_qr): 확인 · 사진 저장 · 처리 완료
  */
 
 let staffRequestFilter = 'all';
@@ -9,89 +11,180 @@ let staffRequestFilter = 'all';
 function renderMyRequests() {
   const mc = $('mainContent');
   const myReqs = staffData.requests
-    .filter(r => r.created_by === currentWorker.id)
+    .filter(r => r.created_by === currentWorker.id && r.request_source !== 'client_qr')
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  const qrAll = staffData.requests
+    .filter(r => r.request_source === 'client_qr')
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  const qrPending = qrAll.filter(r => !r.is_resolved && !isExpired(r.expires_at));
 
   let list = myReqs;
+  let isQrView = false;
   if (staffRequestFilter === 'pending') {
     list = myReqs.filter(r => !r.is_resolved && !isExpired(r.expires_at));
   } else if (staffRequestFilter === 'resolved') {
     list = myReqs.filter(r => r.is_resolved);
+  } else if (staffRequestFilter === 'qr') {
+    // 미처리 먼저, 그 다음 최근 처리/만료 30일치
+    const cutoff = Date.now() - 30 * 86400000;
+    list = [...qrPending, ...qrAll.filter(r => !qrPending.includes(r) && new Date(r.created_at).getTime() > cutoff)];
+    isQrView = true;
   }
 
   const pendingCount = myReqs.filter(r => !r.is_resolved && !isExpired(r.expires_at)).length;
   const resolvedCount = myReqs.filter(r => r.is_resolved).length;
 
-  // 내 업체 목록 (새 요청 작성용)
-  const myAssigns = getMonthAssignments(currentMonth());
-  const myCompanyIds = [...new Set(myAssigns.map(a => a.company_id))];
-  const myCompanies = myCompanyIds.map(id => getCompanyById(id)).filter(Boolean);
-
   mc.innerHTML = `
     <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
-      내 요청사항
+      요청사항
       <button class="btn-sm btn-blue" onclick="openNewRequestSelector()">+ 새 요청</button>
     </div>
 
+    ${staffRequestFilter !== 'qr' ? qrPendingBannerHtml() : ''}
+
     <div class="stats-grid" style="margin-bottom:16px">
-      <div class="stat-card">
-        <div class="stat-label">전체</div>
-        <div class="stat-value blue">${myReqs.length}</div>
+      <div class="stat-card" onclick="staffRequestFilter='qr';renderMyRequests()" style="cursor:pointer;${qrPending.length ? 'border:1px solid #fdba74;background:#fff7ed' : ''}">
+        <div class="stat-label">업체 요청</div>
+        <div class="stat-value" style="color:#ea580c">${qrPending.length}</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-label">대기중</div>
+      <div class="stat-card" onclick="staffRequestFilter='pending';renderMyRequests()" style="cursor:pointer">
+        <div class="stat-label">내 요청 대기</div>
         <div class="stat-value yellow">${pendingCount}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">처리완료</div>
-        <div class="stat-value green">${resolvedCount}</div>
       </div>
     </div>
 
     <div class="view-toggle" style="margin-bottom:16px">
+      <button class="view-toggle-btn${staffRequestFilter === 'qr' ? ' active' : ''}"
+              onclick="staffRequestFilter='qr';renderMyRequests()">업체요청 (${qrPending.length})</button>
       <button class="view-toggle-btn${staffRequestFilter === 'all' ? ' active' : ''}"
-              onclick="staffRequestFilter='all';renderMyRequests()">전체 (${myReqs.length})</button>
+              onclick="staffRequestFilter='all';renderMyRequests()">내 요청 (${myReqs.length})</button>
       <button class="view-toggle-btn${staffRequestFilter === 'pending' ? ' active' : ''}"
-              onclick="staffRequestFilter='pending';renderMyRequests()">대기중 (${pendingCount})</button>
+              onclick="staffRequestFilter='pending';renderMyRequests()">대기 (${pendingCount})</button>
       <button class="view-toggle-btn${staffRequestFilter === 'resolved' ? ' active' : ''}"
-              onclick="staffRequestFilter='resolved';renderMyRequests()">처리완료 (${resolvedCount})</button>
+              onclick="staffRequestFilter='resolved';renderMyRequests()">완료 (${resolvedCount})</button>
     </div>
 
-    ${list.length > 0 ? list.map(r => {
-      const expired = isExpired(r.expires_at);
-      const company = getCompanyById(r.company_id);
-      const statusBadge = r.is_resolved
-        ? '<span class="badge badge-done">처리완료</span>'
-        : expired
-          ? '<span class="badge badge-warn">만료</span>'
-          : '<span class="badge badge-today">대기중</span>';
-
-      return `
-        <div class="card request-card ${r.is_resolved ? 'resolved' : ''}" onclick="openMyRequestDetail('${r.id}')">
-          <div class="card-header">
-            <div>
-              <div class="card-title">${escapeHtml(company?.name || '알 수 없음')}</div>
-              <div class="card-subtitle">${formatDate(r.created_at)}</div>
-            </div>
-            ${statusBadge}
-          </div>
-          <div class="request-content">${escapeHtml(r.content)}</div>
-          ${r.photo_path ? `<div style="margin-top:4px;font-size:11px;color:var(--accent2)">📷 사진 ${r.photo_path.split(',').filter(Boolean).length}장 첨부</div>` : ''}
-          ${!r.is_resolved && !expired ? `
-            <div class="request-card-footer">
-              <span class="text-muted">만료: ${formatDateShort(r.expires_at)}</span>
-            </div>
-          ` : ''}
-        </div>
-      `;
-    }).join('') : `
+    ${list.length > 0 ? list.map(r => isQrView ? buildQrRequestCard(r) : buildMyRequestCard(r)).join('') : `
       <div class="empty-state">
-        <div class="empty-icon">📋</div>
-        <p>등록한 요청사항이 없습니다</p>
-        <p class="text-muted" style="margin-top:4px">위의 '새 요청' 버튼으로 관리자에게 요청을 보내세요</p>
+        <div class="empty-icon">${isQrView ? '🏢' : '📋'}</div>
+        <p>${isQrView ? '업체에서 온 요청이 없습니다' : '등록한 요청사항이 없습니다'}</p>
+        <p class="text-muted" style="margin-top:4px">${isQrView ? '업체가 QR 페이지에서 요청을 보내면 여기에 바로 표시됩니다' : "위의 '새 요청' 버튼으로 관리자에게 요청을 보내세요"}</p>
       </div>
     `}
   `;
+}
+
+function buildMyRequestCard(r) {
+  const expired = isExpired(r.expires_at);
+  const company = getCompanyById(r.company_id);
+  const statusBadge = r.is_resolved
+    ? '<span class="badge badge-done">처리완료</span>'
+    : expired
+      ? '<span class="badge badge-warn">만료</span>'
+      : '<span class="badge badge-today">대기중</span>';
+  return `
+    <div class="card request-card ${r.is_resolved ? 'resolved' : ''}" onclick="openMyRequestDetail('${r.id}')">
+      <div class="card-header">
+        <div>
+          <div class="card-title">${escapeHtml(company?.name || '알 수 없음')}</div>
+          <div class="card-subtitle">${formatDate(r.created_at)}</div>
+        </div>
+        ${statusBadge}
+      </div>
+      <div class="request-content">${escapeHtml(r.content)}</div>
+      ${r.photo_path ? `<div style="margin-top:4px;font-size:11px;color:var(--accent2)">📷 사진 ${r.photo_path.split(',').filter(Boolean).length}장 첨부</div>` : ''}
+      ${!r.is_resolved && !expired ? `
+        <div class="request-card-footer">
+          <span class="text-muted">만료: ${formatDateShort(r.expires_at)}</span>
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+/** 업체(QR) 요청 카드: 내용·사진·처리 완료 버튼이 카드에서 바로 보임 */
+function buildQrRequestCard(r) {
+  const expired = isExpired(r.expires_at);
+  const company = getCompanyById(r.company_id);
+  const pending = !r.is_resolved && !expired;
+  const statusBadge = r.is_resolved
+    ? '<span class="badge badge-done">처리완료</span>'
+    : expired
+      ? '<span class="badge badge-warn">만료</span>'
+      : '<span class="badge" style="background:#f97316;color:#fff">미처리</span>';
+  const label = `${company?.name || '업체'}_${String(r.created_at).slice(0, 10)}`;
+  return `
+    <div class="card request-card ${r.is_resolved ? 'resolved' : ''}" style="border-left:3px solid #f97316" onclick="openQrRequestDetail('${r.id}')">
+      <div class="card-header">
+        <div>
+          <div class="card-title">${escapeHtml(company?.name || '알 수 없음')}</div>
+          <div class="card-subtitle">${formatDate(r.created_at)} · 업체 QR 요청</div>
+        </div>
+        ${statusBadge}
+      </div>
+      <div class="request-content">${escapeHtml(r.content)}</div>
+      ${qrPhotoThumbsHtml(r.photo_path, label, 72)}
+      ${pending ? `
+        <div class="request-card-footer" style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px">
+          <span class="text-muted">만료: ${formatDateShort(r.expires_at)}</span>
+          <button type="button" class="btn-sm btn-green" data-qr-resolve="${r.id}"
+                  onclick="event.stopPropagation();resolveQrRequest('${r.id}', renderMyRequests)">✓ 처리 완료</button>
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+// ─── 업체(QR) 요청 상세 ───
+
+function openQrRequestDetail(requestId) {
+  const r = staffData.requests.find(x => x.id === requestId);
+  if (!r) return;
+  const expired = isExpired(r.expires_at);
+  const company = getCompanyById(r.company_id);
+  const label = `${company?.name || '업체'}_${String(r.created_at).slice(0, 10)}`;
+  const photos = qrPhotoThumbsHtml(r.photo_path, label, 96);
+
+  $('modalBody').innerHTML = `
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <h3>업체 요청 <span class="badge" style="background:#f97316;color:#fff;font-size:10px;padding:2px 6px;vertical-align:middle">QR</span></h3>
+
+    <div class="detail-section">
+      <div class="detail-section-title">📍 업체</div>
+      <p style="font-size:14px;font-weight:600">${escapeHtml(company?.name || '알 수 없음')}</p>
+      <p class="text-muted">${escapeHtml(company?.location || '')}</p>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">📝 요청 내용</div>
+      <div class="special-notes-box">${escapeHtml(r.content).replace(/\n/g, '<br>')}</div>
+    </div>
+
+    ${photos ? `<div class="detail-section"><div class="detail-section-title">📷 첨부 사진 <span class="text-muted" style="font-size:11px;font-weight:400">(저장 버튼으로 폰에 저장)</span></div>${photos}</div>` : ''}
+
+    <div class="detail-section">
+      <div class="admin-row-2">
+        <div><div class="stat-label">요청일</div><p class="text-muted">${formatDate(r.created_at)}</p></div>
+        <div><div class="stat-label">만료일</div><p class="text-muted">${formatDateShort(r.expires_at)} ${expired ? '(만료됨)' : ''}</p></div>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-section-title">처리 상태</div>
+      <p>${r.is_resolved
+        ? '<span class="badge badge-done" style="font-size:13px;padding:4px 12px">처리완료</span>'
+        : expired
+          ? '<span class="badge badge-warn" style="font-size:13px;padding:4px 12px">만료됨</span>'
+          : '<span class="badge" style="background:#f97316;color:#fff;font-size:13px;padding:4px 12px">미처리</span>'
+      }</p>
+    </div>
+
+    ${!r.is_resolved && !expired ? `
+      <button class="btn btn-green" style="width:100%;margin-top:12px" data-qr-resolve="${r.id}"
+              onclick="resolveQrRequest('${r.id}', () => { closeModal(); renderMyRequests(); })">✓ 처리 완료</button>
+    ` : ''}
+  `;
+  $('detailModal').classList.add('show');
 }
 
 // ─── 내 요청 상세 보기 ───
