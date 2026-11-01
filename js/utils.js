@@ -649,46 +649,113 @@ function generatePayImage(params) {
  *   그 외에는 Blob URL을 DOM에 붙인 <a>로 다운로드한다. iOS에서 download 미지원이면 새 탭으로 연다.
  */
 function saveCanvasAsPng(canvas, filename) {
+  canvas.toBlob((blob) => {
+    if (!blob) { if (typeof toast === 'function') toast('이미지 생성에 실패했습니다', 'error'); return; }
+    saveBlobAsFile(blob, filename);
+  }, 'image/png');
+}
+
+/**
+ * Blob을 파일로 저장한다 (saveCanvasAsPng·saveImageFromUrl 공용).
+ * 모바일: 공유 시트(사진 앱 저장/카톡 전송) → 실패 시 다운로드 → 구형 iOS는 새 탭.
+ */
+async function saveBlobAsFile(blob, filename) {
   const ua = navigator.userAgent || '';
   const isMobile = /Android|iPhone|iPad|iPod/i.test(ua);
   const isIOS = /iPhone|iPad|iPod/i.test(ua);
   const say = (msg, type) => { if (typeof toast === 'function') toast(msg, type); };
 
-  canvas.toBlob(async (blob) => {
-    if (!blob) { say('이미지 생성에 실패했습니다', 'error'); return; }
-
-    // 1) 모바일: 공유 시트 → 사진 앱에 저장 / 카톡 전송 가능
-    if (isMobile && navigator.canShare) {
-      try {
-        const file = new File([blob], filename, { type: 'image/png' });
-        if (navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file], title: filename });
-          return;
-        }
-      } catch (e) {
-        if (e && e.name === 'AbortError') return;   // 사용자가 취소
-        // 공유 실패 → 아래 다운로드로 폴백
+  if (isMobile && navigator.canShare) {
+    try {
+      const file = new File([blob], filename, { type: blob.type || 'application/octet-stream' });
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: filename });
+        return true;
       }
+    } catch (e) {
+      if (e && e.name === 'AbortError') return false;   // 사용자가 취소
     }
+  }
 
-    // 2) 데스크톱/안드로이드: Blob URL 다운로드 (<a>를 DOM에 붙여야 일부 브라우저에서 동작)
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.rel = 'noopener';
-    a.style.display = 'none';
-    document.body.appendChild(a);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.rel = 'noopener';
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  if (isIOS && !('download' in HTMLAnchorElement.prototype)) {
+    window.open(url, '_blank');
+  } else {
+    a.click();
+  }
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 2000);
+  say(`${filename} 저장됨`);
+  return true;
+}
 
-    if (isIOS && !('download' in HTMLAnchorElement.prototype)) {
-      // 3) 구형 iOS: 새 탭으로 열어 길게 눌러 저장
-      window.open(url, '_blank');
-    } else {
-      a.click();
-    }
-    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 2000);
-    say(`${filename} 저장됨`);
-  }, 'image/png');
+/**
+ * 이미지 URL(예: Supabase Storage 공개 파일)을 받아서 파일로 저장한다.
+ * 새 탭으로 여는 방식은 폰·인앱 브라우저에서 저장이 안 되는 경우가 많아 Blob으로 받아 저장한다.
+ */
+async function saveImageFromUrl(url, filename) {
+  const say = (msg, type) => { if (typeof toast === 'function') toast(msg, type); };
+  try {
+    const res = await fetch(url, { mode: 'cors' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const blob = await res.blob();
+    const ext = (blob.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
+    const name = /\.[a-z0-9]{3,4}$/i.test(filename) ? filename : `${filename}.${ext}`;
+    return await saveBlobAsFile(blob, name);
+  } catch (e) {
+    console.error('saveImageFromUrl error:', e);
+    say('사진을 불러오지 못했습니다. 새 탭에서 길게 눌러 저장해주세요', 'error');
+    window.open(url, '_blank');
+    return false;
+  }
+}
+
+// ════════════════════════════════════════════════════
+// 업체(QR) 요청 사진 공용 헬퍼 (admin/staff 양쪽에서 사용)
+// ════════════════════════════════════════════════════
+
+/** qr-photos 버킷 공개 URL */
+function qrPhotoUrl(path) {
+  const base = (localStorage.getItem('supa_url') || (typeof DEFAULT_SUPA_URL !== 'undefined' ? DEFAULT_SUPA_URL : 'https://gcbgzfrffekgcaktspyj.supabase.co')).replace(/\/+$/, '');
+  return `${base}/storage/v1/object/public/qr-photos/${encodeURI(path)}`;
+}
+
+/** 사진 크게 보기: 라이트박스가 있으면(직원앱) 사용, 없으면(관리자) 새 탭 */
+function qrOpenPhoto(url) {
+  if (typeof openLightbox === 'function') openLightbox(url, '업체 요청 사진');
+  else window.open(url, '_blank', 'noopener');
+}
+
+/**
+ * 요청 사진 썸네일 + 저장 버튼 HTML.
+ * @param photoPath  requests.photo_path (쉼표 구분)
+ * @param label      저장 파일명 앞부분 (예: 업체명_요청일)
+ * @param size       썸네일 px (기본 84)
+ */
+function qrPhotoThumbsHtml(photoPath, label, size) {
+  const paths = (photoPath || '').split(',').filter(Boolean);
+  if (paths.length === 0) return '';
+  const px = size || 84;
+  const safeLabel = escapeHtml((label || '요청사진').replace(/[\\/:*?"<>|]/g, '_'));
+  return `<div class="qr-photo-row" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
+    ${paths.map((p, i) => {
+      const url = escapeHtml(qrPhotoUrl(p));
+      const fname = `${safeLabel}_${i + 1}`;
+      return `<div class="qr-photo" style="width:${px}px">
+        <div style="width:${px}px;height:${px}px;border-radius:8px;overflow:hidden;cursor:pointer;background:#eee"
+             onclick="event.stopPropagation();qrOpenPhoto('${url}')">
+          <img src="${url}" alt="업체 요청 사진 ${i + 1}" style="width:100%;height:100%;object-fit:cover" loading="lazy">
+        </div>
+        <button type="button" class="btn-sm btn-gray qr-photo-save" style="width:100%;margin-top:4px;font-size:11px;padding:4px 0"
+                onclick="event.stopPropagation();saveImageFromUrl('${url}','${fname}')">💾 저장</button>
+      </div>`;
+    }).join('')}
+  </div>`;
 }
 
 /** Canvas 라운드 사각형 헬퍼 */
