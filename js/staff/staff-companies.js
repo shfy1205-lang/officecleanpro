@@ -12,6 +12,7 @@ function renderMyCompanies() {
 
   let html = `
     <div class="section-title">내 업체</div>
+    ${qrPendingBannerHtml()}
     ${monthSelectorHTML(selectedMonth, 'changeCompanyMonth')}
   `;
 
@@ -239,26 +240,15 @@ async function openCompanyDetail(companyId) {
       ${qrReqs.map(r => {
         const rDate = new Date(r.created_at).toLocaleDateString('ko-KR');
         const expDate = new Date(r.expires_at).toLocaleDateString('ko-KR');
-        let qrPhotoHtml = '';
-        if (r.photo_path) {
-          const paths = r.photo_path.split(',').filter(Boolean);
-          if (paths.length > 0) {
-            const baseUrl = (localStorage.getItem('supa_url') || 'https://gcbgzfrffekgcaktspyj.supabase.co') + '/storage/v1/object/public/qr-photos/';
-            qrPhotoHtml = `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">
-              ${paths.map(p => {
-              const safeUrl = escapeHtml(baseUrl + encodeURI(p));
-              return `<div style="width:70px;height:70px;border-radius:6px;overflow:hidden;cursor:pointer"
-                   onclick="event.stopPropagation();openLightbox('${safeUrl}','업체 요청 사진')">
-                <img src="${safeUrl}" style="width:100%;height:100%;object-fit:cover" loading="lazy">
-              </div>`;
-            }).join('')}
-            </div>`;
-          }
-        }
+        const label = `${company.name}_${String(r.created_at).slice(0, 10)}`;
         return `<div class="request-item" style="border-left:3px solid #f97316">
           <div class="request-content">${escapeHtml(r.content)}</div>
-          ${qrPhotoHtml}
-          <div class="request-meta">${rDate} · 만료: ${expDate}</div>
+          ${qrPhotoThumbsHtml(r.photo_path, label, 76)}
+          <div class="request-meta" style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px">
+            <span>${rDate} · 만료: ${expDate}</span>
+            <button type="button" class="btn-sm btn-green" data-qr-resolve="${r.id}"
+                    onclick="event.stopPropagation();resolveQrRequest('${r.id}', () => openCompanyDetail('${companyId}'))">✓ 처리 완료</button>
+          </div>
         </div>`;
       }).join('')}
     </div>
