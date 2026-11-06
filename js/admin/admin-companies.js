@@ -393,8 +393,18 @@ async function _saveCompanyInner(companyId) {
   };
 
   let error;
+  let termResult = null;
   if (companyId) {
+    const before = adminData.companies.find(c => c.id === companyId) || {};
+    const becomingTerminated = status === 'terminated' &&
+      (before.status !== 'terminated' || (before.terminated_at || '') !== (payload.terminated_at || ''));
+    if (becomingTerminated && !payload.terminated_at) return toast('해지일을 입력하세요', 'error');
     ({ error } = await sb.from('companies').update(payload).eq('id', companyId));
+    // 해지는 terminate_company 한 곳에서: 계약·담당 종료, 일정 끄기, 종료월 이후 자동 생성분 정리
+    if (!error && becomingTerminated) {
+      const r = await sb.rpc('terminate_company', { p_company_id: companyId, p_end_date: payload.terminated_at });
+      error = r.error; termResult = r.data;
+    }
   } else {
     // 신규 업체: register_company RPC 한 번으로 업체+계약+일정+담당+QR+당월 데이터 생성
     const wd = Array.from(document.querySelectorAll('#fRegDays [data-wd].btn-blue')).map(x => parseInt(x.dataset.wd));
@@ -428,7 +438,12 @@ async function _saveCompanyInner(companyId) {
 
     if (error) return toast(error.message, 'error');
 
-  toast(companyId ? '수정 완료' : '등록 완료');
+  if (termResult) {
+    const removed = (termResult.billing_removed || 0) + (termResult.financials_removed || 0);
+    toast(`해지 완료: 계약·담당·일정 종료${removed ? `, 종료월 이후 청구·재무 ${removed}건 정리` : ''}`);
+  } else {
+    toast(companyId ? '수정 완료' : '등록 완료');
+  }
   closeModal();
   await loadAdminData();
   renderAllClients();
