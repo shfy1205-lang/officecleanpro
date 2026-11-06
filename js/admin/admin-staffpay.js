@@ -79,6 +79,26 @@ function calcStaffPayData(month) {
     });
   });
 
+  // ── 대신 근무 반영: 원래 담당 −(월 지급액 ÷ 일정 횟수), 대신 간 직원 +같은 금액 ──
+  Object.values(workerMap).forEach(w => { w.adjustments = []; });
+  getMonthSubstitutions(month).forEach(sub => {
+    const unit = substitutionUnitPay(sub, month, finMap);
+    if (!unit) return;
+    const orig = workerMap[sub.original_worker_id];
+    if (orig) {
+      orig.totalPay -= unit;
+      orig.adjustments.push({ subId: sub.id, date: sub.work_date, companyName: getCompanyName(sub.company_id),
+        amount: -unit, note: '대신 근무 차감 (' + (sub.substitute_worker_id ? getWorkerName(sub.substitute_worker_id) : '대표') + ')' });
+    }
+    if (sub.substitute_worker_id) {
+      const wid = sub.substitute_worker_id;
+      if (!workerMap[wid]) workerMap[wid] = { workerId: wid, name: getWorkerName(wid), isBusiness: isBusinessWorker(wid), totalPay: 0, companies: [], adjustments: [] };
+      workerMap[wid].totalPay += unit;
+      workerMap[wid].adjustments.push({ subId: sub.id, date: sub.work_date, companyName: getCompanyName(sub.company_id),
+        amount: unit, note: '대신 근무 (' + (sub.original_worker_id ? getWorkerName(sub.original_worker_id) : '-') + ' 대신)' });
+    }
+  });
+
   const rows = Object.values(workerMap).sort((a, b) => b.totalPay - a.totalPay);
   const grandTotal = rows.reduce((s, r) => s + r.totalPay, 0);
   const avgPay = rows.length > 0 ? Math.round(grandTotal / rows.length) : 0;
@@ -203,7 +223,7 @@ function renderStaffPay() {
                 return `<tr class="sp-row">
                   <td style="font-weight:600;text-align:left;padding-left:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.name)}${r.isBusiness ? ' <span class="badge" style="font-size:9px;padding:1px 5px;background:#e3f2fd;color:#1565c0;font-weight:600">계산서</span>' : ''}</td>
                   <td>${r.companies.length}개</td>
-                  <td class="admin-pay-cell">${fmt(r.totalPay)}원</td>
+                  <td class="admin-pay-cell">${fmt(r.totalPay)}원${(r.adjustments || []).length ? `<div style="font-size:10px;color:var(--text2)">대신 근무 ${(() => { const v = r.adjustments.reduce((s, x) => s + x.amount, 0); return (v > 0 ? '+' : '') + fmt(v); })()}원</div>` : ''}</td>
                   <td style="color:${r.isBusiness ? 'var(--text2)' : 'var(--red)'}">${r.isBusiness ? '-' : fmt(deduction) + '원'}</td>
                   <td class="admin-pay-cell" style="font-weight:700">${fmt(netPay)}원</td>
                   <td>
@@ -266,6 +286,7 @@ function renderStaffPay() {
         }).join('')}
       </div>
     ` : '<div class="empty-state"><div class="empty-icon">💰</div><p>이 달의 급여 데이터가 없습니다.</p></div>'}
+    ${substitutionsSectionHTML(month)}
   `;
 }
 
@@ -505,6 +526,17 @@ function openStaffPayDetail(workerId) {
       </table>
     </div>
 
+    ${(worker.adjustments || []).length ? `
+      <div class="section-title" style="font-size:14px;margin:16px 0 8px">대신 근무 반영</div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>날짜</th><th>업체</th><th>내용</th><th>금액</th></tr></thead>
+        <tbody>${worker.adjustments.map(x => `<tr>
+          <td>${x.date.slice(5).replace('-', '/')}</td><td>${escapeHtml(x.companyName)}</td>
+          <td>${escapeHtml(x.note)}</td><td class="admin-pay-cell">${x.amount > 0 ? '+' : ''}${fmt(x.amount)}원</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    ` : ''}
+
     ${confirmed ? `
       <div style="margin-top:12px;padding:10px 14px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:8px;font-size:12px;color:var(--green)">
         🔒 급여가 확정되어 금액을 수정할 수 없습니다. 수정하려면 확정을 해제하세요.
@@ -614,6 +646,126 @@ async function generateNextMonth() {
     console.error('generateNextMonth error:', e);
     toast('다음달 생성 실패: ' + (e.message || ''), 'error');
   }
+}
+
+
+// ════════════════════════════════════════════════════
+// 대신 근무
+// ════════════════════════════════════════════════════
+
+function getMonthSubstitutions(month) {
+  return (adminData.substitutions || []).filter(x => String(x.work_date || '').slice(0, 7) === month);
+}
+
+/** 업체의 그 달 일정 횟수 (요일·격주 일정 기준, 일할계산과 같은 방식) */
+function companyWorkDaysInMonth(companyId, month) {
+  const [yr, mo] = month.split('-').map(Number);
+  const days = new Date(yr, mo, 0).getDate();
+  const scheds = getCompanySchedules(companyId);
+  let n = 0;
+  for (let d = 1; d <= days; d++) {
+    const dateStr = `${yr}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const dow = new Date(yr, mo - 1, d).getDay();
+    if (scheds.some(s => s.weekday === dow && ((s.frequency || 'weekly') !== 'biweekly' || isBiweeklyMatch(s.anchor_date, dateStr)))) n++;
+  }
+  return n;
+}
+
+/** 대신 근무 1회 금액 = 원래 담당의 그 업체 월 지급액 ÷ 그 달 일정 횟수 */
+function substitutionUnitPay(sub, month, finMap) {
+  const a = adminData.assignments.find(x => x.month === month && x.company_id === sub.company_id && x.worker_id === sub.original_worker_id);
+  if (!a) return 0;
+  const days = companyWorkDaysInMonth(sub.company_id, month);
+  if (!days) return 0;
+  return Math.round(calcAssignmentFinalPay(a, finMap || buildFinMap(adminData.financials, month)) / days);
+}
+
+function substitutionsSectionHTML(month) {
+  const list = getMonthSubstitutions(month);
+  const finMap = buildFinMap(adminData.financials, month);
+  return `
+    <div class="section-title" style="font-size:14px;margin:24px 0 8px;display:flex;justify-content:space-between;align-items:center">
+      ${Number(month.slice(5))}월 대신 근무 ${list.length}건
+      <button class="btn-sm btn-green" onclick="openSubstitutionForm()">+ 대신 근무 기록</button>
+    </div>
+    ${list.length ? `<div class="table-wrap"><table>
+      <thead><tr><th>날짜</th><th>업체</th><th>원래 담당</th><th>간 사람</th><th>1회 금액</th><th>메모</th><th></th></tr></thead>
+      <tbody>${list.map(x => `<tr>
+        <td>${x.work_date.slice(5).replace('-', '/')}</td>
+        <td>${escapeHtml(getCompanyName(x.company_id))}</td>
+        <td>${escapeHtml(x.original_worker_id ? getWorkerName(x.original_worker_id) : '-')}</td>
+        <td>${escapeHtml(x.substitute_worker_id ? getWorkerName(x.substitute_worker_id) : '대표 (지급 없음)')}</td>
+        <td>${fmt(substitutionUnitPay(x, month, finMap))}원</td>
+        <td class="text-muted" style="font-size:12px">${escapeHtml(x.memo || '')}</td>
+        <td><button class="btn-sm" style="font-size:11px;border:1px solid var(--border);background:transparent;color:var(--text2)" onclick="deleteSubstitution('${x.id}')">삭제</button></td>
+      </tr>`).join('')}</tbody></table></div>`
+    : '<p class="text-muted" style="font-size:12px">원래 담당 대신 다른 사람이 간 날을 기록하면 급여에 자동으로 반영돼요.</p>'}
+  `;
+}
+
+function openSubstitutionForm() {
+  const month = selectedMonth;
+  const companyIds = [...new Set(adminData.assignments.filter(a => a.month === month).map(a => a.company_id))]
+    .sort((a, b) => getCompanyName(a).localeCompare(getCompanyName(b), 'ko'));
+  const workers = getActiveWorkers();
+  $('modalBody').innerHTML = `
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <h3>대신 근무 기록</h3>
+    <div class="field"><label>업체 *</label>
+      <select id="sbCompany" onchange="onSubstitutionCompanyChange()">
+        <option value="">업체 선택</option>
+        ${companyIds.map(id => `<option value="${id}">${escapeHtml(getCompanyName(id))}</option>`).join('')}
+      </select></div>
+    <div class="field"><label>날짜 * <span class="text-muted" style="font-size:11px">여러 날이면 쉼표로 (예: ${month}-03, ${month}-05)</span></label>
+      <input id="sbDates" placeholder="${month}-03"></div>
+    <div class="admin-row-2">
+      <div class="field"><label>원래 담당</label><select id="sbOrig"><option value="">-</option>
+        ${workers.map(w => `<option value="${w.id}">${escapeHtml(w.name)}</option>`).join('')}</select></div>
+      <div class="field"><label>간 사람 *</label><select id="sbSub"><option value="__owner">대표 (지급 없음)</option>
+        ${workers.map(w => `<option value="${w.id}">${escapeHtml(w.name)}</option>`).join('')}</select></div>
+    </div>
+    <div class="field"><label>메모</label><input id="sbMemo" placeholder="예: 원래 담당 휴가"></div>
+    <p class="text-muted" style="font-size:12px" id="sbHint"></p>
+    <button class="btn-sm btn-green" onclick="saveSubstitution()">저장</button>
+  `;
+  $('detailModal').classList.add('show');
+}
+
+function onSubstitutionCompanyChange() {
+  const month = selectedMonth, cid = $('sbCompany').value;
+  const a = adminData.assignments.filter(x => x.month === month && x.company_id === cid)
+    .sort((x, y) => (y.is_primary ? 1 : 0) - (x.is_primary ? 1 : 0))[0];
+  if (a) $('sbOrig').value = a.worker_id;
+  const days = cid ? companyWorkDaysInMonth(cid, month) : 0;
+  const unit = a ? substitutionUnitPay({ company_id: cid, original_worker_id: a.worker_id }, month) : 0;
+  $('sbHint').textContent = cid ? `이 업체 ${Number(month.slice(5))}월 일정 ${days}회 · 1회 ${fmt(unit)}원` : '';
+}
+
+async function saveSubstitution() {
+  const cid = $('sbCompany').value;
+  const dates = $('sbDates').value.split(',').map(x => x.trim()).filter(Boolean);
+  if (!cid) return toast('업체를 고르세요', 'error');
+  if (!dates.length || dates.some(d => !/^\d{4}-\d{2}-\d{2}$/.test(d))) return toast('날짜를 YYYY-MM-DD로 입력하세요', 'error');
+  const orig = $('sbOrig').value || null;
+  const subVal = $('sbSub').value;
+  if (orig && subVal === orig) return toast('원래 담당과 간 사람이 같아요', 'error');
+  const rows = dates.map(d => ({ company_id: cid, work_date: d, original_worker_id: orig,
+    substitute_worker_id: subVal === '__owner' ? null : subVal, memo: $('sbMemo').value.trim() || null,
+    created_by: (typeof currentWorker !== 'undefined' && currentWorker) ? currentWorker.id : null }));
+  const { data, error } = await sb.from('substitutions').insert(rows).select();
+  if (error) return toast('저장 실패: ' + error.message, 'error');
+  adminData.substitutions = (adminData.substitutions || []).concat(data || []);
+  closeModal();
+  toast(`대신 근무 ${rows.length}건 기록했어요`);
+  renderStaffPay();
+}
+
+async function deleteSubstitution(id) {
+  if (!confirm('이 대신 근무 기록을 지울까요? 급여도 원래대로 돌아가요.')) return;
+  const { error } = await sb.from('substitutions').delete().eq('id', id);
+  if (error) return toast('삭제 실패: ' + error.message, 'error');
+  adminData.substitutions = (adminData.substitutions || []).filter(x => x.id !== id);
+  renderStaffPay();
 }
 
 
