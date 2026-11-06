@@ -159,59 +159,21 @@ async function loadAdminData() {
 // ─── 월별 데이터 자동 생성 ───
 
 async function ensureMonthData(month) {
+  // 월 데이터(재무·청구·월 배정)는 서버 materialize_month 한 곳에서만 만든다.
+  // (예전에는 여기서 지난달 행을 복사했는데, 해지·담당 종료가 반영되지 않아 유령 청구·0원 행이 생겼음)
   const hasFinancials = adminData.financials.some(f => f.month === month);
   const hasAssignments = adminData.assignments.some(a => a.month === month);
   if (hasFinancials && hasAssignments) return;
+  const cur = currentMonth();
+  if (month < cur) return; // 지난달은 서버에서도 읽기 전용
+  const [cy, cm] = cur.split('-').map(Number);
+  const nd = new Date(cy, cm, 1);
+  const next = nd.getFullYear() + '-' + String(nd.getMonth() + 1).padStart(2, '0');
+  if (month > next) return; // 다음 달까지만 미리 만든다
 
-  const allMonths = [...new Set(adminData.financials.map(f => f.month))].sort().reverse();
-  const prevMonth = allMonths.find(m => m < month);
-  if (!prevMonth) return;
-
-  let inserted = false;
-
-  const excludeCompanyIds = new Set(
-    adminData.companies
-      .filter(c => {
-        if (c.status === 'paused' && c.paused_at) {
-          return month > c.paused_at.substring(0, 7);
-        }
-        if (c.status === 'paused') return true;
-        if (c.status === 'terminated' && c.terminated_at) {
-          return month > c.terminated_at.substring(0, 7);
-        }
-        return false;
-      })
-      .map(c => c.id)
-  );
-
-  if (!hasFinancials) {
-    const prevFins = adminData.financials.filter(f => f.month === prevMonth && !excludeCompanyIds.has(f.company_id));
-    if (prevFins.length > 0) {
-      const newFins = prevFins.map(f => ({
-        company_id: f.company_id, month: month,
-        contract_amount: f.contract_amount, ocp_amount: f.ocp_amount,
-        eco_amount: f.eco_amount, worker_pay_total: f.worker_pay_total, memo: f.memo,
-      }));
-      const { error } = await sb.from('company_financials').insert(newFins);
-      if (error && error.code !== '23505') console.error('ensureMonthData financials error:', error);
-      else inserted = true;
-    }
-  }
-
-  if (!hasAssignments) {
-    const prevAssigns = adminData.assignments.filter(a => a.month === prevMonth && !excludeCompanyIds.has(a.company_id));
-    if (prevAssigns.length > 0) {
-      const newAssigns = prevAssigns.map(a => ({
-        company_id: a.company_id, worker_id: a.worker_id,
-        month: month, pay_amount: a.pay_amount, share: a.share,
-      }));
-      const { error } = await sb.from('company_workers').insert(newAssigns);
-      if (error && error.code !== '23505') console.error('ensureMonthData assignments error:', error);
-      else inserted = true;
-    }
-  }
-
-  if (inserted) await loadAdminData();
+  const { error } = await sb.rpc('materialize_month', { p_month: month });
+  if (error) { console.error('materialize_month error:', error); return; }
+  await loadAdminData();
 }
 
 // ─── 사이드바 빌드 ───

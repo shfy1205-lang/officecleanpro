@@ -594,97 +594,22 @@ async function changePayMonth(month) {
  * - 이미 존재하면 삭제 후 재생성
  */
 async function generateNextMonth() {
+  // 다음 달 데이터는 서버 materialize_month가 계약·담당 기준으로 만든다.
+  // (예전에는 이번 달 행을 지우고 복사해서, 미리 반영한 담당 변경·해지가 덮어써졌음)
   const curMonth = selectedMonth;
   const [y, m] = curMonth.split('-').map(Number);
   const nextMonth = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
   const nextLabel = nextMonth.replace('-', '년 ') + '월';
-
-  const curFins = adminData.financials.filter(f => f.month === curMonth);
-  const curAssigns = adminData.assignments.filter(a => a.month === curMonth);
-
-  if (curFins.length === 0 && curAssigns.length === 0) {
-    toast('현재 월에 데이터가 없습니다', 'error');
-    return;
-  }
-
-  const existFins = adminData.financials.filter(f => f.month === nextMonth);
-  const existAssigns = adminData.assignments.filter(a => a.month === nextMonth);
-
-  let msg = `${nextLabel} 데이터를 현재(${curMonth}) 금액 기준으로 생성합니다.\n\n`;
-  msg += `복사 대상: 정산 ${curFins.length}건, 급여배정 ${curAssigns.length}건`;
-
-  if (existFins.length > 0 || existAssigns.length > 0) {
-    msg += `\n\n⚠️ ${nextLabel}에 이미 데이터가 있습니다 (정산 ${existFins.length}건, 급여 ${existAssigns.length}건).\n기존 데이터를 삭제하고 새로 생성합니다.`;
-  }
-
-  if (!confirm(msg)) return;
-
+  if (!confirm(`${nextLabel} 정산·급여 데이터를 계약과 담당 배정 기준으로 만듭니다.\n이미 있는 행은 그대로 둡니다.`)) return;
   try {
-    const excludeIds = new Set(
-      adminData.companies
-        .filter(c => {
-          if (c.status === 'paused') return true;
-          if (c.status === 'terminated' && c.terminated_at) {
-            return nextMonth > c.terminated_at.substring(0, 7);
-          }
-          return false;
-        })
-        .map(c => c.id)
-    );
-
-    // 복사 대상 업체 ID만 삭제 (다른 업체의 기존 데이터는 보존)
-    const copyFinIds = curFins.filter(f => !excludeIds.has(f.company_id)).map(f => f.company_id);
-    const copyAssignIds = [...new Set(curAssigns.filter(a => !excludeIds.has(a.company_id)).map(a => a.company_id))];
-
-    if (existFins.length > 0 && copyFinIds.length > 0) {
-      await sb.from('company_financials').delete().eq('month', nextMonth).in('company_id', copyFinIds);
-    }
-    if (existAssigns.length > 0 && copyAssignIds.length > 0) {
-      await sb.from('company_workers').delete().eq('month', nextMonth).in('company_id', copyAssignIds);
-    }
-
-    let finCount = 0, assignCount = 0;
-
-    const newFins = curFins
-      .filter(f => !excludeIds.has(f.company_id))
-      .map(f => ({
-        company_id:      f.company_id,
-        month:           nextMonth,
-        contract_amount: f.contract_amount,
-        ocp_amount:      f.ocp_amount,
-        eco_amount:      f.eco_amount,
-        worker_pay_total: f.worker_pay_total,
-        memo:            f.memo,
-      }));
-
-    if (newFins.length > 0) {
-      const { error } = await sb.from('company_financials').insert(newFins);
-      if (error) throw error;
-      finCount = newFins.length;
-    }
-
-    const newAssigns = curAssigns
-      .filter(a => !excludeIds.has(a.company_id))
-      .map(a => ({
-        company_id: a.company_id,
-        worker_id:  a.worker_id,
-        month:      nextMonth,
-        pay_amount: a.pay_amount,
-        share:      a.share,
-      }));
-
-    if (newAssigns.length > 0) {
-      const { error } = await sb.from('company_workers').insert(newAssigns);
-      if (error) throw error;
-      assignCount = newAssigns.length;
-    }
-
+    const { data, error } = await sb.rpc('materialize_month', { p_month: nextMonth });
+    if (error) throw error;
     await loadAdminData();
     selectedMonth = nextMonth;
     window._financeMonth = nextMonth;
     renderStaffPay();
-
-    toast(`${nextLabel} 생성 완료! (정산 ${finCount}건, 급여 ${assignCount}건)`, 'success');
+    const r = data || {};
+    toast(`${nextLabel} 생성 완료! (정산 ${r.financials_upserted || 0}건, 급여 ${r.workers_inserted || 0}건)`, 'success');
   } catch (e) {
     console.error('generateNextMonth error:', e);
     toast('다음달 생성 실패: ' + (e.message || ''), 'error');

@@ -602,53 +602,10 @@ async function _doGenerateMonthlyTasks(month) {
 }
 
 async function _generateMonthlyBillings(month) {
-  try {
-  const monthFin = adminData.financials.filter(f => f.month === month);
-  if (monthFin.length === 0) return 0;
-
-  const existingBillIds = new Set(
-    adminData.billings.filter(b => b.month === month).map(b => b.company_id)
-  );
-
-  const toInsert = [];
-  for (const f of monthFin) {
-    if (existingBillIds.has(f.company_id)) continue;
-    const c = adminData.companies.find(x => x.id === f.company_id);
-            if (!c) continue;
-                    if (c.status === 'active') { /* ok */ }
-                            else if (c.status === 'terminated' && c.terminated_at) {
-                                          const termMonth = c.terminated_at.substring(0, 7);
-                                                      if (month > termMonth) continue;
-                            } else { continue; }
-    // 에코 도급업체만 제외 (광고비 업체는 세금계산서 발행하므로 포함)
-    if (c.subcontract_from === '에코오피스클린') continue;
-
-    toInsert.push({
-      company_id: f.company_id,
-      month,
-      billed_amount: f.contract_amount || 0,
-      paid_amount: 0,
-      status: 'pending',
-    });
-  }
-
-  if (toInsert.length === 0) return 0;
-
-  const { data, error } = await sb.from('billing_records').insert(toInsert).select();
-  if (error) {
-    console.error('billing auto-generate error:', error);
-    return 0;
-  }
-
-  if (data) adminData.billings.push(...data);
-  return data?.length || 0;
-
-  } catch (e) {
-    console.error('_generateMonthlyBillings error:', e);
-    toast('오류가 발생했습니다', 'error');
-    return 0;
-  }}
-
+  // 청구(billing_records)는 서버 materialize_month가 계약 기준으로 만든다 (ensureMonthData → RPC).
+  // 브라우저에서 재무 행을 보고 따로 만들던 방식은 해지·에코 도급 규칙이 서버와 달라 제거함.
+  return 0;
+}
 function buildMonthGenResultHTML() {
   if (!_dash.monthGenResult) return '';
   const r = _dash.monthGenResult;
