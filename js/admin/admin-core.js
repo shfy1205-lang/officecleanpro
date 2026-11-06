@@ -135,6 +135,7 @@ async function loadAdminData() {
     sb.from('company_notes').select('id, company_id, special_notes, parking_info, recycling_location, staff_message'),
     sb.from('pay_confirmations').select('*').gte('month', _mFloor),
     sb.from('substitutions').select('*').gte('work_date', _mFloor + '-01').order('work_date'),
+    sb.from('monthly_cash').select('*').gte('month', _mFloor),
   ]);
 
   const get = (i) => results[i].status === 'fulfilled' ? (results[i].value.data || []) : [];
@@ -151,6 +152,7 @@ async function loadAdminData() {
   adminData.notes            = get(9);
   adminData.payConfirmations = get(10);
   adminData.substitutions    = get(11);
+  adminData.monthlyCash      = get(12);
   _workerMap = null; _companyMap = null;
 
   results.forEach((r, i) => {

@@ -113,6 +113,25 @@ function calcStaffPayData(month) {
 /**
  * 해당 직원의 해당 월 확정 여부 조회
  */
+function isPayPaid(workerId, month) {
+  const pc = adminData.payConfirmations.find(p => p.worker_id === workerId && p.month === month);
+  return !!(pc && pc.paid_at);
+}
+
+/** 지급 완료 표시 (확정된 급여만) — 월 자금 요약의 '남은 직원 지급'에서 빠진다 */
+async function togglePaid(workerId) {
+  const month = selectedMonth;
+  if (!isPayConfirmed(workerId, month)) return toast('급여를 먼저 확정하세요', 'error');
+  const paid = isPayPaid(workerId, month);
+  const paid_at = paid ? null : new Date().toISOString();
+  const { error } = await sb.from('pay_confirmations').update({ paid_at }).eq('worker_id', workerId).eq('month', month);
+  if (error) return toast(error.message, 'error');
+  const local = adminData.payConfirmations.find(p => p.worker_id === workerId && p.month === month);
+  if (local) local.paid_at = paid_at;
+  toast(getWorkerName(workerId) + (paid ? ' 지급 표시 취소' : ' 지급 완료'));
+  renderStaffPay();
+}
+
 function isPayConfirmed(workerId, month) {
   const pc = adminData.payConfirmations.find(
     p => p.worker_id === workerId && p.month === month
@@ -228,7 +247,8 @@ function renderStaffPay() {
                   <td class="admin-pay-cell" style="font-weight:700">${fmt(netPay)}원</td>
                   <td>
                     ${confirmed
-                      ? `<span class="badge badge-done sp-badge-confirmed" onclick="event.stopPropagation();togglePayConfirm('${r.workerId}')" style="cursor:pointer">확정됨</span>`
+                      ? `<span class="badge badge-done sp-badge-confirmed" onclick="event.stopPropagation();togglePayConfirm('${r.workerId}')" style="cursor:pointer">확정됨</span>
+                         <span class="badge" onclick="event.stopPropagation();togglePaid('${r.workerId}')" style="cursor:pointer;margin-left:4px;${isPayPaid(r.workerId, month) ? 'color:var(--green);font-weight:600' : 'color:var(--text2);border:1px dashed var(--border)'}">${isPayPaid(r.workerId, month) ? '지급 ✓' : '지급 전'}</span>`
                       : `<span class="badge badge-warn sp-badge-pending" onclick="event.stopPropagation();togglePayConfirm('${r.workerId}')" style="cursor:pointer">미확정</span>`
                     }
                   </td>

@@ -183,6 +183,8 @@ function renderBillingOverview() {
   container.innerHTML = `
     ${monthSelectorHTML(billingMonth, 'changeBillingMonth')}
 
+    ${cashSummaryHTML(billingMonth)}
+
     <!-- ── 전체 합산 카드 ── -->
     <div class="billing-overview-section">
       <div class="bo-section-header">
@@ -1126,3 +1128,63 @@ async function deleteBilling(billingId) {
     console.error('deleteBilling error:', e);
     toast('오류가 발생했습니다', 'error');
   }}
+
+
+/* ═══════════════════════════════════════════════════
+   월 자금 요약: 잔고 + 받을 돈 − 줄 돈 = 남는 돈
+   ═══════════════════════════════════════════════════ */
+
+function calcCashSummary(month) {
+  const cash = (adminData.monthlyCash || []).find(x => x.month === month) || {};
+  // 받을 돈: 이 달 청구 중 미입금 (에코 도급·미수금 제외 업체 빼고)
+  const unpaidBills = adminData.billings.filter(b => b.month === month && b.status !== 'paid'
+    && billingUnpaidAmount(b) > 0 && isDirectBilling(b) && !isReceivableExcluded(b.company_id));
+  const receivable = unpaidBills.reduce((s, b) => s + billingUnpaidAmount(b), 0);
+  // 에코: 도급은 에코에서 받고(계약 − 수수료, 도급 청구가 입금 전일 때), 광고비·수수료는 에코에 준다
+  const eco = getEcoCompanies(month);
+  const subPaid = cid => adminData.billings.some(b => b.month === month && b.company_id === cid && b.status === 'paid');
+  const ecoIn = eco.filter(d => d.subcontracted && !subPaid(d.id)).reduce((s, d) => s + d.ecoToOcp, 0);
+  const ecoOut = eco.reduce((s, d) => s + d.ocpToEco, 0);
+  // 남은 직원 지급: 지급 완료 표시가 없는 직원의 실지급액
+  const { rows } = calcStaffPayData(month);
+  const unpaidWorkers = rows.filter(r => !isPayPaid(r.workerId, month));
+  const payLeft = unpaidWorkers.reduce((s, r) => s + calcDeduction(r.totalPay, month, r.isBusiness).netPay, 0);
+  const balance = cash.bank_balance;
+  const left = (balance || 0) + receivable + ecoIn - ecoOut - payLeft;
+  return { balance, receivable, unpaidCount: unpaidBills.length, ecoIn, ecoOut, payLeft, unpaidWorkers, left };
+}
+
+function cashSummaryHTML(month) {
+  const r = calcCashSummary(month);
+  const m = Number(month.slice(5));
+  const line = (label, v, sign, sub) => `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
+      <span>${label}${sub ? ` <span class="text-muted" style="font-size:11px">${sub}</span>` : ''}</span>
+      <span style="font-variant-numeric:tabular-nums">${sign}${fmt(v)}원</span></div>`;
+  return `
+    <div class="card" style="padding:16px;margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+        <strong>${m}월 자금 요약</strong>
+        <span style="display:flex;gap:6px;align-items:center;font-size:13px">통장 잔고
+          <input id="cashBalance" type="text" inputmode="numeric" value="${r.balance != null ? fmt(r.balance) : ''}" placeholder="입력" style="width:130px;text-align:right">
+          <button class="btn-sm btn-blue" onclick="saveCashBalance('${month}')">저장</button></span>
+      </div>
+      ${line('통장 잔고', r.balance || 0, '', r.balance == null ? '아직 입력 안 함' : '')}
+      ${line('+ 받을 청구', r.receivable, '+', `${m}월분 미입금 ${r.unpaidCount}건`)}
+      ${line('+ 에코에서 받을 돈', r.ecoIn, '+', '도급 계약 − 에코 수수료')}
+      ${line('− 에코에 줄 돈', r.ecoOut, '−', '광고비·수수료')}
+      ${line('− 남은 직원 지급', r.payLeft, '−', r.unpaidWorkers.length ? r.unpaidWorkers.map(w => escapeHtml(w.name)).join(', ') : '모두 지급 완료')}
+      <div style="display:flex;justify-content:space-between;padding:10px 0 0;font-weight:700;font-size:15px">
+        <span>= 다 받고 다 주면 남는 돈</span><span style="font-variant-numeric:tabular-nums">${fmt(r.left)}원</span></div>
+      <p class="text-muted" style="font-size:11px;margin-top:6px">직원 지급은 담당자급여에서 '지급 ✓'로 표시하면 빠져요. 부가세 적립분은 빼지 않은 금액이에요.</p>
+    </div>`;
+}
+
+async function saveCashBalance(month) {
+  const v = parseInt(String($('cashBalance').value).replace(/[^0-9-]/g, ''), 10);
+  if (isNaN(v)) return toast('잔고를 숫자로 입력하세요', 'error');
+  const { data, error } = await sb.from('monthly_cash').upsert({ month, bank_balance: v, updated_at: new Date().toISOString() }, { onConflict: 'month' }).select();
+  if (error) return toast('저장 실패: ' + error.message, 'error');
+  adminData.monthlyCash = (adminData.monthlyCash || []).filter(x => x.month !== month).concat(data || [{ month, bank_balance: v }]);
+  toast('잔고를 저장했어요');
+  renderBilling();
+}
