@@ -51,18 +51,45 @@ function isDirectBilling(b) {
   return !isSubcontractCompanyId(b.company_id);
 }
 
+/** 업체 화면에서 '미수금 제외'로 표시한 업체 (예: 별도 정산하는 곳) */
+function isReceivableExcluded(companyId) {
+  const c = (adminData.companies || []).find(x => x.id === companyId);
+  return !!c && !!c.exclude_from_receivables;
+}
+
+/** 연체 일수 = 오늘 - 입금 기한(청구월 다음 달 10일) */
+function billingOverdueDays(b) {
+  const due = new Date(billingDueDate(b.month) + 'T00:00:00');
+  const now = new Date(today() + 'T00:00:00');
+  return Math.max(0, Math.round((now - due) / 86400000));
+}
+
+/** 미수 건을 업체별로 묶기: [{company_id, items, total, maxDays}] 금액 큰 순 */
+function groupUnpaidByCompany(list) {
+  const map = {};
+  list.forEach(b => {
+    const g = map[b.company_id] || (map[b.company_id] = { company_id: b.company_id, items: [], total: 0, maxDays: 0 });
+    g.items.push(b);
+    g.total += billingUnpaidAmount(b);
+    g.maxDays = Math.max(g.maxDays, billingOverdueDays(b));
+  });
+  return Object.values(map)
+    .map(g => (g.items.sort((a, b) => a.month.localeCompare(b.month)), g))
+    .sort((a, b) => b.total - a.total);
+}
+
 function renderBilling() {
   const mc = $('mainContent');
 
   // ── 미수금 통계 (뷰 공통) ──
   // 입금 기한(청구월 다음 달 10일)이 지난 건만 미수금으로 집계한다.
   // 도급(에코 일괄 정산) 건은 제외한다.
-  const unpaidAll = adminData.billings.filter(b => isDirectBilling(b) && isOverdueBilling(b))
+  const unpaidAll = adminData.billings.filter(b => isDirectBilling(b) && !isReceivableExcluded(b.company_id) && isOverdueBilling(b))
     .sort((a, b) => billingUnpaidAmount(b) - billingUnpaidAmount(a)); // 미수금 큰 순
   const totalUnpaid = unpaidAll.reduce((s, b) => s + billingUnpaidAmount(b), 0);
 
   // 아직 기한 전인 건 (연체 아님)
-  const awaitingAll = adminData.billings.filter(b => isDirectBilling(b) && isAwaitingBilling(b))
+  const awaitingAll = adminData.billings.filter(b => isDirectBilling(b) && !isReceivableExcluded(b.company_id) && isAwaitingBilling(b))
     .sort((a, b) => billingUnpaidAmount(b) - billingUnpaidAmount(a));
   const totalAwaiting = awaitingAll.reduce((s, b) => s + billingUnpaidAmount(b), 0);
 
@@ -600,81 +627,160 @@ function renderBillingUnpaid(unpaidAll, totalUnpaid, awaitingAll, totalAwaiting)
 
   awaitingAll = awaitingAll || [];
   totalAwaiting = totalAwaiting || 0;
+  const groups = groupUnpaidByCompany(unpaidAll);
+  const excludedGroups = groupUnpaidByCompany(
+    adminData.billings.filter(b => isDirectBilling(b) && isReceivableExcluded(b.company_id) && isOverdueBilling(b)));
+  const excludedTotal = excludedGroups.reduce((s, g) => s + g.total, 0);
+  const daysBadge = d => `<span class="badge" style="font-weight:600;color:${d >= 30 ? 'var(--red)' : d >= 14 ? 'var(--yellow)' : 'var(--text2)'}">${d}일</span>`;
+  const monthsText = g => g.items.map(b => Number(b.month.slice(5)) + '월').join('·');
 
   container.innerHTML = `
     <div class="stats-grid" style="margin-bottom:16px">
       <div class="stat-card">
-        <div class="stat-label">미수금 총액 (기한 경과)</div>
+        <div class="stat-label">미수금 (기한 경과)</div>
         <div class="stat-value red">${fmt(totalUnpaid)}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">미수건수</div>
-        <div class="stat-value yellow">${unpaidAll.length}</div>
+        <div class="stat-label">미수 업체</div>
+        <div class="stat-value">${groups.length}곳 · ${unpaidAll.length}건</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">입금 대기 (기한 전)</div>
         <div class="stat-value">${fmt(totalAwaiting)}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">입금 대기 건수</div>
-        <div class="stat-value">${awaitingAll.length}</div>
+        <div class="stat-label">미수금 제외 업체</div>
+        <div class="stat-value">${excludedGroups.length}곳 · ${fmt(excludedTotal)}</div>
       </div>
     </div>
 
-    <p class="text-muted" style="margin-bottom:12px">입금 기한(청구월 다음 달 10일)이 지난 미납 건만 미수금으로 표시합니다. 기한 전인 건은 입금 대기로 분리됩니다. 도급(에코 일괄 정산) 건은 제외되며 ‘월별 정산’ 탭 하단에서 확인합니다.</p>
+    <p class="text-muted" style="margin-bottom:12px">기준: 입금 기한(청구월 다음 달 10일)이 지난 미납 건. 에코 도급과 '미수금 제외'로 표시한 업체는 빠집니다. 연체 일수는 입금 기한부터 셉니다.</p>
 
-    ${unpaidAll.length > 0 ? `
-      <div class="bu-table-pc">
+    ${groups.length > 0 ? `
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+        <label style="display:flex;gap:6px;align-items:center;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="ruAll" onchange="document.querySelectorAll('.ru-check').forEach(x=>x.checked=this.checked)"> 전체 선택
+        </label>
+        <button class="btn-sm btn-blue" onclick="openReminderMessages()">선택한 업체 입금 요청 문자 만들기</button>
+      </div>
       <div class="table-wrap">
         <table>
           <thead>
-            <tr>
-              <th>업체</th>
-              <th>월</th>
-              <th>청구액</th>
-              <th>입금액</th>
-              <th>미수금</th>
-            </tr>
+            <tr><th style="width:32px"></th><th>업체</th><th>미납 월</th><th>미수금</th><th>연체</th><th>연락처</th><th></th></tr>
           </thead>
-          <tbody>${unpaidAll.map(b => {
-            const unpaid = (b.billed_amount || 0) - (b.paid_amount || 0);
-            return `<tr class="billing-row" onclick="openBillingDetail('${b.id}')" style="cursor:pointer">
-              <td>${escapeHtml(getCompanyName(b.company_id))}</td>
-              <td>${b.month}</td>
-              <td>${fmt(b.billed_amount)}원</td>
-              <td class="admin-pay-cell">${fmt(b.paid_amount)}원</td>
-              <td style="color:var(--red); font-weight:600">
-                ${unpaid > 0 ? fmt(unpaid) + '원' : '-'}
-              </td>
+          <tbody>${groups.map(g => {
+            const c = (adminData.companies || []).find(x => x.id === g.company_id) || {};
+            return `<tr>
+              <td><input type="checkbox" class="ru-check" value="${g.company_id}"></td>
+              <td><a href="#" onclick="event.preventDefault();openBillingDetail('${g.items[0].id}')">${escapeHtml(getCompanyName(g.company_id))}</a></td>
+              <td>${monthsText(g)}</td>
+              <td style="font-weight:600">${fmt(g.total)}원</td>
+              <td>${daysBadge(g.maxDays)}</td>
+              <td class="text-muted" style="font-size:12px">${escapeHtml(c.contact_phone || '-')}</td>
+              <td><button class="btn-sm" style="font-size:11px;border:1px solid var(--border);color:var(--text2);background:transparent" onclick="toggleReceivableExclude('${g.company_id}', true)">미수금 제외</button></td>
             </tr>`;
           }).join('')}</tbody>
         </table>
       </div>
-      </div>
-      <div class="bu-cards-mobile">
-        ${unpaidAll.map(b => {
-          const unpaid = (b.billed_amount || 0) - (b.paid_amount || 0);
-          return `<div class="card bo-card" onclick="openBillingDetail('${b.id}')" style="cursor:pointer">
-            <div class="bo-card-header">
-              <strong>${escapeHtml(getCompanyName(b.company_id))}</strong>
-              <span class="badge badge-area">${b.month}</span>
-            </div>
-            <div class="bo-card-body">
-              <div class="bo-card-row"><span>청구액</span><span>${fmt(b.billed_amount)}원</span></div>
-              <div class="bo-card-row"><span>입금액</span><span style="color:var(--green)">${fmt(b.paid_amount)}원</span></div>
-              <div class="bo-card-row"><span>미수금</span><span style="color:var(--red);font-weight:600">${unpaid > 0 ? fmt(unpaid) + '원' : '-'}</span></div>
-            </div>
-          </div>`;
-        }).join('')}
-      </div>
-
     ` : `
       <div class="empty-state">
         <div class="empty-icon">💳</div>
         <p>기한이 지난 미수금이 없습니다</p>
       </div>
     `}
+
+    ${excludedGroups.length > 0 ? `
+      <details style="margin-top:16px">
+        <summary style="cursor:pointer;font-size:13px">미수금 제외 업체 ${excludedGroups.length}곳 (${fmt(excludedTotal)}원)</summary>
+        <div class="table-wrap" style="margin-top:8px">
+          <table>
+            <thead><tr><th>업체</th><th>미납 월</th><th>금액</th><th>연체</th><th></th></tr></thead>
+            <tbody>${excludedGroups.map(g => `<tr>
+              <td>${escapeHtml(getCompanyName(g.company_id))}</td>
+              <td>${monthsText(g)}</td>
+              <td>${fmt(g.total)}원</td>
+              <td>${daysBadge(g.maxDays)}</td>
+              <td><button class="btn-sm" style="font-size:11px" onclick="toggleReceivableExclude('${g.company_id}', false)">다시 포함</button></td>
+            </tr>`).join('')}</tbody>
+          </table>
+        </div>
+      </details>
+    ` : ''}
   `;
+}
+
+/** 업체를 미수금 집계에서 빼거나 다시 넣기 */
+async function toggleReceivableExclude(companyId, exclude) {
+  const { error } = await sb.from('companies').update({ exclude_from_receivables: exclude }).eq('id', companyId);
+  if (error) return toast('저장 실패: ' + error.message, 'error');
+  const c = adminData.companies.find(x => x.id === companyId);
+  if (c) c.exclude_from_receivables = exclude;
+  toast(exclude ? '미수금에서 제외했어요' : '미수금에 다시 포함했어요');
+  renderBilling();
+}
+
+/** 선택한 업체의 입금 요청 문자 (복사해서 직접 보내기) */
+async function openReminderMessages() {
+  const ids = [...document.querySelectorAll('.ru-check:checked')].map(x => x.value);
+  if (!ids.length) return toast('업체를 선택하세요', 'error');
+  const { data: cfg } = await sb.from('tax_config').select('*').limit(1).maybeSingle();
+  const acct = cfg || {};
+  const overdue = adminData.billings.filter(b => ids.includes(b.company_id) && isDirectBilling(b) && isOverdueBilling(b));
+  const groups = groupUnpaidByCompany(overdue);
+  const account = (acct.bank_name || acct.bank_account)
+    ? `${acct.bank_name || ''} ${acct.bank_account || ''}${acct.account_holder ? ' (예금주: ' + acct.account_holder + ')' : ''}`.trim()
+    : '(위에서 계좌를 입력하세요)';
+  const msg = g => {
+    const months = g.items.map(b => Number(b.month.slice(5)) + '월').join('·');
+    const lines = g.items.length > 1
+      ? g.items.map(b => `- ${Number(b.month.slice(5))}월분 ${fmt(billingUnpaidAmount(b))}원`).join('\n') + '\n'
+      : '';
+    return `안녕하세요, 오피스클린프로입니다.\n${months} 청소용역 대금 ${fmt(g.total)}원이 아직 확인되지 않아 연락드립니다.\n${lines}이미 입금하셨다면 양해 부탁드리고, 아직이시면 확인 후 입금 부탁드립니다.\n계좌: ${account}\n감사합니다.`;
+  };
+  window._reminderTexts = groups.map(msg);
+  $('modalBody').innerHTML = `
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <h3>입금 요청 문자 ${groups.length}건</h3>
+    <p class="text-muted" style="font-size:12px;margin-bottom:12px">복사해서 문자·카톡으로 직접 보내세요. 자동으로 보내지 않습니다.</p>
+    ${(!acct.bank_account) ? `
+      <div class="admin-row-2" style="margin-bottom:12px">
+        <div class="field"><label>은행</label><input id="rmBank" placeholder="예: 국민은행"></div>
+        <div class="field"><label>계좌번호</label><input id="rmAcct" placeholder="000-0000-0000"></div>
+      </div>
+      <div class="field" style="margin-bottom:12px"><label>예금주</label><input id="rmHolder" placeholder="오피스클린프로"></div>
+      <button class="btn-sm btn-green" style="margin-bottom:16px" onclick="saveReminderAccount()">계좌 저장 후 다시 만들기</button>
+    ` : ''}
+    ${groups.map((g, i) => {
+      const c = (adminData.companies || []).find(x => x.id === g.company_id) || {};
+      return `<div class="card" style="margin-bottom:10px;padding:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <strong>${escapeHtml(getCompanyName(g.company_id))}</strong>
+          <span class="text-muted" style="font-size:12px">${escapeHtml(c.contact_phone || '')}</span>
+        </div>
+        <textarea id="rmText${i}" rows="6" style="width:100%;font-size:13px">${escapeHtml(window._reminderTexts[i])}</textarea>
+        <button class="btn-sm btn-blue" style="margin-top:6px" onclick="copyReminder(${i})">복사</button>
+      </div>`;
+    }).join('')}
+  `;
+  $('detailModal').classList.add('show');
+}
+
+async function copyReminder(i) {
+  const el = $('rmText' + i);
+  try { await navigator.clipboard.writeText(el.value); toast('복사했어요'); }
+  catch (e) { el.select(); document.execCommand('copy'); toast('복사했어요'); }
+}
+
+async function saveReminderAccount() {
+  const payload = { bank_name: $('rmBank').value.trim(), bank_account: $('rmAcct').value.trim(), account_holder: $('rmHolder').value.trim() };
+  if (!payload.bank_account) return toast('계좌번호를 입력하세요', 'error');
+  const { data: cfg } = await sb.from('tax_config').select('id').limit(1).maybeSingle();
+  const { error } = cfg
+    ? await sb.from('tax_config').update(payload).eq('id', cfg.id)
+    : await sb.from('tax_config').insert(payload);
+  if (error) return toast('저장 실패: ' + error.message, 'error');
+  toast('계좌를 저장했어요');
+  openReminderMessages();
 }
 
 
