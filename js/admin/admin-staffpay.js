@@ -685,7 +685,7 @@ function substitutionsSectionHTML(month) {
   const finMap = buildFinMap(adminData.financials, month);
   return `
     <div class="section-title" style="font-size:14px;margin:24px 0 8px;display:flex;justify-content:space-between;align-items:center">
-      ${Number(month.slice(5))}월 대신 근무 ${list.length}건
+      <span>${Number(month.slice(5))}월 대신 근무 ${list.length}건 <span class="text-muted" style="font-size:11px;font-weight:400">· 급여 확정된 직원은 확정 해제 후 바꿀 수 있어요</span></span>
       <button class="btn-sm btn-green" onclick="openSubstitutionForm()">+ 대신 근무 기록</button>
     </div>
     ${list.length ? `<div class="table-wrap"><table>
@@ -697,7 +697,9 @@ function substitutionsSectionHTML(month) {
         <td>${escapeHtml(x.substitute_worker_id ? getWorkerName(x.substitute_worker_id) : '대표 (지급 없음)')}</td>
         <td>${fmt(substitutionUnitPay(x, month, finMap))}원</td>
         <td class="text-muted" style="font-size:12px">${escapeHtml(x.memo || '')}</td>
-        <td><button class="btn-sm" style="font-size:11px;border:1px solid var(--border);background:transparent;color:var(--text2)" onclick="deleteSubstitution('${x.id}')">삭제</button></td>
+        <td>${(isPayConfirmed(x.original_worker_id, month) || (x.substitute_worker_id && isPayConfirmed(x.substitute_worker_id, month)))
+          ? '<span class="text-muted" style="font-size:11px" title="급여 확정을 해제해야 바꿀 수 있어요">🔒 확정됨</span>'
+          : `<button class="btn-sm" style="font-size:11px;border:1px solid var(--border);background:transparent;color:var(--text2)" onclick="deleteSubstitution('${x.id}')">삭제</button>`}</td>
       </tr>`).join('')}</tbody></table></div>`
     : '<p class="text-muted" style="font-size:12px">원래 담당 대신 다른 사람이 간 날을 기록하면 급여에 자동으로 반영돼요.</p>'}
   `;
