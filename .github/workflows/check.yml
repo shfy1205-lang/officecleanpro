@@ -1,0 +1,29 @@
+name: JS syntax check
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: node --check every JS file
+        run: |
+          fail=0
+          for f in $(git ls-files 'js/*.js' 'js/**/*.js'); do
+            node --check "$f" || { echo "::error file=$f::SyntaxError"; fail=1; }
+          done
+          exit $fail
+      - name: every script tag points at an existing file
+        run: |
+          fail=0
+          for h in *.html; do
+            for s in $(grep -oE 'src="js/[^"?]+' "$h" | sed 's/src="//'); do
+              [ -f "$s" ] || { echo "::error file=$h::missing $s"; fail=1; }
+            done
+          done
+          exit $fail
