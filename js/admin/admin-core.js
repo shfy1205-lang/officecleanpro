@@ -136,6 +136,7 @@ async function loadAdminData() {
     sb.from('pay_confirmations').select('*').gte('month', _mFloor),
     sb.from('substitutions').select('*').gte('work_date', _mFloor + '-01').order('work_date'),
     sb.from('monthly_cash').select('*').gte('month', _mFloor),
+    sb.from('pay_adjustments').select('*').gte('month', _mFloor).order('created_at'),
   ]);
 
   const get = (i) => results[i].status === 'fulfilled' ? (results[i].value.data || []) : [];
@@ -153,6 +154,7 @@ async function loadAdminData() {
   adminData.payConfirmations = get(10);
   adminData.substitutions    = get(11);
   adminData.monthlyCash      = get(12);
+  adminData.payAdjustments   = get(13);
   _workerMap = null; _companyMap = null;
 
   results.forEach((r, i) => {

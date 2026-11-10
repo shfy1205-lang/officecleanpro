@@ -99,6 +99,14 @@ function calcStaffPayData(month) {
     }
   });
 
+  // ── 급여 조정(상여·차감) 줄 ──
+  (adminData.payAdjustments || []).filter(x => x.month === month).forEach(adj => {
+    const w = workerMap[adj.worker_id];
+    if (!w) return;
+    w.totalPay += adj.amount;
+    w.adjustments.push({ adjId: adj.id, date: '', companyName: '', amount: adj.amount, note: adj.note, manual: true });
+  });
+
   const rows = Object.values(workerMap).sort((a, b) => b.totalPay - a.totalPay);
   const grandTotal = rows.reduce((s, r) => s + r.totalPay, 0);
   const avgPay = rows.length > 0 ? Math.round(grandTotal / rows.length) : 0;
@@ -242,7 +250,7 @@ function renderStaffPay() {
                 return `<tr class="sp-row">
                   <td style="font-weight:600;text-align:left;padding-left:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.name)}${r.isBusiness ? ' <span class="badge" style="font-size:9px;padding:1px 5px;background:#e3f2fd;color:#1565c0;font-weight:600">계산서</span>' : ''}</td>
                   <td>${r.companies.length}개</td>
-                  <td class="admin-pay-cell">${fmt(r.totalPay)}원${(r.adjustments || []).length ? `<div style="font-size:10px;color:var(--text2)">대신 근무 ${(() => { const v = r.adjustments.reduce((s, x) => s + x.amount, 0); return (v > 0 ? '+' : '') + fmt(v); })()}원</div>` : ''}</td>
+                  <td class="admin-pay-cell">${fmt(r.totalPay)}원${(r.adjustments || []).length ? `<div style="font-size:10px;color:var(--text2)">조정 ${(() => { const v = r.adjustments.reduce((s, x) => s + x.amount, 0); return (v > 0 ? '+' : '') + fmt(v); })()}원</div>` : ''}</td>
                   <td style="color:${r.isBusiness ? 'var(--text2)' : 'var(--red)'}">${r.isBusiness ? '-' : fmt(deduction) + '원'}</td>
                   <td class="admin-pay-cell" style="font-weight:700">${fmt(netPay)}원</td>
                   <td>
@@ -535,27 +543,36 @@ function openStaffPayDetail(workerId) {
         </tbody>
         <tfoot>
           <tr style="font-weight:700;background:var(--bg3)">
-            <td>합계</td>
+            <td>업체 합계</td>
             <td></td>
             <td></td>
             <td></td>
-            <td class="admin-pay-cell">${fmt(worker.totalPay)}원</td>
+            <td class="admin-pay-cell">${fmt(worker.companies.reduce((s, c) => s + c.finalPay, 0))}원</td>
             ${!confirmed ? '<td></td>' : ''}
           </tr>
         </tfoot>
       </table>
     </div>
 
+    <div class="section-title" style="font-size:14px;margin:16px 0 8px">급여 조정 · 대신 근무</div>
     ${(worker.adjustments || []).length ? `
-      <div class="section-title" style="font-size:14px;margin:16px 0 8px">대신 근무 반영</div>
       <div class="table-wrap"><table>
-        <thead><tr><th>날짜</th><th>업체</th><th>내용</th><th>금액</th></tr></thead>
+        <thead><tr><th>날짜</th><th>업체</th><th>내용</th><th>금액</th>${!confirmed ? '<th></th>' : ''}</tr></thead>
         <tbody>${worker.adjustments.map(x => `<tr>
-          <td>${x.date.slice(5).replace('-', '/')}</td><td>${escapeHtml(x.companyName)}</td>
+          <td>${x.date ? x.date.slice(5).replace('-', '/') : '-'}</td><td>${escapeHtml(x.companyName || '-')}</td>
           <td>${escapeHtml(x.note)}</td><td class="admin-pay-cell">${x.amount > 0 ? '+' : ''}${fmt(x.amount)}원</td>
+          ${!confirmed ? `<td>${x.manual ? `<button class="btn-sm" style="font-size:11px;border:1px solid var(--border);background:transparent;color:var(--text2)" onclick="deletePayAdjustment('${x.adjId}', '${workerId}')">삭제</button>` : ''}</td>` : ''}
         </tr>`).join('')}</tbody>
+        <tfoot><tr style="font-weight:700;background:var(--bg3)"><td colspan="3">조정 합계</td>
+          <td class="admin-pay-cell">${fmt(worker.adjustments.reduce((s, x) => s + x.amount, 0))}원</td>${!confirmed ? '<td></td>' : ''}</tr></tfoot>
       </table></div>
-    ` : ''}
+    ` : '<p class="text-muted" style="font-size:12px">조정 내역이 없어요.</p>'}
+    ${!confirmed ? `
+      <div style="display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap">
+        <input id="adjAmount" type="text" inputmode="numeric" placeholder="금액 (차감은 -)" style="width:140px">
+        <input id="adjNote" placeholder="사유 (예: 대표 대신 근무)" style="flex:1;min-width:180px">
+        <button class="btn-sm btn-green" onclick="addPayAdjustment('${workerId}')">조정 추가</button>
+      </div>` : ''}
 
     ${confirmed ? `
       <div style="margin-top:12px;padding:10px 14px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:8px;font-size:12px;color:var(--green)">
@@ -668,6 +685,42 @@ async function generateNextMonth() {
   }
 }
 
+
+/** 급여 조정 줄 추가 (상여 +, 차감 −) */
+async function addPayAdjustment(workerId) {
+  const month = selectedMonth;
+  const raw = String($('adjAmount').value).replace(/,/g, '').trim();
+  const amount = parseInt(raw, 10);
+  const note = $('adjNote').value.trim();
+  if (!raw || isNaN(amount) || amount === 0) return toast('금액을 입력하세요 (차감은 -)', 'error');
+  if (!note) return toast('사유를 입력하세요', 'error');
+  const { data, error } = await sb.from('pay_adjustments')
+    .insert({ worker_id: workerId, month, amount, note, created_by: (typeof currentWorker !== 'undefined' && currentWorker) ? currentWorker.id : null })
+    .select();
+  if (error) return toast('저장 실패: ' + error.message, 'error');
+  adminData.payAdjustments = (adminData.payAdjustments || []).concat(data || []);
+  toast('조정을 추가했어요');
+  renderStaffPay();
+  openStaffPayDetail(workerId);
+}
+
+async function deletePayAdjustment(adjId, workerId) {
+  if (!confirm('이 조정 줄을 지울까요?')) return;
+  const { error } = await sb.from('pay_adjustments').delete().eq('id', adjId);
+  if (error) return toast('삭제 실패: ' + error.message, 'error');
+  adminData.payAdjustments = (adminData.payAdjustments || []).filter(x => x.id !== adjId);
+  renderStaffPay();
+  openStaffPayDetail(workerId);
+}
+
+/** 명세서에 넣을 줄: 업체별 지급 + 조정·대신 근무 */
+function payslipLines(worker) {
+  return worker.companies.map(c => ({ companyName: c.companyName, finalPay: c.finalPay }))
+    .concat((worker.adjustments || []).map(x => ({
+      companyName: (x.manual ? '조정: ' : '대신 근무: ') + (x.companyName ? x.companyName + ' ' : '') + x.note + (x.date ? ' (' + x.date.slice(5).replace('-', '/') + ')' : ''),
+      finalPay: x.amount,
+    })));
+}
 
 // ════════════════════════════════════════════════════
 // 대신 근무
@@ -827,7 +880,7 @@ function downloadPayslipExcel(workerId) {
 
   // 시트2: 업체별 지급내역
   const detailHeaders = ['업체명', '지급금액(원)'];
-  const detailRows = worker.companies.map(c => [c.companyName, c.finalPay]);
+  const detailRows = payslipLines(worker).map(c => [c.companyName, c.finalPay]);
   detailRows.push(['합계', worker.totalPay]);
 
   downloadExcelMultiSheet(
@@ -909,7 +962,7 @@ function downloadPayslipPDF(workerId) {
   y += 5;
 
   // 테이블 행
-  worker.companies.forEach(c => {
+  payslipLines(worker).forEach(c => {
     if (y > 270) {
       doc.addPage();
       y = 20;
@@ -940,7 +993,7 @@ function downloadPayImage(workerId) {
   generatePayImage({
     workerName: worker.name,
     month: month,
-    companies: worker.companies.map(c => ({ companyName: c.companyName, finalPay: c.finalPay })),
+    companies: payslipLines(worker),
     totalPay: worker.totalPay,
     isBusiness: worker.isBusiness,
   });
@@ -968,7 +1021,7 @@ function downloadAllPayslips() {
       ['── 업체별 지급내역 ──', ''],
     ];
 
-    worker.companies.forEach(c => {
+    payslipLines(worker).forEach(c => {
       dataRows.push([c.companyName, c.finalPay]);
     });
 
